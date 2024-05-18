@@ -22,8 +22,8 @@ AnalogButtons analogButtons = AnalogButtons(BUTTONS_PIN, BUTTONS_PIN_MODE, BUTTO
 
 Button* pressedButton;
 Choice choices[6];
-char userInputString[DISPLAY_COLUMNS + 1];
-char displayedLine[DISPLAY_COLUMNS + 1];
+char userInputString[LABEL_LENGTH + 1];
+char displayedLine[LABEL_LENGTH + 1];
 
  
 // ACTUAL keypad
@@ -68,10 +68,7 @@ void lcdPrint(char *message, uint8_t y) {
   if (y) {
     lcdClearLine(y);
     lcdSetCursor(0, y);
-  }
-  // int y = lcd.cursorY();
-  // labelCpy(displayedLine, message);
-  // displayedLine[DISPLAY_COLUMS - y] = '\0';  
+  } 
   lcd.print(message);
 }
 
@@ -132,8 +129,8 @@ const byte rightArrow[8] = {
 };
 
 void labelcpy(char* destination, const char* source) {
-  strncpy(destination, source, DISPLAY_COLUMNS);
-  destination[strnlen(destination, DISPLAY_COLUMNS)] = '\0';
+  strncpy(destination, source, LABEL_LENGTH);
+  destination[strnlen(destination, LABEL_LENGTH)] = '\0';
 }
 
 void initLcdAndButtons() {
@@ -244,7 +241,7 @@ int inputNumber(char *prompt, int initialUserInput, int stepSize = 1, int min = 
 }
 
 
-int selectChoice(int howManyChoices, int initialUserInput, char *optionalHeader = "") {
+int8_t selectChoice(int howManyChoices, int initialUserInput, char *optionalHeader = "") {
   int selectedIndex = 0;      // Default selection is the first choice
   int firstVisibleIndex = 0;  // Index of the first choice visible on the screen
   bool displayChanged = true;

@@ -90,42 +90,36 @@ void restoreDefaultConfig() {
     { Conditions::TRAY_EMPTY, Conditions::SOIL_DRY, Conditions::TRAY_OR_SOIL },
     { Conditions::TRAY_FULL, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
     FeedFrom::FEED_FROM_TRAY,
-    true
   };
   config.actions[1] = Action {
     "TOP FEED ROFF",
     { Conditions::TRAY_IGNORED, Conditions::SOIL_DAMP, Conditions::NO_LOGIC },
     { Conditions::TRAY_WET, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
     FeedFrom::FEED_FROM_TOP,
-    true
   };
   config.actions[2] = Action {
     "STACK FEED",
     { Conditions::TRAY_IGNORED, Conditions::SOIL_DAMP, Conditions::NO_LOGIC },
     { Conditions::TRAY_WET, Conditions::SOIL_DAMP, Conditions::TRAY_OR_SOIL },
     FeedFrom::FEED_FROM_TOP,
-    true
   };
   config.actions[3] = Action {
     "STACK FEED ROFF",
     { Conditions::TRAY_IGNORED, Conditions::SOIL_DAMP, Conditions::NO_LOGIC },
     { Conditions::TRAY_WET, Conditions::SOIL_WET, Conditions::TRAY_AND_SOIL },
     FeedFrom::FEED_FROM_TOP,
-    true
   };
   config.actions[4] = Action {
     "FEED RECIRCUL8",
     { Conditions::TRAY_IGNORED, Conditions::SOIL_DAMP, Conditions::NO_LOGIC },
     { Conditions::TRAY_IGNORED, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
     FeedFrom::FEED_FROM_TOP,
-    true
   };
   config.actions[5] = Action {
     "Custom 1",
     { },
     { },
     FeedFrom::FEED_FROM_TOP,
-    false
   };
   config.activeActionsIndexes[0] = -1;
   config.activeActionsIndexes[1] = -1;

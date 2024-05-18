@@ -3,7 +3,8 @@
 
 void initLcdAndButtons();
 
-#define DISPLAY_COLUMNS 15
+#define DISPLAY_COLUMNS 20
+#define LABEL_LENGTH 15
 
 #define BUTTONS_PIN A6
 #define BUTTONS_PIN_MODE INPUT         // Set to INPUT to disable internal pull-up resistor
@@ -14,14 +15,14 @@ void initLcdAndButtons();
 // **         USER INPUT                 **
 // ****************************************
 struct Choice {
-  char label[DISPLAY_COLUMNS + 1];
+  char label[LABEL_LENGTH + 1];
   int value;
 };
 
 bool confirm(char *question, bool initialUserInput = 1);
 bool alert(char *question);
 
-int selectChoice(int howManyChoices, int initialUserInput, char *optionalHeader = "");
+int8_t selectChoice(int howManyChoices, int initialUserInput, char *optionalHeader = "");
 void setChoices(const char *label0="",int value0=0,const char *label1="",int value1=0,const char *label2="",int value2=0,const char *label3="",int value3=0,const char *label4="",int value4=0,const char *label5="",int value5=0);
 void setChoice(unsigned char index, const char *label="",int value=0);
 Choice* getChoices();

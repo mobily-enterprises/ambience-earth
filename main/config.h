@@ -12,10 +12,10 @@
 // ************************************************************
 
 typedef struct {
-  enum : uint8_t { P1, S1 } what;
+  enum : int8_t { P1, S1 } what;
 } WaterSource;
 
-enum FeedFrom : uint8_t {
+enum FeedFrom : int8_t {
   FEED_FROM_TOP,
   FEED_FROM_TRAY
 };
@@ -23,17 +23,16 @@ enum FeedFrom : uint8_t {
 typedef struct {
 //   enum : uint8_t { TRAY_IGNORED, TRAY_EMPTY, TRAY_AT_MOST_WET, TRAY_AT_LEAST_WET, TRAY_AT_MOST_HALF_FULL, TRAY_AT_LEAST_HALF_FULL, TRAY_FULL } tray;
 //  enum : uint8_t { SOIL_IGNORED, SOIL_DRY, SOIL_AT_MOST_DAMP, SOIL_AT_LEAST_DAMP, SOIL_AT_MOST_WET, SOIL_AT_LEAST_WET, SOIL_VERY_WET } soil;
-  enum : uint8_t { TRAY_IGNORED, TRAY_EMPTY, TRAY_WET, TRAY_HALF_FULL, TRAY_FULL } tray;
-  enum : uint8_t { SOIL_IGNORED, SOIL_DRY, SOIL_DAMP, SOIL_WET, SOIL_VERY_WET } soil;
-  enum : uint8_t { NO_LOGIC, TRAY_OR_SOIL, TRAY_AND_SOIL } logic;
+  enum : int8_t { TRAY_IGNORED, TRAY_EMPTY, TRAY_WET, TRAY_HALF_FULL, TRAY_FULL } tray;
+  enum : int8_t { SOIL_IGNORED, SOIL_DRY, SOIL_DAMP, SOIL_WET, SOIL_VERY_WET } soil;
+  enum : int8_t { NO_LOGIC, TRAY_OR_SOIL, TRAY_AND_SOIL } logic;
 } Conditions;
 
 typedef struct {
-  char name[DISPLAY_COLUMNS + 1];
+  char name[LABEL_LENGTH + 1];
   Conditions triggerConditions;
-  Conditions endConditions;
+  Conditions stopConditions;
   FeedFrom feedFrom;
-  bool active;
 } Action; 
 
 typedef struct {
