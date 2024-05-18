@@ -338,25 +338,26 @@ void lcdAbortedMessage() {
 bool alert(char *optionalHeader = "") {
   setChoices("OK", 1);
   
-  int userInput = selectChoice(1, 1, optionalHeader);
+  int8_t userInput = selectChoice(1, 1, optionalHeader);
   return 1;
 }
 
 bool confirm(char *question, bool initialUserInput = 1) {
   setChoices("YES", 1, "NO", 0);
   
-  int userInput = selectChoice(2, initialUserInput ? 1 : 0, question);
+  int8_t userInput = selectChoice(2, initialUserInput ? 1 : 0, question);
   return userInput == 1 ? true : false;
 }
 
-void inputString(char *prompt, char *initialUserInput, char *optionalHeader = MSG_EMPTY) {
-  int cursorPosition = 0;
+void inputString(char *prompt, char *initialUserInput, char *optionalHeader = MSG_EMPTY, bool asEdit = false) {
+  uint8_t cursorPosition = 0;
   bool displayChanged = true;
   bool cursorVisible = true;
   unsigned long previousMillis = 0;
-#define HEADER_Y 0
-#define PROMPT_Y 2
-#define INPUT_Y 3
+
+  #define HEADER_Y 0
+  #define PROMPT_Y 2
+  #define INPUT_Y 3
 
   // Check if initialUserInput is not empty
   if (!strlen(initialUserInput) > 0) {
@@ -407,7 +408,9 @@ void inputString(char *prompt, char *initialUserInput, char *optionalHeader = MS
 
     if (pressedButton == &okButton) {
       if (cursorPosition == 0) labelcpy(userInputString, MSG_STAR);
+
       // If OK button is pressed, return the input string
+      if (asEdit) labelcpy(initialUserInput, userInputString);
       return;
     } else if (pressedButton == &downButton) {
       if (cursorPosition != 0) {
@@ -430,15 +433,14 @@ void inputString(char *prompt, char *initialUserInput, char *optionalHeader = MS
       }
       displayChanged = true;
     } else if (pressedButton == &leftButton) {
-      // if (cursorPosition == 0) return "*";
+      if (cursorPosition == 0) {
+        // This will count as "go back", the initial value will be considered
+        labelcpy(userInputString, "*");
+        return;
+      }
       // If LEFT button is pressed, move cursor to the previous position
       cursorPosition--;
-      // If cursor goes below 0, wrap around to 15
-      if (cursorPosition < 0) {
-        // This will count as "go back", the initial value will be considered
-        return initialUserInput;
-        cursorPosition = 15;
-      }
+      
       displayChanged = true;
     } else {
       // Serial.println("MEH");

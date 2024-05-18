@@ -3,7 +3,7 @@
 
 void initLcdAndButtons();
 
-#define DISPLAY_COLUMNS 20
+#define DISPLAY_COLUMNS 15
 
 #define BUTTONS_PIN A6
 #define BUTTONS_PIN_MODE INPUT         // Set to INPUT to disable internal pull-up resistor
@@ -19,7 +19,6 @@ struct Choice {
 };
 
 bool confirm(char *question, bool initialUserInput = 1);
-
 bool alert(char *question);
 
 int selectChoice(int howManyChoices, int initialUserInput, char *optionalHeader = "");
@@ -29,9 +28,11 @@ Choice* getChoices();
 
 int inputNumber(char *prompt, int initialUserInput, int stepSize, int min = 0, int max = 100, char *postFix = "", char *optionalHeader = "");
 
-void inputString(char *prompt, char *initialUserInput, char *optionalHeader = "");
+void inputString(char *prompt, char *initialUserInput, char *optionalHeader = "", bool asEdit = false);
 
 char* getUserInputString();
+
+void labelcpy(char* destination, const char* source);
 
 // ****************************************
 // **         USER OUTPUT                **

@@ -89,46 +89,47 @@ void restoreDefaultConfig() {
     "BOTTOM FEED",
     { Conditions::TRAY_EMPTY, Conditions::SOIL_DRY, Conditions::TRAY_OR_SOIL },
     { Conditions::TRAY_FULL, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
-    // { Conditions::TRAY_AT_LEAST_HALF_FULL, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC }, // light
     FeedFrom::FEED_FROM_TRAY,
     true
   };
   config.actions[1] = Action {
-    "TOP FEED WITH RUNOFF",
-    { Conditions::TRAY_IGNORED, Conditions::SOIL_AT_MOST_DAMP, Conditions::NO_LOGIC },
-    { Conditions::TRAY_AT_LEAST_WET, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
+    "TOP FEED ROFF",
+    { Conditions::TRAY_IGNORED, Conditions::SOIL_DAMP, Conditions::NO_LOGIC },
+    { Conditions::TRAY_WET, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
     FeedFrom::FEED_FROM_TOP,
-    // { Conditions::TRAY_AT_LEAST_WET, Conditions::SOIL_AT_LEAST_WET, Conditions::TRAY_AND_SOIL }, // Plenty runoff
     true
   };
   config.actions[2] = Action {
     "STACK FEED",
-    { Conditions::TRAY_IGNORED, Conditions::SOIL_AT_MOST_DAMP, Conditions::NO_LOGIC },
-    { Conditions::TRAY_AT_LEAST_WET, Conditions::SOIL_AT_LEAST_DAMP, Conditions::TRAY_OR_SOIL },
+    { Conditions::TRAY_IGNORED, Conditions::SOIL_DAMP, Conditions::NO_LOGIC },
+    { Conditions::TRAY_WET, Conditions::SOIL_DAMP, Conditions::TRAY_OR_SOIL },
     FeedFrom::FEED_FROM_TOP,
     true
   };
   config.actions[3] = Action {
-    "STACK FEED RUNOFF",
-    { Conditions::TRAY_IGNORED, Conditions::SOIL_AT_MOST_DAMP, Conditions::NO_LOGIC },
-    { Conditions::TRAY_AT_LEAST_WET, Conditions::SOIL_AT_LEAST_WET, Conditions::TRAY_AND_SOIL },
+    "STACK FEED ROFF",
+    { Conditions::TRAY_IGNORED, Conditions::SOIL_DAMP, Conditions::NO_LOGIC },
+    { Conditions::TRAY_WET, Conditions::SOIL_WET, Conditions::TRAY_AND_SOIL },
     FeedFrom::FEED_FROM_TOP,
     true
   };
   config.actions[4] = Action {
-    "FEED RECYCLING",
-    { Conditions::TRAY_IGNORED, Conditions::SOIL_AT_MOST_DAMP, Conditions::NO_LOGIC },
+    "FEED RECIRCUL8",
+    { Conditions::TRAY_IGNORED, Conditions::SOIL_DAMP, Conditions::NO_LOGIC },
     { Conditions::TRAY_IGNORED, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
     FeedFrom::FEED_FROM_TOP,
     true
   };
   config.actions[5] = Action {
-    "Custom action 1",
+    "Custom 1",
     { },
     { },
     FeedFrom::FEED_FROM_TOP,
     false
   };
-  config.activeAction = { -1, 0 , 0 };  
+  config.activeActionsIndexes[0] = -1;
+  config.activeActionsIndexes[1] = -1;
+  config.activeActionsIndexes[2] = -1;
+  config.activeActionsIndexes[3] = -1;  
 }
 

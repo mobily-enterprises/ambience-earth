@@ -5,7 +5,6 @@
 #include <Arduino.h>
 #include "ui.h"
 
-#define LABEL_STRING_LENGTH 20
 #define CONFIG_ADDRESS 0
 
 // ************************************************************
@@ -22,8 +21,10 @@ enum FeedFrom : uint8_t {
 };
 
 typedef struct {
-  enum : uint8_t { TRAY_IGNORED, TRAY_EMPTY, TRAY_AT_MOST_WET, TRAY_AT_LEAST_WET, TRAY_AT_MOST_HALF_FULL, TRAY_AT_LEAST_HALF_FULL, TRAY_FULL } tray;
-  enum : uint8_t { SOIL_IGNORED, SOIL_DRY, SOIL_AT_MOST_DAMP, SOIL_AT_LEAST_DAMP, SOIL_AT_MOST_WET, SOIL_AT_LEAST_WET, SOIL_VERY_WET } soil;
+//   enum : uint8_t { TRAY_IGNORED, TRAY_EMPTY, TRAY_AT_MOST_WET, TRAY_AT_LEAST_WET, TRAY_AT_MOST_HALF_FULL, TRAY_AT_LEAST_HALF_FULL, TRAY_FULL } tray;
+//  enum : uint8_t { SOIL_IGNORED, SOIL_DRY, SOIL_AT_MOST_DAMP, SOIL_AT_LEAST_DAMP, SOIL_AT_MOST_WET, SOIL_AT_LEAST_WET, SOIL_VERY_WET } soil;
+  enum : uint8_t { TRAY_IGNORED, TRAY_EMPTY, TRAY_WET, TRAY_HALF_FULL, TRAY_FULL } tray;
+  enum : uint8_t { SOIL_IGNORED, SOIL_DRY, SOIL_DAMP, SOIL_WET, SOIL_VERY_WET } soil;
   enum : uint8_t { NO_LOGIC, TRAY_OR_SOIL, TRAY_AND_SOIL } logic;
 } Conditions;
 
@@ -34,12 +35,6 @@ typedef struct {
   FeedFrom feedFrom;
   bool active;
 } Action; 
-
-typedef struct {
-  uint8_t actionIndex;
-  uint8_t everyNFeeds; // 0 for every time
-  uint8_t maxNTimesPerHour; // 0 for every time
-} ActiveAction;
 
 typedef struct {
     uint8_t checksum;
@@ -64,7 +59,9 @@ typedef struct {
     int16_t trayWaterLevelSensorCalibrationHalfFull;
 
     Action actions[6];
-    ActiveAction activeAction;
+
+    int8_t activeActionsIndexes[4];
+    int a;
 } Config;
 
 uint8_t calculateConfigChecksum();

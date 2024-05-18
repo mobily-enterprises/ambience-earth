@@ -51,11 +51,13 @@ unsigned long previousMillis = 0;
             -Active         
           - Delete
       Calibration
-        Cal. moisture sensor
+        X Cal. moisture sensor
         Cal. water levels
-        Cal. empty tray sensor  
+          
       Reset
-    
+      Set active actions (up to 4)
+
+
     Allow function to reset config and re-ask initial questions
     Have screen display current actions configured and current parameters
 
@@ -70,7 +72,7 @@ void emptyTrayIfNecessary() {
 
 void setup() {
   
- initLcdAndButtons();
+  initLcdAndButtons();
 
   extern LiquidCrystal_I2C lcd;
   pinMode(BUTTONS_PIN, INPUT_PULLUP);
@@ -78,17 +80,13 @@ void setup() {
   Serial.begin(9600);  // Initialize serial communication at 9600 baud rate
   // pinMode(LED_PIN, OUTPUT); // Set LED pin as output
 
-  // Initialize EEPROM
-
   initLcdAndButtons();
   void initSensors();
 
   loadConfig();
  
-  // inputString("Enter a string:", "STOcaZzO AND $T", "Configuring meaw");
-
   if (!configChecksumCorrect()) {
-    Serial.println("CHECKSUM INCORRECT?!?");
+    // Serial.println("CHECKSUM INCORRECT?!?");
     restoreDefaultConfig();
     saveConfig();
   }
@@ -127,7 +125,7 @@ void loop() {
 
 
 void mainMenu() {
-  int choice;
+  int8_t choice;
   do {
     setChoices(
       "Run action", 1, 
@@ -176,28 +174,29 @@ void pickAndRunAction() {
     }
   }
 
-  unsigned char choice = selectChoice(c, 0);
+  int8_t choice = selectChoice(c, 0);
   
   // List appropriate actions
   // Pick one
   // run runAction(int) on the picked action
 }
 
+
+
+
 void settings () {
-  int choice = 0;
+  int8_t choice = 0;
 
   while(choice != 4 && choice != -1) {
+    lcdClear();
     setChoices(
       "Edit actions", 1, 
-      "Default moist levls", 2,
+      "Moist levls", 2,
       "Calibrate", 3,
-      "Factory reset", 10,
+      "Reset", 10,
       "Go back", 11
     );
-    choice = selectChoice(4, 2);
-    lcdPrintNumber(choice, 4);
-    delay(1000);
-
+    choice = selectChoice(4, 1);
 
     if (choice == 1) settingsEditActions();
     else if (choice == 2) settingsDefaultMoistLevels();
@@ -205,64 +204,115 @@ void settings () {
   } 
 }
 
-// YOU ARE HERE
-void settingsEditActions() {
-    
+Conditions inputConditions(Conditions *initialConditions, char* prompt) {
+  Serial.println(prompt);
 
-/*
-      -Action 1
-      -Action 2
-      -Action 3
-      -Action 4
-      -Action 5
-      -Action 6
-      -Action 7
-      -Empty tray
-*/
+  setChoices(
+    "Ignore tray", Conditions::TRAY_IGNORED,
+    "Tray is empty", Conditions::TRAY_EMPTY,
+    "Tray is wet", Conditions::TRAY_WET,
+    "Tray is half full", Conditions::TRAY_HALF_FULL,
+    "Tray is full", Conditions::TRAY_FULL
+  );
+  int8_t tray = (int8_t) selectChoice( 5, (int8_t)initialConditions->tray, prompt);
+  if (tray == -1) return;
+
+  setChoices(
+    "Ignore soil", Conditions::SOIL_IGNORED,
+    "Soil is dry", Conditions::SOIL_DRY,
+    "Soil is damp", Conditions::SOIL_DAMP,
+    "Soil is wet", Conditions::SOIL_WET,
+    "Soil is very wet", Conditions::SOIL_VERY_WET
+  );
+  int8_t soil = (int8_t) selectChoice( 5, (int8_t)initialConditions->soil, prompt);
+  if (soil == -1) return;
+
+  int8_t logic;
+
+  if (tray != -1 && soil != -1) {
+    setChoices(
+      "BOTH tray and soil", Conditions::SOIL_IGNORED,
+      "EITHER tray or soil", Conditions::SOIL_DRY
+    );
+    logic = (int8_t) selectChoice( 5, (int8_t)initialConditions->logic, prompt);
+    if (logic == -1) return;
+  } else {
+    logic = Conditions::NO_LOGIC;
+  }
+
+  // Serial.println((int)initialConditions->tray); // Print the value of tray
+  // Serial.println((int)initialConditions->soil); // Print the value of tray    
+}
+
+void settingsEditActions() {
+  lcdClear();
+  uint8_t i = 0;
+  while(true) {
+
+    // Set the choices
+    for (i = 0; i <= 5; i++) setChoice(i, config.actions[i].name, i);
+
+    // Pick one. If -1, then get out of this menu with the "break"
+    int8_t choiceId = selectChoice(i, 0);
+    if (choiceId == -1) break;
+
+    // Editing of the choice's name
+    // Note: until saved, the value will stay in userInputString
+    // I don't want to waste 20 bytes to store something that might
+    // not get used
+    inputString("Name:", config.actions[choiceId].name, nullptr);
+    if (getUserInputString()[0] == '*') continue;
+
+    Conditions triggerConditions;
+    triggerConditions.tray = config.actions[choiceId].triggerConditions.tray;
+    triggerConditions.soil = config.actions[choiceId].triggerConditions.soil;
+    triggerConditions.logic = config.actions[choiceId].triggerConditions.logic;
+    inputConditions(&triggerConditions, "Open water when...");
+    if (triggerConditions.tray == -1 || triggerConditions.soil == -1 || triggerConditions.logic == -1) continue;
+
+    // Apply changes back to config.actions[choiceId].triggerConditions
+    config.actions[choiceId].triggerConditions.tray = triggerConditions.tray;
+    config.actions[choiceId].triggerConditions.soil = triggerConditions.soil;
+    config.actions[choiceId].triggerConditions.logic = triggerConditions.logic;
+
+    break;
+  }
 }
 
 void settingsDefaultMoistLevels() {
-  uint8_t soilLittleMoistPercentage;
-  uint8_t soilMoistPercentage;
-  uint8_t soilVeryMoistPercentage;
+  int8_t soilLittleMoistPercentage;
+  int8_t soilMoistPercentage;
+  int8_t soilVeryMoistPercentage;
 
-  soilVeryMoistPercentage = inputNumber("Over ", config.soilVeryMoistPercentage, 5, 0, 95, "%", "");
+  Serial.println("D1");
+  soilVeryMoistPercentage = inputNumber("Over ", config.soilVeryMoistPercentage, 5, 0, 95, "%", "Very moist");
   if (soilVeryMoistPercentage == -1) return
-
-  soilMoistPercentage = inputNumber("Over ", config.soilMoistPercentage, 5, 0, config.soilVeryMoistPercentage - 5, "%", "");
+Serial.println("D2");
+  soilMoistPercentage = inputNumber("Over ", config.soilMoistPercentage, 5, 0, config.soilVeryMoistPercentage - 5, "%", "Moist");
   if (soilVeryMoistPercentage == -1) return
-  
-  soilLittleMoistPercentage = inputNumber("Over ", config.soilLittleMoistPercentage, 5, 0, config.soilMoistPercentage - 5, "%", "");
+  Serial.println("D3");
+  soilLittleMoistPercentage = inputNumber("Over ", config.soilLittleMoistPercentage, 5, 0, config.soilMoistPercentage - 5, "%", "Little moist");
   if (soilVeryMoistPercentage == -1) return
-
+Serial.println("D4");
   lcdClear();
   
   lcdPrint("0\%-", 0);
-  lcdPrint(soilLittleMoistPercentage - 1);
+  lcdPrintNumber(soilLittleMoistPercentage - 1);
   lcdPrint("% Dry");
 
-  lcdPrint(soilLittleMoistPercentage, 1);
+  lcdPrintNumber(soilLittleMoistPercentage, 1);
   lcdPrint("%-");
-  lcdPrint(soilMoistPercentage - 1);
+  lcdPrintNumber(soilMoistPercentage - 1);
   lcdPrint("% Little moist");
 
-  lcdPrint(soilMoistPercentage, 1);
+  lcdPrintNumber(soilMoistPercentage, 2);
   lcdPrint("%-");
-  lcdPrint(soilVeryMoistPercentage - 1);
+  lcdPrintNumber(soilVeryMoistPercentage - 1);
   lcdPrint("% Moist");
 
-  lcdPrint(soilVeryMoistPercentage, 1);
-  lcdPrint("%-100%");
-  lcdPrint("% Very moist");
-
-
-  lcdPrint(soilLittleMoistPercentage + 1, 1);
-  lcdPrint("%-");
-  lcdPrint(soilMoistPercentage);
-  lcdPrint("% moist");
-
-  lcdPrint(soilMoistPercentage + 1, 1);
+  lcdPrintNumber(soilVeryMoistPercentage, 3);
   lcdPrint("%-100% Very moist");
+  
   delay(3000);
   if (confirm("Save?")) {
     saveConfig();
@@ -289,7 +339,7 @@ int runInitialSetup() {
   saveConfig();
 
   lcdClear();
-  lcdPrint("Unit ready!");
+  lcdPrint("Done!");
 
   return 1;
 }
