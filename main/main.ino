@@ -22,48 +22,17 @@ unsigned long previousMillis = 0;
 
 /*
   TODO: 
-    X Allow for stack feeding: run action one time in 4, feeds, etc.
-    X Write function to write settings to ROM
-    X Write function to initialise ROM to factory defaults
-    X Load config on startup: if not initialised, set factory defaults and force calibration
-
-    X Reorganise WHOLE codebase so that it actually makes sense and doesn't waste memory
-
-    Ask initial questions
-     X Top/bottom
-     X Tray or wastepipe (trayNeedsEmptying, which if false nullifies all of the "water out" business)
-     - Calibrate
-
-    Write calibration procedures 
-    After initial questions, resave configuration
-
-    Make main menu
-
-    Run action... (only ones matching watering method)
-    
-    Settings
-      Edit actions
-        - (List of actions)
-          - Edit
-            -Name
-            -Start conditions
-            -Stop conditions
-            -Active         
-          - Delete
-      Calibration
-        X Cal. moisture sensor
-        Cal. water levels
-          
-      Reset
-      Reset stats
-      Set active actions (up to 4)
-    Actually run programmes
-    Manage and communicate stats in main screen
-
-    Allow function to reset config and re-ask initial questions
-    Have screen display current actions configured and current parameters
-
-    Actually run the set programmes, displaying stats
+    Set active actions (up to 4)
+    Test that editing action doesn't allow "feedFrom" if active
+    Write calibration procedures for water level
+    Force calibration procedures on setup
+    Implement "reset"
+    Print stats on home screen
+    Add "View logs" function to browse through logs
+    Implement running of actions, with timeout to prevent floods
+    Implement built-in action "emptyTray", config to enable it
+    Write infrastructure for stats, logging waterings with date/event, cycling EEPROM  
+    Main screen: show stats, current settings (scrolling)
 */
 
 void emptyTrayIfNecessary() {
@@ -208,7 +177,17 @@ void settings () {
   } 
 }
 
-Conditions inputConditions(Conditions *initialConditions, char *verb) {
+
+bool isActionActive(int8_t actionId) {
+  for (size_t i = 0; i < 4; ++i) {
+    if (config.activeActionsIndexes[i] == actionId) {
+      return true;
+    }
+  }
+  return false;
+}
+
+Conditions inputConditions(Conditions *initialConditions, char *verb, int8_t choiceId) {
 
   char message[20];
   strcpy(message, "XXXX when tray is:");
@@ -233,7 +212,7 @@ Conditions inputConditions(Conditions *initialConditions, char *verb) {
     MSG_SOIL_WET, Conditions::SOIL_WET,
     MSG_SOIL_VERY_WET, Conditions::SOIL_VERY_WET
   );
-  int8_t soil = (int8_t) selectChoice( 5, (int8_t)initialConditions->soil, "Water when soil is:");
+  int8_t soil = (int8_t) selectChoice( 5, (int8_t)initialConditions->soil, message);
   initialConditions->soil = soil;
   if (soil == -1) return;
 
@@ -246,13 +225,12 @@ Conditions inputConditions(Conditions *initialConditions, char *verb) {
     );
     logic = (int8_t) selectChoice( 5, (int8_t)initialConditions->logic, "Logic");
     initialConditions->logic = logic;
-
     if (logic == -1) return;
   } else {
     logic = Conditions::NO_LOGIC;
+    initialConditions->logic = logic;
   }
 
-  
   // Serial.println((int)initialConditions->tray); // Print the value of tray
   // Serial.println((int)initialConditions->soil); // Print the value of tray    
 }
@@ -280,20 +258,38 @@ void settingsEditActions() {
     triggerConditions.tray = config.actions[choiceId].triggerConditions.tray;
     triggerConditions.soil = config.actions[choiceId].triggerConditions.soil;
     triggerConditions.logic = config.actions[choiceId].triggerConditions.logic;
-    inputConditions(&triggerConditions, "Feed");
+    inputConditions(&triggerConditions, "Feed", choiceId);
     if (triggerConditions.tray == -1 || triggerConditions.soil == -1 || triggerConditions.logic == -1) continue;
 
     Conditions stopConditions;
     stopConditions.tray = config.actions[choiceId].stopConditions.tray;
     stopConditions.soil = config.actions[choiceId].stopConditions.soil;
     stopConditions.logic = config.actions[choiceId].stopConditions.logic;
-    inputConditions(&stopConditions, "Stop");
+    inputConditions(&stopConditions, "Stop", choiceId);
     if (stopConditions.tray == -1 || stopConditions.soil == -1 || stopConditions.logic == -1) continue;
 
-    if (confirm("Save?")) {
-
-      labelcpy(config.actions[choiceId].name, getUserInputString());
+    // If it's editing a live one, won't be able to change FeedFrom, which will default to
+    // whatever it's on.
+    int8_t feedFrom;
+    if (isActionActive(choiceId)) {
+      feedFrom = config.actions[choiceId].feedFrom;
+    } else {
       
+      setChoices(
+        MSG_TOP, FeedFrom::FEED_FROM_TOP,
+        MSG_TRAY, FeedFrom::FEED_FROM_TRAY
+      );
+      feedFrom = (int8_t) selectChoice( 2, config.actions[choiceId].feedFrom, MSG_FEED_FROM);
+      
+      if (feedFrom == -1) return;
+    }
+
+    if (confirm(MSG_SAVE_QUESTION)) {
+
+      // Main "action" fields, only overwritten once saving
+      labelcpy(config.actions[choiceId].name, getUserInputString());
+      config.actions[choiceId].feedFrom = feedFrom;
+
       // Apply changes back to config.actions[choiceId].triggerConditions
       config.actions[choiceId].triggerConditions.tray = triggerConditions.tray;
       config.actions[choiceId].triggerConditions.soil = triggerConditions.soil;
@@ -307,8 +303,6 @@ void settingsEditActions() {
       saveConfig();
     }
 
-
-    
     break;
   }
 }
@@ -434,57 +428,3 @@ int calibrateSoilMoistureSensor() {
   
   return true;
 }
-
-
-
-
-  /*
-  userInput = inputNumber("How moist?", 50, 5, 0, 100, "%", "Water level");
-
-  setChoices("First", 1, "Second", 2)
-  userInput = selectChoice(2, 1, "Insert here");
-  // String userInput = inputString("Enter a string:", "STOcaZzO AND $T", "Configuring meaw");
-  
-  // Display the entered string on the LCD
-  lcdClear();
-
-  delay(1000);
-  */
-
-  /*
-  lcd.setCursor(0, 0);
-lcd.print("Michelinoooooo");
-lcd.setCursor(0, 1);
-lcd.print(millis() / 1000);
-
-  Serial.print("LED from LOW to HIGH\n");
-  digitalWrite(LED_PIN, HIGH);
-  delay(1000); 
-  lcd.clear();
-  Serial.print("LED from HIGH to LOW\n");
-  digitalWrite(LED_PIN, LOW);
-  delay(1000); 
-
-  // Read analog values from analog pins A0, A1, and A2
-  int sensorValueA0 = analogRead(A0);
-  int sensorValueA1 = analogRead(A1);
-  int sensorValueA2 = analogRead(A2);
-  int sensorValueA3 = analogRead(A3);
-
-  // Print the sensor values to the serial monitor
-  Serial.print("Sensor value at A0: ");
-  Serial.println(sensorValueA0);
-  
-  Serial.print("Sensor value at A1: ");
-  Serial.println(sensorValueA1);
-  
-  Serial.print("Sensor value at A2: ");
-  Serial.println(sensorValueA2);
-
-  Serial.print("Sensor value at A3: ");
-  Serial.println(sensorValueA3);
-*/
-
-
-
-

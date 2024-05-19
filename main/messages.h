@@ -16,3 +16,8 @@
 #define MSG_SOIL_WET "Wet"
 #define MSG_SOIL_VERY_WET "Very wet"
 
+#define MSG_TOP "Top"
+#define MSG_TRAY "Tray"
+#define MSG_FEED_FROM "Feed from:"
+
+#define MSG_SAVE_QUESTION "Save?"
