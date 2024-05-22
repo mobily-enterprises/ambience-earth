@@ -1,6 +1,8 @@
 #ifndef UI_H
 #define UI_H
 
+#include "messages.h"
+
 void initLcdAndButtons();
 
 #define DISPLAY_COLUMNS 20
@@ -29,7 +31,7 @@ Choice* getChoices();
 
 int inputNumber(char *prompt, int initialUserInput, int stepSize, int min = 0, int max = 100, char *postFix = "", char *optionalHeader = "");
 
-void inputString(char *prompt, char *initialUserInput, char *optionalHeader = "", bool asEdit = false);
+void inputString(char *prompt, char *initialUserInput, char *optionalHeader, bool asEdit = false);
 
 char* getUserInputString();
 
@@ -43,8 +45,9 @@ void lcdClear();
 void lcdClearLine(uint8_t y);
 void lcdPrint(char *message, uint8_t y = 0);
 void lcdPrintNumber(int number, uint8_t y = 0);
+void lcdPrintBool(bool b, uint8_t y = 0);
 void lcdSetCursor(uint8_t x, uint8_t y);
-void lcdAbortedMessage();
+void lcdFlashMessage(char *message, char *message2 = MSG_EMPTY, uint16_t time = 1000);
 void analogButtonsCheck();
 
 

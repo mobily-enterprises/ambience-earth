@@ -79,39 +79,39 @@ void restoreDefaultConfig() {
   config.moistSensorCalibrationDry = 780;
 
   config.trayWaterLevelSensorCalibrationEmpty;
-  config.trayWaterLevelSensorCalibrationWet;
-  config.trayWaterLevelSensorCalibrationHalfFull;
+  config.trayWaterLevelSensorCalibrationHalf;
+  config.trayWaterLevelSensorCalibrationFull;
 
   // Set default checksum
   config.checksum = calculateConfigChecksum();
 
   config.actions[0] = Action {
     "BOTTOM FEED",
-    { Conditions::TRAY_EMPTY, Conditions::SOIL_DRY, Conditions::TRAY_OR_SOIL },
-    { Conditions::TRAY_FULL, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
+    { Conditions::TRAY_DRY, Conditions::SOIL_DRY, Conditions::TRAY_OR_SOIL },
+    { Conditions::TRAY_PLENTY, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
     FeedFrom::FEED_FROM_TRAY,
   };
   config.actions[1] = Action {
     "TOP FEED ROFF",
-    { Conditions::TRAY_IGNORED, Conditions::SOIL_DAMP, Conditions::NO_LOGIC },
-    { Conditions::TRAY_WET, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
+    { Conditions::TRAY_IGNORED, Conditions::SOIL_LITTLE_MOIST, Conditions::NO_LOGIC },
+    { Conditions::TRAY_EMPTY, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
     FeedFrom::FEED_FROM_TOP,
   };
   config.actions[2] = Action {
     "STACK FEED",
-    { Conditions::TRAY_IGNORED, Conditions::SOIL_DAMP, Conditions::NO_LOGIC },
-    { Conditions::TRAY_WET, Conditions::SOIL_DAMP, Conditions::TRAY_OR_SOIL },
+    { Conditions::TRAY_IGNORED, Conditions::SOIL_LITTLE_MOIST, Conditions::NO_LOGIC },
+    { Conditions::TRAY_EMPTY, Conditions::SOIL_LITTLE_MOIST, Conditions::TRAY_OR_SOIL },
     FeedFrom::FEED_FROM_TOP,
   };
   config.actions[3] = Action {
     "STACK FEED ROFF",
-    { Conditions::TRAY_IGNORED, Conditions::SOIL_DAMP, Conditions::NO_LOGIC },
-    { Conditions::TRAY_WET, Conditions::SOIL_WET, Conditions::TRAY_AND_SOIL },
+    { Conditions::TRAY_IGNORED, Conditions::SOIL_LITTLE_MOIST, Conditions::NO_LOGIC },
+    { Conditions::TRAY_EMPTY, Conditions::SOIL_MOIST, Conditions::TRAY_AND_SOIL },
     FeedFrom::FEED_FROM_TOP,
   };
   config.actions[4] = Action {
     "FEED RECIRCUL8",
-    { Conditions::TRAY_IGNORED, Conditions::SOIL_DAMP, Conditions::NO_LOGIC },
+    { Conditions::TRAY_IGNORED, Conditions::SOIL_LITTLE_MOIST, Conditions::NO_LOGIC },
     { Conditions::TRAY_IGNORED, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
     FeedFrom::FEED_FROM_TOP,
   };
@@ -121,9 +121,7 @@ void restoreDefaultConfig() {
     { },
     FeedFrom::FEED_FROM_TOP,
   };
-  config.activeActionsIndexes[0] = -1;
-  config.activeActionsIndexes[1] = -1;
-  config.activeActionsIndexes[2] = -1;
-  config.activeActionsIndexes[3] = -1;  
+  config.activeActionsIndex0 = -1;
+  config.activeActionsIndex1 = -1;
 }
 

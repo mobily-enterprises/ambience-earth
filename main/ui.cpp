@@ -64,6 +64,15 @@ void lcdClearLine(uint8_t y) {
   lcd.print(displayedLine);
 }
 
+void lcdPrintBool(bool b, uint8_t y) {
+  if (y) {
+    lcdClearLine(y);
+    lcdSetCursor(0, y);
+  } 
+  lcd.print(b);
+}
+
+
 void lcdPrint(char *message, uint8_t y) {
   if (y) {
     lcdClearLine(y);
@@ -138,6 +147,8 @@ void initLcdAndButtons() {
   // delay(1000);
   lcd.backlight(); 
   // delay(1000);
+
+  pinMode(BUTTONS_PIN, INPUT_PULLUP);
 
   analogButtons.add(upButton);
   analogButtons.add(leftButton);
@@ -325,11 +336,16 @@ int8_t selectChoice(int howManyChoices, int initialUserInput, char *optionalHead
   }
 }
 
-void lcdAbortedMessage() {
+void lcdFlashMessage(char *message, char *message2=MSG_EMPTY, uint16_t time = 1000) {
   lcdClear();
-  lcdSetCursor(1,0);
-  lcdPrint("Aborted!");
-  delay(2000);
+  lcdSetCursor(0,1);
+  lcdPrint(message);
+
+  lcdSetCursor(0,2);
+  lcdPrint(message2);
+  
+
+  delay(time);
 }
 
 bool alert(char *optionalHeader = "") {

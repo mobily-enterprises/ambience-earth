@@ -21,10 +21,10 @@ enum FeedFrom : int8_t {
 };
 
 typedef struct {
-//   enum : uint8_t { TRAY_IGNORED, TRAY_EMPTY, TRAY_AT_MOST_WET, TRAY_AT_LEAST_WET, TRAY_AT_MOST_HALF_FULL, TRAY_AT_LEAST_HALF_FULL, TRAY_FULL } tray;
-//  enum : uint8_t { SOIL_IGNORED, SOIL_DRY, SOIL_AT_MOST_DAMP, SOIL_AT_LEAST_DAMP, SOIL_AT_MOST_WET, SOIL_AT_LEAST_WET, SOIL_VERY_WET } soil;
-  enum : int8_t { TRAY_IGNORED, TRAY_EMPTY, TRAY_WET, TRAY_HALF_FULL, TRAY_FULL } tray;
-  enum : int8_t { SOIL_IGNORED, SOIL_DRY, SOIL_DAMP, SOIL_WET, SOIL_VERY_WET } soil;
+//   enum : uint8_t { TRAY_IGNORED, TRAY_DRY, TRAY_AT_MOST_WET, TRAY_AT_LEAST_WET, TRAY_AT_MOST_HALF_FULL, TRAY_AT_LEAST_HALF_FULL, TRAY_PLENTY } tray;
+//  enum : uint8_t { SOIL_IGNORED, SOIL_DRY, SOIL_AT_MOST_DAMP, SOIL_AT_LEAST_DAMP, SOIL_AT_MOST_WET, SOIL_AT_LEAST_WET, SOIL_VERY_MOIST } soil;
+  enum : int8_t { TRAY_IGNORED, TRAY_DRY, TRAY_EMPTY, TRAY_SOME, TRAY_PLENTY } tray;
+  enum : int8_t { SOIL_IGNORED, SOIL_DRY, SOIL_LITTLE_MOIST, SOIL_MOIST, SOIL_VERY_MOIST } soil;
   enum : int8_t { NO_LOGIC, TRAY_OR_SOIL, TRAY_AND_SOIL } logic;
 } Conditions;
 
@@ -54,13 +54,13 @@ typedef struct {
 
     // Less than these will make it qualify
     int16_t trayWaterLevelSensorCalibrationEmpty;
-    int16_t trayWaterLevelSensorCalibrationWet;
-    int16_t trayWaterLevelSensorCalibrationHalfFull;
+    int16_t trayWaterLevelSensorCalibrationHalf;
+    int16_t trayWaterLevelSensorCalibrationFull;
 
     Action actions[6];
 
-    int8_t activeActionsIndexes[4];
-    int a;
+    int8_t activeActionsIndex0;
+    int8_t activeActionsIndex1;
 } Config;
 
 uint8_t calculateConfigChecksum();
