@@ -73,12 +73,24 @@ void lcdPrintBool(bool b, uint8_t y) {
 }
 
 
-void lcdPrint(char *message, uint8_t y) {
+void lcdPrint(char *message, uint8_t y = 0) {
   if (y) {
     lcdClearLine(y);
     lcdSetCursor(0, y);
   } 
   lcd.print(message);
+}
+
+void lcdPrint2(char *message, uint8_t y = -1) {
+  char buffer[LABEL_LENGTH + 1];
+ 
+ if (y != -1) {
+    lcdClearLine(y);
+    lcdSetCursor(0, y);
+  }
+
+  labelcpy2(buffer, message);
+  lcd.print(buffer);
 }
 
 void lcdPrintNumber(int number, uint8_t y = 0) {
@@ -161,19 +173,24 @@ void initLcdAndButtons() {
   lcd.createChar(2, rightArrow);
 }
 
-void setChoices(const char *label0=MSG_EMPTY,int value0=0,const char *label1=MSG_EMPTY,int value1=0,const char *label2=MSG_EMPTY,int value2=0,const char *label3=MSG_EMPTY,int value3=0,const char *label4=MSG_EMPTY,int value4=0,const char *label5=MSG_EMPTY,int value5=0) {
-  labelcpy(choices[0].label, label0);
-  labelcpy(choices[1].label, label1);
-  labelcpy(choices[2].label, label2);
-  labelcpy(choices[3].label, label3);
-  labelcpy(choices[4].label, label4);
-  labelcpy(choices[5].label, label5);
+void setChoices2(const char *label0="",int value0=0,const char *label1="",int value1=0,const char *label2="",int value2=0,const char *label3="",int value3=0,const char *label4="",int value4=0,const char *label5="",int value5=0) {
+  labelcpy2(choices[0].label, label0);
+  labelcpy2(choices[1].label, label1);
+  labelcpy2(choices[2].label, label2);
+  labelcpy2(choices[3].label, label3);
+  labelcpy2(choices[4].label, label4);
+  labelcpy2(choices[5].label, label5);
   choices[0].value = value0;
   choices[1].value = value1;
   choices[2].value = value2;
   choices[3].value = value3;
   choices[4].value = value4;
   choices[5].value = value5;
+}
+
+void labelcpy2(char *destination, const char *source) {
+  strncpy_P(destination, source, LABEL_LENGTH);
+  destination[strnlen(destination, LABEL_LENGTH)] = '\0';
 }
 
 void setChoice(unsigned char index, const char *label="",int value=0) {
@@ -339,6 +356,92 @@ int8_t selectChoice(int howManyChoices, int initialUserInput, char *optionalHead
   }
 }
 
+
+int8_t selectChoice2(int howManyChoices, int initialUserInput, char *optionalHeader = "") {
+  int selectedIndex = 0;      // Default selection is the first choice
+  int firstVisibleIndex = 0;  // Index of the first choice visible on the screen
+  bool displayChanged = true;
+  unsigned long previousMillis = 0;
+  #define HEADER_Y 0
+  #define MAX_VISIBLE_CHOICES (optionalHeader != "" ? 3 : 4)  // Maximum number of choices visible on the screen at a time
+  #define CHOICES_START_Y (optionalHeader != "" ? 1 : 0)      // Adjust CHOICES_START_Y based on whether optionalHeader is provided or not
+
+  // Find the index of the choice matching the initialUserInput
+  for (int i = 0; i < howManyChoices; i++) {
+    if (choices[i].value == initialUserInput) {
+      selectedIndex = i;
+      break;
+    }
+  }
+
+  // Adjust the starting visible index if the selected index is outside the first page's range
+  if (selectedIndex >= MAX_VISIBLE_CHOICES) {
+    firstVisibleIndex = selectedIndex - MAX_VISIBLE_CHOICES + 1;
+  }
+
+  lcd.clear();
+
+  if (optionalHeader != "") {
+    lcd.setCursor(0, HEADER_Y);
+    lcdPrint2(optionalHeader);
+  }
+
+  while (true) {
+    if (displayChanged) {
+      for (int i = 0; i < MAX_VISIBLE_CHOICES; i++) {
+        int choiceIndex = firstVisibleIndex + i;
+        if (choiceIndex < howManyChoices) {
+          lcd.setCursor(0, CHOICES_START_Y + i);
+          lcd.print("                    ");
+          lcd.setCursor(0, CHOICES_START_Y + i);
+          if (choiceIndex == selectedIndex) {
+            lcd.write((uint8_t)2);  // Print cursor
+            lcd.print("");          // Space between cursor and choice
+          } else {
+            lcd.print(" ");  // Double space if no cursor
+          }
+
+          lcd.print(choices[choiceIndex].label);
+        }
+      }
+      displayChanged = false;
+    }
+
+    analogButtonsCheck(); // This will set the global `pressedButton`
+
+    if (pressedButton == &okButton || pressedButton == &rightButton) {
+      // If OK button is pressed, return the code of the selected choice
+      // Serial.print('AAA');
+      // Serial.print(selectedIndex);
+      return choices[selectedIndex].value;
+    } else if (pressedButton == &downButton) {
+      // If DOWN button is pressed, move cursor to the next choice
+      selectedIndex++;
+      if (selectedIndex >= howManyChoices) {
+        selectedIndex = 0;  // Wrap around to the first option
+        firstVisibleIndex = 0;
+      } else if (selectedIndex >= firstVisibleIndex + MAX_VISIBLE_CHOICES) {
+        firstVisibleIndex++;
+      }
+      displayChanged = true;
+    } else if (pressedButton == &upButton) {
+      // If UP button is pressed, move cursor to the previous choice
+      selectedIndex--;
+      if (selectedIndex < 0) {
+        selectedIndex = howManyChoices - 1;  // Wrap around to the last option
+        firstVisibleIndex = max(0, howManyChoices - MAX_VISIBLE_CHOICES);
+      } else if (selectedIndex < firstVisibleIndex) {
+        firstVisibleIndex--;
+      }
+      displayChanged = true;
+    } else if (pressedButton == &leftButton) {
+      // If LEFT button is pressed, move cursor to the previous choice
+      return -1;
+    }
+  }
+}
+
+
 void lcdFlashMessage(char *message, char *message2=MSG_EMPTY, uint16_t time = 1000) {
   lcdClear();
   lcdSetCursor(0,1);
@@ -351,19 +454,21 @@ void lcdFlashMessage(char *message, char *message2=MSG_EMPTY, uint16_t time = 10
   delay(time);
 }
 
-bool alert(char *optionalHeader = "") {
-  setChoices("OK", 1);
+bool alert2(char *optionalHeader = "") {
+  setChoices2(MSG_OK2, 1);
   
-  int8_t userInput = selectChoice(1, 1, optionalHeader);
+  int8_t userInput = selectChoice2(1, 1, optionalHeader);
   return 1;
 }
 
-bool confirm(char *question, bool initialUserInput = 1) {
-  setChoices("YES", 1, "NO", 0);
+
+bool confirm2(char* question, bool initialUserInput = true) {
+  setChoices2(MSG_YES2, 1, MSG_NO2, 0);
   
-  int8_t userInput = selectChoice(2, initialUserInput ? 1 : 0, question);
+  int8_t userInput = selectChoice2(2, initialUserInput ? 1 : 0, question);
   return userInput == 1 ? true : false;
 }
+
 
 void inputString(char *prompt, char *initialUserInput, char *optionalHeader = MSG_EMPTY, bool asEdit = false) {
   uint8_t cursorPosition = 0;

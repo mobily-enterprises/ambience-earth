@@ -21,11 +21,12 @@ struct Choice {
   int value;
 };
 
-bool confirm(char *question, bool initialUserInput = 1);
-bool alert(char *question);
+bool confirm2(char* question, bool initialUserInput = true);
+bool alert2(char *question);
 
 int8_t selectChoice(int howManyChoices, int initialUserInput, char *optionalHeader = "");
-void setChoices(const char *label0="",int value0=0,const char *label1="",int value1=0,const char *label2="",int value2=0,const char *label3="",int value3=0,const char *label4="",int value4=0,const char *label5="",int value5=0);
+int8_t selectChoice2(int howManyChoices, int initialUserInput, char *optionalHeader = "");
+void setChoices2(const char *label0="",int value0=0,const char *label1="",int value1=0,const char *label2="",int value2=0,const char *label3="",int value3=0,const char *label4="",int value4=0,const char *label5="",int value5=0);
 void setChoice(unsigned char index, const char *label="",int value=0);
 Choice* getChoices();
 
@@ -36,6 +37,7 @@ void inputString(char *prompt, char *initialUserInput, char *optionalHeader, boo
 char* getUserInputString();
 
 void labelcpy(char* destination, const char* source);
+void labelcpy2(char* destination, const char *source);
 
 // ****************************************
 // **         USER OUTPUT                **
@@ -44,6 +46,7 @@ void labelcpy(char* destination, const char* source);
 void lcdClear();
 void lcdClearLine(uint8_t y);
 void lcdPrint(char *message, uint8_t y = 0);
+void lcdPrint2(char *message, uint8_t y = -1);
 void lcdPrintNumber(int number, uint8_t y = 0);
 void lcdPrintBool(bool b, uint8_t y = 0);
 void lcdSetCursor(uint8_t x, uint8_t y);
