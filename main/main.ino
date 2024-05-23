@@ -44,12 +44,14 @@ Outcome (1)
     
     Implement ACTUAL running of actions, with timeout to prevent floods 
     
+    DIAGNOSTICS
+    Write full diagnostics procedure
+
     LOGS:
     Write infrastructure for stats/logs, logging waterings with date/event, cycling EEPROM 
     Add "View logs" function to browse through logs     
 
-    DIAGNOSTICS
-    Write full diagnostics procedure
+    
     */
 
 void emptyTrayIfNecessary() {
@@ -133,25 +135,26 @@ void mainMenu() {
 
 void displayInfo(uint8_t screen) {
   switch(screen) {
+    case 0:
     case 1:
     case 2:
     case 3:
     case 4: 
-      displayInfo1();
+      displayInfo1(screen);
       break;
     case 5:
-      displayInfo2();
+      displayInfo2(screen);
       break;
     case 6:
-      displayInfo3();
+      displayInfo2(screen);
       break;
     case 7:
-      displayInfo4();
+      displayInfo1(screen);
       break;
   }
 }
 
-void displayInfo1() {
+void displayInfo1(uint8_t screen) {
   uint16_t soilMoisture;
   uint8_t soilMoisturePercent;
   uint8_t trayWaterLevelPercent;
@@ -166,38 +169,133 @@ void displayInfo1() {
   trayIsFull = senseTrayIsFull();
 
   lcdClear();
-  lcdPrint("Soil", 0);
+  lcdPrint(MSG_SOIL, 0);
   lcdPrint(MSG_SPACE);
 
   lcdPrintNumber(soilMoisturePercent);
-  lcdPrint("%");
+  lcdPrint(MSG_PERCENT);
   lcdPrint(MSG_SPACE);
   lcdPrint(soilMoistureInEnglish(soilMoistureAsState(soilMoisturePercent)));
   lcdPrint(MSG_SPACE);
 
-  lcdPrint("Tray", 1);
+  lcdPrint(MSG_TRAY, 1);
   lcdPrint(MSG_SPACE);
   lcdPrintNumber(trayWaterLevelPercent);
-  lcdPrint("%");
+  lcdPrint(MSG_PERCENT);
   lcdPrint(MSG_SPACE);
   
   lcdPrint(trayWaterLevelInEnglish(trayWaterLevelAsState(trayWaterLevelPercent), trayIsFull));
 
-  lcdPrint("On when:", 2);
+  lcdPrint(MSG_ON_WHEN, 2);
   lcdPrint(MSG_SPACE);
 }
 
-void displayInfo2() {
-  lcdClear();
-  lcdPrint("Two");
+char *trayConditionToEnglish(uint8_t condition) {
+  if (condition == Conditions::TRAY_DRY) return MSG_TRAY_DRY;
+  else if (condition == Conditions::TRAY_EMPTY) return MSG_TRAY_EMPTY;
+  else if (condition == Conditions::TRAY_SOME) return MSG_TRAY_SOME;
+  else if (condition == Conditions::TRAY_PLENTY) return MSG_TRAY_PLENTY;
+  else return MSG_EMPTY;
 }
 
-void displayInfo3() {
+
+char *soilConditionToEnglish(uint8_t condition) {
+  if (condition == Conditions::SOIL_DRY) return MSG_SOIL_DRY;
+  else if (condition == Conditions::SOIL_LITTLE_MOIST) return MSG_SOIL_LITTLE_MOIST;
+  else if (condition == Conditions::SOIL_MOIST) return MSG_SOIL_MOIST;
+  else if (condition == Conditions::SOIL_VERY_MOIST) return MSG_SOIL_VERY_MOIST;
+  else return MSG_EMPTY;
+}
+
+
+
+/*
+
+  enum : int8_t { TRAY_IGNORED, TRAY_DRY, TRAY_EMPTY, TRAY_SOME, TRAY_PLENTY } tray;
+  enum : int8_t { SOIL_IGNORED, SOIL_DRY, SOIL_LITTLE_MOIST, SOIL_MOIST, SOIL_VERY_MOIST } soil;
+  enum : int8_t { NO_LOGIC, TRAY_OR_SOIL, TRAY_AND_SOIL } logic;
+
+
+#define MSG_TRAY_DRY "Dry"
+#define MSG_TRAY_EMPTY "Empty"
+#define MSG_TRAY_SOME "Some"
+#define MSG_TRAY_PLENTY "Plenty"
+
+#define MSG_SOIL_DRY "Dry"
+#define MSG_SOIL_LITTLE_MOIST "Damp"
+#define MSG_SOIL_MOIST "Wet"
+#define MSG_SOIL_VERY_MOIST "Very wet"
+
+
+
+*/
+void displayTriggerConditions(Conditions conditions) {
+  if (conditions.tray != Conditions::TRAY_IGNORED) { 
+    lcdPrint(MSG_TRAY);
+    lcdPrint(MSG_SPACE);
+    lcdPrint(trayConditionToEnglish(conditions.tray));
+  }
+  
+  if (conditions.logic != Conditions::NO_LOGIC) {
+    if (conditions.logic == Conditions::TRAY_OR_SOIL) {
+      lcdPrint(MSG_OR);
+    } else if (conditions.logic == Conditions::TRAY_AND_SOIL) {
+      lcdPrint(MSG_AND);
+    }
+  }
+  if (conditions.soil != Conditions::SOIL_IGNORED) { 
+    lcdPrint(MSG_SOIL);
+    lcdPrint(MSG_SPACE);
+    lcdPrint(soilConditionToEnglish(conditions.soil));
+  }
+}
+
+void displayInfo2(uint8_t screen) {
+  lcdClear();
+  int8_t active;
+
+  if (config.activeActionsIndex0 == -1 && config.activeActionsIndex1 == -1) {
+    active = -1;
+  } else {
+    if (config.activeActionsIndex0 == -1) {
+      active = config.activeActionsIndex1;  
+    } else if (config.activeActionsIndex1 == -1) {
+      active = config.activeActionsIndex0;  
+    } else {
+      if (screen % 2 == 0) {
+        active = config.activeActionsIndex0;
+      } else {
+        active = config.activeActionsIndex1;
+      } 
+    }
+  }
+
+  Serial.println(active);
+  if (active == -1) {
+    lcdPrint(MSG_INACTIVE);
+  } else {
+    lcdPrint(MSG_ON_WHEN);
+    lcdPrint(MSG_SPACE);
+    lcdPrint(MSG_BR_OPEN);
+    lcdPrint(config.actions[active].name);
+    lcdPrint(MSG_BR_CLOSED);
+    lcd.setCursor(0, 1);
+    
+    displayTriggerConditions(config.actions[active].triggerConditions);
+    
+    lcd.setCursor(0, 2);
+    lcdPrint(MSG_OFF_WHEN);
+    lcd.setCursor(0, 3);
+    displayTriggerConditions(config.actions[active].stopConditions);
+  }
+}
+
+void displayInfo3(uint8_t screen) {
   lcdClear();
   lcdPrint("Three");
 }
 
-void displayInfo4() {
+void displayInfo4(uint8_t screen) {
   lcdClear();
   lcdPrint("Four");
 }
@@ -210,7 +308,6 @@ int8_t pickAction() {
       c++;
     }
   }
-  Serial.println(c);
 
   int8_t choice = selectChoice(c, 0);
   
@@ -335,7 +432,6 @@ Conditions inputConditions(Conditions *initialConditions, char *verb, int8_t cho
   memcpy(message + 10, MSG_TRAY, 4);
   int8_t tray = (int8_t) selectChoice( 5, (int8_t)initialConditions->tray, message);
   initialConditions->tray = tray;
-  Serial.println(initialConditions->tray);
   if (tray == -1) return;
 
   setChoices(
@@ -357,7 +453,7 @@ Conditions inputConditions(Conditions *initialConditions, char *verb, int8_t cho
       "Tray AND soil", Conditions::TRAY_AND_SOIL,
       "Tray OR soil", Conditions::TRAY_AND_SOIL
     );
-    logic = (int8_t) selectChoice( 5, (int8_t)initialConditions->logic, "Logic");
+    logic = (int8_t) selectChoice( 2, (int8_t)initialConditions->logic, "Logic");
     initialConditions->logic = logic;
     if (logic == -1) return;
   } else {
@@ -532,7 +628,7 @@ int calibrateTrayWaterLevelSensors() {
   int16_t full;
   bool trayFull;
 
-  lcdFlashMessage("Put 2mm water in tray", MSG_EMPTY, 2000);
+  lcdFlashMessage("Sensor in 2mm water", MSG_EMPTY, 2000);
  
 
   goAhead = confirm("TINY bit/water", 1);
@@ -542,7 +638,7 @@ int calibrateTrayWaterLevelSensors() {
   }
   lcdClear();
   lcdPrint("Empty: ", 1);
-  for(int i = 0;i < 4;i++){
+  for(int i = 0;i < 15;i++){
     empty = senseTrayWaterLevel();
     // lcdClear();
     lcdPrintNumber(empty);
@@ -593,7 +689,6 @@ int calibrateTrayWaterLevelSensors() {
     }
 
     trayFull = senseTrayIsFull();
-    Serial.println(trayFull);
     if (!trayFull) {
       lcdFlashMessage("Sensor not sensing" ,"Water");
     } else {

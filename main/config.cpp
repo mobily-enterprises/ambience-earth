@@ -94,7 +94,7 @@ void restoreDefaultConfig() {
   config.actions[1] = Action {
     "TOP FEED ROFF",
     { Conditions::TRAY_IGNORED, Conditions::SOIL_LITTLE_MOIST, Conditions::NO_LOGIC },
-    { Conditions::TRAY_EMPTY, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
+    { Conditions::TRAY_SOME, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
     FeedFrom::FEED_FROM_TOP,
   };
   config.actions[2] = Action {
@@ -104,13 +104,13 @@ void restoreDefaultConfig() {
     FeedFrom::FEED_FROM_TOP,
   };
   config.actions[3] = Action {
-    "STACK FEED ROFF",
+    "STACK W/ROFF",
     { Conditions::TRAY_IGNORED, Conditions::SOIL_LITTLE_MOIST, Conditions::NO_LOGIC },
-    { Conditions::TRAY_EMPTY, Conditions::SOIL_MOIST, Conditions::TRAY_AND_SOIL },
+    { Conditions::TRAY_SOME, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
     FeedFrom::FEED_FROM_TOP,
   };
   config.actions[4] = Action {
-    "FEED RECIRCUL8",
+    "FEED RECIRC",
     { Conditions::TRAY_IGNORED, Conditions::SOIL_LITTLE_MOIST, Conditions::NO_LOGIC },
     { Conditions::TRAY_IGNORED, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
     FeedFrom::FEED_FROM_TOP,

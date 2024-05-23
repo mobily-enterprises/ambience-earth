@@ -6,18 +6,17 @@
 
 #define MSG_TRAY_SOIL_IGNORE "Ignore"
 
-#define MSG_TRAY_DRY "Dry"
-#define MSG_TRAY_EMPTY "Empty"
-#define MSG_TRAY_SOME "Some"
-#define MSG_TRAY_PLENTY "Plenty"
+#define MSG_TRAY_DRY "dry"
+#define MSG_TRAY_EMPTY "epty"
+#define MSG_TRAY_SOME "some"
+#define MSG_TRAY_PLENTY "lots"
 
-#define MSG_SOIL_DRY "Dry"
-#define MSG_SOIL_LITTLE_MOIST "Damp"
-#define MSG_SOIL_MOIST "Wet"
-#define MSG_SOIL_VERY_MOIST "Very wet"
+#define MSG_SOIL_DRY "dry"
+#define MSG_SOIL_LITTLE_MOIST "damp"
+#define MSG_SOIL_MOIST "mid"
+#define MSG_SOIL_VERY_MOIST "wet"
 
 #define MSG_TOP "Top"
-#define MSG_TRAY "Tray"
 #define MSG_FEED_FROM "Feed from:"
 
 #define MSG_SAVE_QUESTION "Save?"
@@ -27,11 +26,22 @@
 
 
 #define MSG_MOISTURE_SENSOR "Moist sensor"
-#define MSG_WATER_LEVELS "Tray water levs"
+#define MSG_WATER_LEVELS "Tray water lvs"
 
 #define MSG_ABORTED "Aborted!"
 
-#define MSG_SOIL "soil"
-#define MSG_TRAY "tray"
+#define MSG_SOIL "Soil"
+#define MSG_TRAY "Tray"
+#define MSG_PERCENT "%"
+#define MSG_ON_WHEN "On:"
+#define MSG_OFF_WHEN "Off:"
+#define MSG_IS "is"
+#define MSG_AND "/"
+#define MSG_OR "+"
+#define MSG_BR_OPEN "("
+#define MSG_BR_CLOSED ")"
+
+
+#define MSG_INACTIVE "Inactive"
 
 

@@ -6,7 +6,7 @@
 void initLcdAndButtons();
 
 #define DISPLAY_COLUMNS 20
-#define LABEL_LENGTH 15
+#define LABEL_LENGTH 13
 
 #define BUTTONS_PIN A6
 #define BUTTONS_PIN_MODE INPUT         // Set to INPUT to disable internal pull-up resistor
