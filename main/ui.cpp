@@ -161,7 +161,7 @@ void initLcdAndButtons() {
   lcd.createChar(2, rightArrow);
 }
 
-void setChoices(const char *label0="",int value0=0,const char *label1="",int value1=0,const char *label2="",int value2=0,const char *label3="",int value3=0,const char *label4="",int value4=0,const char *label5="",int value5=0) {
+void setChoices(const char *label0=MSG_EMPTY,int value0=0,const char *label1=MSG_EMPTY,int value1=0,const char *label2=MSG_EMPTY,int value2=0,const char *label3=MSG_EMPTY,int value3=0,const char *label4=MSG_EMPTY,int value4=0,const char *label5=MSG_EMPTY,int value5=0) {
   labelcpy(choices[0].label, label0);
   labelcpy(choices[1].label, label1);
   labelcpy(choices[2].label, label2);
@@ -225,7 +225,10 @@ int inputNumber(char *prompt, int initialUserInput, int stepSize = 1, int min = 
       lcd.setCursor(0, INPUT_Y);
       lcd.print(userInput);
       lcd.print(postFix);  // Display postFix after userInput
-      lcd.print("   ");    // Clear the remaining characters
+      lcd.print(MSG_SPACE);    // Clear the remaining characters
+      lcd.print(MSG_SPACE);    // Clear the remaining characters
+      lcd.print(MSG_SPACE);    // Clear the remaining characters
+
       displayChanged = false;
     }
 

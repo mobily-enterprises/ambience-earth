@@ -511,7 +511,7 @@ void settings() {
   while (choice != -1) {
     lcdClear();
     setChoices(
-      "Edit actions", 1,
+      MSG_EDIT_ACTIONS, 1,
       "Feeding from", 2,
       "Auto drain", 3,
       "Moist levls", 4,
@@ -523,8 +523,6 @@ void settings() {
     "Test pumps/sols", 2,
     if (choice == 2) activatePumps();
 */
-
-
     if (choice == 1) settingsEditActions();
     else if (choice == 2) setFeedFrom();
     else if (choice == 3) setAutoDrain();
@@ -536,13 +534,12 @@ void settings() {
 
 void maintenance() {
   int8_t choice = 0;
-
   while (choice != -1) {
     lcdClear();
     setChoices(
-      "Reset data", 1,
-      "Test pumps/sol", 2,
-      "Run any action", 3
+      MSG_RESET_DATA, 1,
+      MSG_TEST_PUMPS, 2,
+      MSG_RUN_ANY_ACTIONS, 3
     );
     choice = selectChoice(3, 1);
 
@@ -550,6 +547,7 @@ void maintenance() {
     else if (choice == 2) activatePumps();
     else if (choice == 3) pickAndRunAction();
   }
+  
 }
 
 bool isActionActive(int8_t actionId) {

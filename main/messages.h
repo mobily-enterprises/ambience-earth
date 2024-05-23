@@ -59,3 +59,8 @@
 
 #define MSG_LINE_IN "Line in..."
 
+#define MSG_EDIT_ACTIONS "Edit actions"
+
+#define MSG_RESET_DATA "Reset data"
+#define MSG_TEST_PUMPS "Test pumps/sol"
+#define MSG_RUN_ANY_ACTIONS "Run any action"
