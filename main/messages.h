@@ -1,5 +1,5 @@
 #define MSG_EMPTY ""
-#define MSG_AUTO_DRAIN "Auto drain tray?"
+#define MSG_AUTO_DRAIN "Auto drain?"
 #define MSG_SPACES "                    "
 #define MSG_SPACE " "
 #define MSG_STAR "*"
@@ -44,4 +44,18 @@
 
 #define MSG_INACTIVE "Inactive"
 
+#define MSG_EXTRACTING "Extracting..."
+#define MSG_FEEDING "Feeding..."
+#define MSG_FEED_LINE "Feed line"
+
+
+#define MSG_PUMP_IN "Pump IN"
+#define MSG_PUMP_OUT "Pump OUT"
+#define MSG_SOLENOID_IN "Solenoid"
+
+#define MSG_ONLY_TOP_FEEDING "Only top feeding"
+
+#define MSG_SENSOR_2_MM_WATER "Sensor in 2mm water"
+
+#define MSG_LINE_IN "Line in..."
 

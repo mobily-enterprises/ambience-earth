@@ -7,6 +7,9 @@
 
 #define CONFIG_ADDRESS 0
 
+#define FEED_MIN_INTERVAL 60000 * 60
+#define MAX_FEED_TIME 50000 * 5
+
 // ************************************************************
 // ** TYPE DEFINITIONS
 // ************************************************************
@@ -20,9 +23,12 @@ enum FeedFrom : int8_t {
   FEED_FROM_TRAY
 };
 
+enum FeedLine : int8_t {
+  PUMP_IN,
+  SOLENOID_IN
+};
+
 typedef struct {
-//   enum : uint8_t { TRAY_IGNORED, TRAY_DRY, TRAY_AT_MOST_WET, TRAY_AT_LEAST_WET, TRAY_AT_MOST_HALF_FULL, TRAY_AT_LEAST_HALF_FULL, TRAY_PLENTY } tray;
-//  enum : uint8_t { SOIL_IGNORED, SOIL_DRY, SOIL_AT_MOST_DAMP, SOIL_AT_LEAST_DAMP, SOIL_AT_MOST_WET, SOIL_AT_LEAST_WET, SOIL_VERY_MOIST } soil;
   enum : int8_t { TRAY_IGNORED, TRAY_DRY, TRAY_EMPTY, TRAY_SOME, TRAY_PLENTY } tray;
   enum : int8_t { SOIL_IGNORED, SOIL_DRY, SOIL_LITTLE_MOIST, SOIL_MOIST, SOIL_VERY_MOIST } soil;
   enum : int8_t { NO_LOGIC, TRAY_OR_SOIL, TRAY_AND_SOIL } logic;
@@ -38,6 +44,7 @@ typedef struct {
 typedef struct {
     uint8_t checksum;
     FeedFrom feedFrom;
+    FeedLine feedLine;
     bool mustRunInitialSetup;
     char deviceName[10];
 
@@ -57,7 +64,7 @@ typedef struct {
     int16_t trayWaterLevelSensorCalibrationHalf;
     int16_t trayWaterLevelSensorCalibrationFull;
 
-    Action actions[6];
+    Action actions[5];
 
     int8_t activeActionsIndex0;
     int8_t activeActionsIndex1;

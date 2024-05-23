@@ -1,5 +1,4 @@
 #include <string.h>
-#include <Arduino.h>
 #include <EEPROM.h>
 #include "config.h"
 
@@ -15,9 +14,6 @@ void loadConfig() {
 }
 
 bool configChecksumCorrect() {
-  // Serial.println("CHECKSUM CHECK:");
-  // Serial.println(calculateConfigChecksum());
-  // Serial.println(config.checksum);
   return calculateConfigChecksum() == config.checksum;
 }
 
@@ -65,9 +61,9 @@ void setConfigChecksum() {
 void restoreDefaultConfig() {
   config.checksum = 0;
   config.feedFrom = FeedFrom::FEED_FROM_TOP;
+  config.feedLine = FeedLine::PUMP_IN;
+  
   config.mustRunInitialSetup = true;
-  strncpy(config.deviceName, "YOUR FEEDER", sizeof(config.deviceName));
-  config.deviceName[sizeof(config.deviceName) - 1] = '\0';
   
   config.soilLittleMoistPercentage = 20;
   config.soilMoistPercentage = 60;
@@ -113,12 +109,6 @@ void restoreDefaultConfig() {
     "FEED RECIRC",
     { Conditions::TRAY_IGNORED, Conditions::SOIL_LITTLE_MOIST, Conditions::NO_LOGIC },
     { Conditions::TRAY_IGNORED, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
-    FeedFrom::FEED_FROM_TOP,
-  };
-  config.actions[5] = Action {
-    "Custom 1",
-    { },
-    { },
     FeedFrom::FEED_FROM_TOP,
   };
   config.activeActionsIndex0 = -1;

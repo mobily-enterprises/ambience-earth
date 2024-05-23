@@ -10,6 +10,11 @@ void initSensors() {
   pinMode(SOIL_LITTLE_MOISTURE_SENSOR, INPUT);
   pinMode(TRAY_WATER_LEVEL_SENSOR, INPUT);
   pinMode(TRAY_FULL_SENSOR, INPUT_PULLUP); 
+
+  pinMode(PUMP_IN, OUTPUT);
+  pinMode(SOLENOID_IN, OUTPUT);
+  pinMode(PUMP_OUT_DEVICE, OUTPUT);
+  
 }
 
 uint16_t  senseSoilMosture() {
@@ -68,20 +73,40 @@ uint8_t trayWaterLevelAsPercentage(uint16_t waterLevel) {
   uint16_t empty = config.trayWaterLevelSensorCalibrationEmpty;
   uint16_t half = config.trayWaterLevelSensorCalibrationHalf;
   uint16_t full = config.trayWaterLevelSensorCalibrationFull;
-  unsigned int delta;
 
-  if (waterLevel <= 10) {
-      return 0;
-  } else if (waterLevel <= empty) {
-      return 1;
-  } else if (waterLevel < half) {
-      return (float)(waterLevel - empty) / (half - empty) * 50;
+
+/*  Serial.print(empty);
+  Serial.print(" ");
+  Serial.print(half);
+  Serial.print(" ");
+  Serial.print(full);
+  Serial.print(" -- ");
+  Serial.println(waterLevel);
+*/
+
+  if (waterLevel <= 200 ) {
+    return 0;
+  } else if (waterLevel <= empty ) {
+    return 1;
+  } else if (waterLevel <= half) {
+    float emptyLog = log(empty);
+    float halfLog = log(half);
+    float waterLevelLog = log(waterLevel);
+
+    float percentage = ((waterLevelLog - emptyLog) / (halfLog - emptyLog)) * 50;
+    return round(percentage);
   } else if (waterLevel <= full) {
-      return 50 + (float)(waterLevel - half) / (full - half) * 50;
+    float halfLog = log(half);
+    float fullLog = log(full);
+    float waterLevelLog = log(waterLevel);
+
+    float percentage = 50 + ((waterLevelLog - halfLog) / (fullLog - halfLog)) * 50;
+    return round(percentage);
   } else {
-      return 100;
-  }    
+    return 100;
+  }
 }
+
 
 uint8_t trayWaterLevelAsState(uint8_t trayWaterLevelAsPercentage) {
   uint8_t v = trayWaterLevelAsPercentage;
