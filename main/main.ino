@@ -23,6 +23,8 @@ extern uint8_t currentLogSlot;
 const unsigned long interval = 2000;  // Interval in milliseconds (1000 milliseconds = 1 second)
 unsigned long previousMillis = 0;
 
+enum PumpState { IDLE, PUMPING, COMPLETED };
+
 void runAction(Action *action, bool force = 0);
 
 /*
@@ -61,109 +63,109 @@ void maybeRunActions() {
   if (config.activeActionsIndex1 == -1) runAction(&config.actions[config.activeActionsIndex1]);
 }
 
-bool actionShouldStart(Action *action) {
-  trayState = trayWaterLevelAsState(trayWaterLevelAsPercentage(senseTrayWaterLevel()));
-  soilState = soilMoistureAsState(soilMoistureAsPercentage())
+bool actionShouldStartOrStop(Action *action, bool start = 1) {
+  uint8_t trayState = trayWaterLevelAsState(trayWaterLevelAsPercentage(senseTrayWaterLevel()));
+  uint8_t soilState = soilMoistureAsState(soilMoistureAsPercentage(senseSoilMoisture()));
+
+  uint8_t actionTrayState = action->triggerConditions.tray;
+  uint8_t actionSoilState = action->triggerConditions.soil;
+  uint8_t actionLogic = action->triggerConditions.logic;
   
-  return true;
+  bool traySatisfied;
+  bool soilSatisfied;
+  if (start) {
+    traySatisfied = trayState == Conditions::TRAY_IGNORED || trayState <= actionTrayState;
+    soilSatisfied = soilState == Conditions::SOIL_IGNORED || soilState <= actionSoilState;
+  } else {
+    traySatisfied = trayState == Conditions::TRAY_IGNORED || trayState >= actionTrayState;
+    soilSatisfied = soilState == Conditions::SOIL_IGNORED || soilState >= actionSoilState;
+  }
+
+  return actionLogic == Conditions::NO_LOGIC || actionLogic == Conditions::TRAY_OR_SOIL
+    ? traySatisfied || soilSatisfied
+    : traySatisfied && soilSatisfied;
 }
 
-bool actionShouldStop(Action *action) {
-  return true;
-}
 
 void runAction(Action *action, bool force = 0) { 
   static unsigned long lastExecutionTime = 0;
 
-  if (millis() - lastExecutionTime >= FEED_MIN_INTERVAL) {
-    lastExecutionTime = millis();
-  }
+  // Quit if not enough time has lapsed OR if the conditions
+  // are not satisfied
+  if (millis() - lastExecutionTime < FEED_MIN_INTERVAL && !force) return;
+  if (!actionShouldStartOrStop(action, 1)) return;
 
-  if (millis() - lastExecutionTime < MAX_FEED_TIME || force) {  // Run for at most 10 seconds
+  // We are in!
+  // Set a new execution time
+  lastExecutionTime = millis();
 
-    if (!actionShouldStart(action)) return;
+  // Let water in
+  openLineIn();
 
-    digitalWrite(PUMP_OUT_DEVICE, HIGH);
+  unsigned long feedStartMillis = millis();
+  uint8_t soilMoistureBefore = soilMoistureAsPercentage(senseSoilMoisture());
+  uint8_t trayWaterLevelBefore = trayWaterLevelAsPercentage(senseTrayWaterLevel());
 
-    unsigned long feedStartTime = 0;
-    bool feedRunning = false;
+  while (true) {
+    uint8_t shouldStop = 0;
+    if (actionShouldStartOrStop(action, 0)) shouldStop = 1;
+    if (millis() - feedStartMillis >= MAX_FEED_TIME) shouldStop = 2;
+    
+    // Keep emptying the tray if necessary
+    emptyTrayIfNecessary();
 
-    unsigned long feedStartMillis = millis();
-    uint8_t soilMoistureBefore = soilMoistureAsPercentage(senseSoilMosture());
-    uint8_t trayWaterLevelBefore = trayWaterLevelAsPercentage(senseTrayWaterLevel());
-
-    while (true) {
-
-      uint8_t shouldStop = 0;
-      if (actionShouldStop(action)) shouldStop = 1;
-      if (millis() - feedStartTime >= MAX_FEED_TIME) shouldStop = 2;
-
-      if (shouldStop) {
-        digitalWrite(PUMP_OUT_DEVICE, LOW);
-        clearLogEntry(logEntry);
-        logEntry.millisStart = feedStartMillis;
-        logEntry.millisEnd = millis();
-        logEntry.actionId = 1; 
-        logEntry.soilMoistureBefore = soilMoistureBefore;
-        logEntry.trayWaterLevelBefore = trayWaterLevelBefore;
-        logEntry.soilMoistureAfter = soilMoistureAsPercentage(senseSoilMosture());
-        logEntry.trayWaterLevelAfter = trayWaterLevelAsPercentage(senseTrayWaterLevel());
-        logEntry.topFeed = action->feedFrom == FeedFrom::FEED_FROM_TOP;
-        logEntry.outcome = shouldStop == 1 ? 0 : shouldStop;
-        return;
-      }
+    if (shouldStop) {
+      closeLineIn();
+      
+      clearLogEntry(logEntry);
+      logEntry.millisStart = feedStartMillis;
+      logEntry.millisEnd = millis();
+      logEntry.actionId = 1; 
+      logEntry.soilMoistureBefore = soilMoistureBefore;
+      logEntry.trayWaterLevelBefore = trayWaterLevelBefore;
+      logEntry.soilMoistureAfter = soilMoistureAsPercentage(senseSoilMoisture());
+      logEntry.trayWaterLevelAfter = trayWaterLevelAsPercentage(senseTrayWaterLevel());
+      logEntry.topFeed = action->feedFrom == FeedFrom::FEED_FROM_TOP;
+      logEntry.outcome = shouldStop == 1 ? 0 : shouldStop;
+      return;
     }
+    delay(100);
   }
 }
 
+PumpState pumpState = IDLE;
+unsigned long lastPumpOutExecutionTime = 0;
+unsigned long pumpOutStartMillis = 0;
 
 void emptyTrayIfNecessary() {
-  static unsigned long lastExecutionTime = 0;
-  static bool isRunning = false;
 
-  // Ensure at most 10 seconds of execution per minute
-  if (millis() - lastExecutionTime >= PUMP_REST_TIME && !isRunning) {
-    // If a minute has passed and the function is not already running, reset last execution time
-    lastExecutionTime = millis();
-  }
+  // No need
+  if (config.trayNeedsEmptying) return;
 
-  if (millis() - lastExecutionTime < MAX_PUMP_TIME) {  // Run for at most 10 seconds
-    uint8_t trayState;
-    unsigned long pumpStartTime = 0;
-    bool pumpRunning = false;
-
-    if (config.trayNeedsEmptying) {
-      digitalWrite(PUMP_OUT_DEVICE, LOW);
-      while (true) {
-        trayState = trayWaterLevelAsState(trayWaterLevelAsPercentage(senseTrayWaterLevel()));
-
-        // Tray is empty: it's all done
-        if (trayState == Conditions::TRAY_DRY || trayState == Conditions::TRAY_EMPTY) {
-          digitalWrite(PUMP_OUT_DEVICE, LOW);
-          return;
-        }
-        // Check if the pump is not already running
-        if (!pumpRunning) {
-          // Start the pump and record the start time
-          lcdClear();
-          lcdPrint(MSG_EXTRACTING);
-          digitalWrite(PUMP_OUT_DEVICE, HIGH);  // Activate the pump
-          pumpStartTime = millis();
-          pumpRunning = true;
-        } else {
-          // Check if the pump has been running for more than 10 seconds
-          if (millis() - pumpStartTime >= MAX_PUMP_TIME) {  // 10 seconds
-            // Deactivate the pump and reset pump state
-            digitalWrite(PUMP_OUT_DEVICE, LOW);  // Deactivate the pump
-            lcdClear();
-            return;
-          }
-        }
+  const uint8_t trayState = trayWaterLevelAsState(trayWaterLevelAsPercentage(senseTrayWaterLevel()));
+  switch (pumpState) {
+    case IDLE:
+      if (millis() - lastPumpOutExecutionTime >= PUMP_REST_TIME && trayState >= Conditions::TRAY_SOME ) {
+        lastPumpOutExecutionTime = millis();
+        openPumpOut();
+        pumpOutStartMillis = millis();
+        pumpState = PUMPING;
       }
-    }
+      break;
+
+    case PUMPING:
+      if (millis() - pumpOutStartMillis >= MAX_PUMP_TIME || trayState <= Conditions::TRAY_EMPTY) {
+        closePumpOut();
+        pumpState = COMPLETED;
+      }
+      break;
+
+    case COMPLETED:
+      // Any post-pumping actions can be handled here
+      pumpState = IDLE;
+      break;
   }
 }
-
 
 void setup() {
   Serial.begin(9600);  // Initialize serial communication at 9600 baud rate
@@ -325,7 +327,7 @@ void displayInfo1(uint8_t screen) {
   uint16_t trayWaterLevel;
   bool trayIsFull;
 
-  soilMoisture = senseSoilMosture();
+  soilMoisture = senseSoilMoisture();
   soilMoisturePercent = soilMoistureAsPercentage(soilMoisture);
   trayWaterLevel = senseTrayWaterLevel();
   trayWaterLevelPercent = trayWaterLevelAsPercentage(trayWaterLevel);
@@ -927,7 +929,7 @@ int calibrateSoilMoistureSensor() {
   lcdClear();
   lcdPrint(MSG_DRY_COLUMN, 1);
   for (int i = 0; i < 4; i++) {
-    dry = senseSoilMosture();
+    dry = senseSoilMoisture();
     // lcdClear();
     lcdPrintNumber(dry);
     lcdPrint(MSG_SPACE);
@@ -942,7 +944,7 @@ int calibrateSoilMoistureSensor() {
   lcdClear();
   lcdPrint(MSG_SOAKED_COLUMN, 1);
   for (int i = 0; i < 4; i++) {
-    soaked = senseSoilMosture();
+    soaked = senseSoilMoisture();
     // lcdClear();
     lcdPrintNumber(soaked);
     lcdPrint(MSG_SPACE);

@@ -15,8 +15,9 @@
 #define PUMP_REST_TIME 5000
 
 
+
 void initSensors();
-uint16_t senseSoilMosture();
+uint16_t senseSoilMoisture();
 uint8_t soilMoistureAsPercentage(uint16_t soilMosture);
 uint8_t trayWaterLevelAsPercentage(uint16_t trayWaterLevel);
 char* soilMoistureInEnglish(uint8_t soilMostureAsPercentage);
@@ -25,4 +26,8 @@ bool senseTrayIsFull();
 char* trayWaterLevelInEnglish(uint8_t trayWaterLevelAsPercentage, bool trayIsFull);
 uint8_t soilMoistureAsState(uint8_t soilMoistureAsPercentage);
 uint8_t trayWaterLevelAsState(uint8_t trayWaterLevelAsPercentage);
+void openLineIn();
+void closeLineIn();
+void openPumpOut();
+void closePumpOut();
 #endif SENSORS_H

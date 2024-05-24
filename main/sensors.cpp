@@ -14,10 +14,26 @@ void initSensors() {
   pinMode(PUMP_IN, OUTPUT);
   pinMode(SOLENOID_IN, OUTPUT);
   pinMode(PUMP_OUT_DEVICE, OUTPUT);
-  
 }
 
-uint16_t  senseSoilMosture() {
+void openLineIn() {
+   digitalWrite(config.feedLine, HIGH);
+}
+
+void closeLineIn() {
+   digitalWrite(config.feedLine, LOW);
+}
+
+void openPumpOut() {
+  digitalWrite(PUMP_OUT_DEVICE, HIGH);
+}
+
+void closePumpOut() {
+  digitalWrite(PUMP_OUT_DEVICE, LOW);
+}
+
+
+uint16_t senseSoilMoisture() {
   return (uint16_t) analogRead(SOIL_LITTLE_MOISTURE_SENSOR);
 }
 
