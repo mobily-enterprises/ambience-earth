@@ -113,8 +113,11 @@ uint8_t trayWaterLevelAsPercentage(uint16_t waterLevel) {
 }
 
 
-uint8_t trayWaterLevelAsState(uint8_t trayWaterLevelAsPercentage) {
-  uint8_t v = trayWaterLevelAsPercentage;
+uint8_t trayWaterLevelAsState(uint8_t percentage, bool isFull) {
+  uint8_t v = percentage;
+
+  // The "isFull" sensor will force a "plenty" state
+  if (isFull) return (uint8_t) Conditions::TRAY_PLENTY;;
 
   if (v > 50) return (uint8_t) Conditions::TRAY_PLENTY;
   else if(v > 2) return (uint8_t) Conditions::TRAY_SOME;
@@ -123,14 +126,14 @@ uint8_t trayWaterLevelAsState(uint8_t trayWaterLevelAsPercentage) {
 }
 
 
-char* trayWaterLevelInEnglish(uint8_t trayWaterLevelAsState, bool trayIsFull) { 
+char* trayWaterLevelInEnglish(uint8_t trayState, bool trayIsFull) { 
   if (trayIsFull) {
-    if (trayWaterLevelAsState != Conditions::TRAY_PLENTY) return MSG_ERROR_1;
+    if (trayState != Conditions::TRAY_PLENTY) return MSG_ERROR_1;
     return MSG_FULL;
   }
 
-  if (trayWaterLevelAsState == Conditions::TRAY_PLENTY) return MSG_TRAY_PLENTY;
-  else if (trayWaterLevelAsState == Conditions::TRAY_SOME) return MSG_TRAY_SOME;
-  else if (trayWaterLevelAsState == Conditions::TRAY_EMPTY) return MSG_TRAY_EMPTY;
-  else if (trayWaterLevelAsState == Conditions::TRAY_DRY) return MSG_TRAY_PLENTY;
+  if (trayState == Conditions::TRAY_PLENTY) return MSG_TRAY_PLENTY;
+  else if (trayState == Conditions::TRAY_SOME) return MSG_TRAY_SOME;
+  else if (trayState == Conditions::TRAY_EMPTY) return MSG_TRAY_EMPTY;
+  else if (trayState == Conditions::TRAY_DRY) return MSG_TRAY_DRY;
 }

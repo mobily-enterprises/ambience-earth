@@ -25,7 +25,7 @@ uint16_t senseTrayWaterLevel();
 bool senseTrayIsFull();
 char* trayWaterLevelInEnglish(uint8_t trayWaterLevelAsPercentage, bool trayIsFull);
 uint8_t soilMoistureAsState(uint8_t soilMoistureAsPercentage);
-uint8_t trayWaterLevelAsState(uint8_t trayWaterLevelAsPercentage);
+uint8_t trayWaterLevelAsState(uint8_t percentage, bool isFull);
 void openLineIn();
 void closeLineIn();
 void openPumpOut();

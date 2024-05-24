@@ -27,77 +27,84 @@ enum PumpState { IDLE, PUMPING, COMPLETED };
 
 void runAction(Action *action, bool force = 0);
 
-/*
-datetime start (4)
-Event code (1)
-
-Outcome (1)
-*/
-
-/*
-  TODO: 
-    X Set active actions (up to 2)
-    X Test that editing action doesn't allow "feedFrom" if active
-    X Allow changing of where it's feeding from
-    Write calibration procedures for water level
-    X Force calibration procedures on setup    
-    X Implement "reset"
-
-    X Main screen: show stats, current settings (scrolling), info
-      X Make function that works out state of tray and soil uniformly
-      X Resolve the knot of how to deal with empty in tray, passing percentage or numbers?
-
-    X Implement built-in action "emptyTray", config to enable it, add it to initial setup for "TOP", UNSET when changing feedFrom
-    
-    Implement ACTUAL running of actions, with timeout to prevent floods 
-    
-    LOGS:
-    Write infrastructure for stats/logs, logging waterings with date/event, cycling EEPROM 
-    Add "View logs" function to browse through logs     
-
-    
-    */
-
 void maybeRunActions() {
-  if (config.activeActionsIndex0 == -1) runAction(&config.actions[config.activeActionsIndex0]);
-  if (config.activeActionsIndex1 == -1) runAction(&config.actions[config.activeActionsIndex1]);
+  if (config.activeActionsIndex0 != -1) runAction(&config.actions[config.activeActionsIndex0]);
+  if (config.activeActionsIndex1 != -1) runAction(&config.actions[config.activeActionsIndex1]);
 }
 
-bool actionShouldStartOrStop(Action *action, bool start = 1) {
-  uint8_t trayState = trayWaterLevelAsState(trayWaterLevelAsPercentage(senseTrayWaterLevel()));
+bool actionShouldStartOrStop(Action *action, bool start = true) {
+  Conditions* c;
+  
+  c = start ? &action->triggerConditions : &action->stopConditions;
+
+  uint8_t trayState = trayWaterLevelAsState(trayWaterLevelAsPercentage(senseTrayWaterLevel()), senseTrayIsFull());
   uint8_t soilState = soilMoistureAsState(soilMoistureAsPercentage(senseSoilMoisture()));
 
-  uint8_t actionTrayState = action->triggerConditions.tray;
-  uint8_t actionSoilState = action->triggerConditions.soil;
-  uint8_t actionLogic = action->triggerConditions.logic;
-  
+  // Serial.println("B");
+  // Serial.println(trayState);
+  // Serial.println(soilState);
+
+  uint8_t actionTrayState = c->tray;
+  uint8_t actionSoilState = c->soil;
+  uint8_t actionLogic = c->logic;
+
+  // Serial.println("C");
+  // Serial.println(actionTrayState);
+  // Serial.println(actionSoilState);
+  // Serial.println(actionLogic);
+
+  bool satisfied = false;
+
   bool traySatisfied;
   bool soilSatisfied;
   if (start) {
-    traySatisfied = trayState == Conditions::TRAY_IGNORED || trayState <= actionTrayState;
-    soilSatisfied = soilState == Conditions::SOIL_IGNORED || soilState <= actionSoilState;
+    traySatisfied = trayState <= actionTrayState;
+    soilSatisfied = soilState <= actionSoilState;
   } else {
-    traySatisfied = trayState == Conditions::TRAY_IGNORED || trayState >= actionTrayState;
-    soilSatisfied = soilState == Conditions::SOIL_IGNORED || soilState >= actionSoilState;
+    traySatisfied = trayState >= actionTrayState;
+    soilSatisfied = soilState >= actionSoilState;
   }
 
-  return actionLogic == Conditions::NO_LOGIC || actionLogic == Conditions::TRAY_OR_SOIL
-    ? traySatisfied || soilSatisfied
-    : traySatisfied && soilSatisfied;
+  // Serial.println("D");
+  // Serial.println(traySatisfied);
+  // Serial.println(soilSatisfied);
+ 
+  bool r;
+  if (!actionTrayState && !actionSoilState) r = false;
+  else if (!actionTrayState && actionSoilState) r = soilSatisfied;
+  else if (actionTrayState && !actionSoilState) r = traySatisfied;
+  else if (actionLogic == Conditions::TRAY_OR_SOIL) r = soilSatisfied || traySatisfied;
+  else /* if (actionLogic == Conditions::TRAY_AND_SOIL)*/ r = soilSatisfied && traySatisfied;  
+
+  // Serial.println("E");
+  // Serial.println(r);
+
+  return r;
 }
 
 
 void runAction(Action *action, bool force = 0) { 
   static unsigned long lastExecutionTime = 0;
 
+  // Serial.println("1");
+
   // Quit if not enough time has lapsed OR if the conditions
   // are not satisfied
-  if (millis() - lastExecutionTime < FEED_MIN_INTERVAL && !force) return;
-  if (!actionShouldStartOrStop(action, 1)) return;
+  if (!force) {
+    if (lastExecutionTime && millis() - lastExecutionTime < FEED_MIN_INTERVAL) return;
+    if (!actionShouldStartOrStop(action, 1)) return;
+  }
 
+  // Serial.println("2");
+  
   // We are in!
   // Set a new execution time
   lastExecutionTime = millis();
+
+  lcdClear();
+  lcdPrint(MSG_FEEDING, 2);
+
+  // Serial.println("3");
 
   // Let water in
   openLineIn();
@@ -107,14 +114,21 @@ void runAction(Action *action, bool force = 0) {
   uint8_t trayWaterLevelBefore = trayWaterLevelAsPercentage(senseTrayWaterLevel());
 
   while (true) {
+    // Serial.println("4");
+  
     uint8_t shouldStop = 0;
     if (actionShouldStartOrStop(action, 0)) shouldStop = 1;
     if (millis() - feedStartMillis >= MAX_FEED_TIME) shouldStop = 2;
+    // Serial.println("5");
     
     // Keep emptying the tray if necessary
     emptyTrayIfNecessary();
+    // Serial.println("6");
 
     if (shouldStop) {
+      // Serial.println("7");
+      // Serial.println(shouldStop);
+
       closeLineIn();
       
       clearLogEntry(logEntry);
@@ -127,6 +141,9 @@ void runAction(Action *action, bool force = 0) {
       logEntry.trayWaterLevelAfter = trayWaterLevelAsPercentage(senseTrayWaterLevel());
       logEntry.topFeed = action->feedFrom == FeedFrom::FEED_FROM_TOP;
       logEntry.outcome = shouldStop == 1 ? 0 : shouldStop;
+
+      
+
       return;
     }
     delay(100);
@@ -142,7 +159,7 @@ void emptyTrayIfNecessary() {
   // No need
   if (config.trayNeedsEmptying) return;
 
-  const uint8_t trayState = trayWaterLevelAsState(trayWaterLevelAsPercentage(senseTrayWaterLevel()));
+  const uint8_t trayState = trayWaterLevelAsState(trayWaterLevelAsPercentage(senseTrayWaterLevel()), senseTrayIsFull());
   switch (pumpState) {
     case IDLE:
       if (millis() - lastPumpOutExecutionTime >= PUMP_REST_TIME && trayState >= Conditions::TRAY_SOME ) {
@@ -225,6 +242,7 @@ void viewLogs() {
   lcdClear();
 
   uint8_t curr = currentLogSlot;
+  
   Serial.println(curr);
 
   // readLogEntryFromEEPROM(logEntry, curr);
@@ -233,7 +251,6 @@ void viewLogs() {
 
   while (true) {
     readLogEntryFromEEPROM(logEntry, curr);
-    Serial.println(logEntry.millisStart);
     
     if (!logEntry.millisStart) {
       lcdFlashMessage(MSG_NO_LOG_ENTRIES);
@@ -349,7 +366,7 @@ void displayInfo1(uint8_t screen) {
   lcdPrint(MSG_PERCENT);
   lcdPrint(MSG_SPACE);
 
-  lcdPrint(trayWaterLevelInEnglish(trayWaterLevelAsState(trayWaterLevelPercent), trayIsFull));
+  lcdPrint(trayWaterLevelInEnglish(trayWaterLevelAsState(trayWaterLevelPercent, trayIsFull), trayIsFull));
 }
 
 char *trayConditionToEnglish(uint8_t condition) {
@@ -439,7 +456,7 @@ void displayInfo4(uint8_t screen) {
 
 int8_t pickAction() {
   uint8_t i = 0, c = 0;
-  for (i = 0; i <= 5; i++) {
+  for (i = 0; i <= ACTIONS_ARRAY_SIZE; i++) {
     if (config.feedFrom == config.actions[i].feedFrom) {
       setChoiceFromString(c, config.actions[i].name, i);
       c++;
@@ -472,7 +489,7 @@ void setActiveActions() {
       setChoiceFromString(0, config.actions[config.activeActionsIndex0].name, 0);
     }
 
-    if (config.activeActionsIndex0 == -1) {
+    if (config.activeActionsIndex1 == -1) {
       setChoice(1,MSG_EMPTY_SLOT, 1);
     } else {
       setChoiceFromString(1, config.actions[config.activeActionsIndex1].name, 1);
@@ -484,7 +501,7 @@ void setActiveActions() {
 
     setChoice(0, MSG_EMPTY_SLOT, 127);
     uint8_t i = 1, c = 1;
-    for (i = 0; i <= 5; i++) {
+    for (i = 0; i < ACTIONS_ARRAY_SIZE; i++) {
       if (config.feedFrom == config.actions[i].feedFrom) {
         setChoiceFromString(c, config.actions[i].name, i);
         c++;
@@ -497,6 +514,7 @@ void setActiveActions() {
     if (choice == 127) choice = -1;
     if (slot == 0) config.activeActionsIndex0 = choice;
     if (slot == 1) config.activeActionsIndex1 = choice;
+    
     saveConfig();
   }
 }
@@ -670,7 +688,7 @@ void settingsEditActions() {
   while (true) {
 
     // Set the choices
-    for (i = 0; i <= 5; i++) setChoiceFromString(i, config.actions[i].name, i);
+    for (i = 0; i <= ACTIONS_ARRAY_SIZE; i++) setChoiceFromString(i, config.actions[i].name, i);
 
     // Pick one. If -1, then get out of this menu with the "break"
     int8_t choiceId = selectChoice(i, 0);

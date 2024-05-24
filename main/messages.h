@@ -138,6 +138,4 @@ const char PROGMEM MSG_PERCENT_DASH_ONEHUNDRED_PERCENT_SPACE[] = "%-100%";
 
 const char PROGMEM MSG_NO_LOG_ENTRIES[] = "No log entries!"; 
 
-
-
 #endif MESSAGES_H

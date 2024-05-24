@@ -8,11 +8,14 @@ uint8_t currentLogSlot;
 void readLogEntryFromEEPROM(LogEntry &logEntry, int slotNumber) {
     // Calculate the EEPROM address for the given slot number
     int eepromAddress = EEPROM_START_ADDRESS + (slotNumber) * EEPROM_SLOT_SIZE;
+    
+    /*
     Serial.println("Address:");
     Serial.println(EEPROM_START_ADDRESS);
     Serial.println(slotNumber);
     Serial.println(EEPROM_SLOT_SIZE);
     Serial.println(eepromAddress);
+    */
 
     // Read data from EEPROM into memory
     for (unsigned int i = 0; i < sizeof(LogEntry); i++) {
@@ -82,7 +85,7 @@ uint8_t getPreviousSlot(int currentLogSlot) {
 
 void initLogs() {
   currentLogSlot = findSlotNumberOfHighestMillisStartLog();
-  Serial.print("AH:");
+  Serial.print("CURRENT SLOT:");
   Serial.println(currentLogSlot);
 }
 
