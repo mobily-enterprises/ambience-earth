@@ -5,7 +5,7 @@
 
 
 // Private functions (not declared in ui.h)
-void labelcpy(char* destination, const char* source);
+void labelcpyFromString(char* destination, const char* source);
 void upClick();
 void downClick();
 void leftClick();
@@ -81,7 +81,7 @@ void lcdPrint(const char *message, int8_t y = -1) {
     lcdClearLine(y);
     lcdSetCursor(0, y);
   } 
-  labelcpy2(buffer, message);
+  labelcpy(buffer, message);
   lcd.print(buffer);
 }
 
@@ -93,7 +93,7 @@ void lcdPrint2(char *message, int8_t y = -1) {
     lcdSetCursor(0, y);
   } 
 
-  labelcpy2(buffer, message);
+  labelcpy(buffer, message);
   lcd.print(buffer);
 }
 
@@ -103,7 +103,7 @@ void lcdPrintNumber(int number, uint8_t y = 0) {
     lcdSetCursor(0, y);
   }
   // int y = lcd.cursorY();
-  // labelCpy(displayedLine, message);
+  // labelcpyFromString(displayedLine, message);
   // displayedLine[DISPLAY_COLUMS - y] = '\0';  
   lcd.print(number);
 }
@@ -149,7 +149,7 @@ const byte rightArrow[8] = {
   B00000
 };
 
-void labelcpy(char* destination, const char* source) {
+void labelcpyFromString(char* destination, const char* source) {
   strncpy(destination, source, LABEL_LENGTH);
   destination[strnlen(destination, LABEL_LENGTH)] = '\0';
 }
@@ -175,13 +175,13 @@ void initLcdAndButtons() {
   resetChoicesAndHeader();
 }
 
-void setChoices2(const char *label0=MSG_EMPTY2,int value0=0,const char *label1=MSG_EMPTY2,int value1=0,const char *label2=MSG_EMPTY2,int value2=0,const char *label3=MSG_EMPTY2,int value3=0,const char *label4=MSG_EMPTY2,int value4=0,const char *label5=MSG_EMPTY2,int value5=0) {
-  labelcpy2(choices[0].label, label0);
-  labelcpy2(choices[1].label, label1);
-  labelcpy2(choices[2].label, label2);
-  labelcpy2(choices[3].label, label3);
-  labelcpy2(choices[4].label, label4);
-  labelcpy2(choices[5].label, label5);
+void setChoices(const char *label0=MSG_EMPTY2,int value0=0,const char *label1=MSG_EMPTY2,int value1=0,const char *label2=MSG_EMPTY2,int value2=0,const char *label3=MSG_EMPTY2,int value3=0,const char *label4=MSG_EMPTY2,int value4=0,const char *label5=MSG_EMPTY2,int value5=0) {
+  labelcpy(choices[0].label, label0);
+  labelcpy(choices[1].label, label1);
+  labelcpy(choices[2].label, label2);
+  labelcpy(choices[3].label, label3);
+  labelcpy(choices[4].label, label4);
+  labelcpy(choices[5].label, label5);
   choices[0].value = value0;
   choices[1].value = value1;
   choices[2].value = value2;
@@ -191,21 +191,21 @@ void setChoices2(const char *label0=MSG_EMPTY2,int value0=0,const char *label1=M
 }
 
 void setChoicesHeader(const char *header="") {
-  labelcpy2(choicesHeader, header);
+  labelcpy(choicesHeader, header);
 }
 
-void labelcpy2(char *destination, const char *source) {
+void labelcpy(char *destination, const char *source) {
   strncpy_P(destination, source, LABEL_LENGTH);
   destination[strnlen(destination, LABEL_LENGTH)] = '\0';
 }
 
 void setChoice(unsigned char index, const char *label,int value=0) {
-  labelcpy2(choices[index].label, label);
+  labelcpy(choices[index].label, label);
   choices[index].value = value;
 }
 
 void setChoiceFromString(unsigned char index, const char *label="",int value=0) {
-  labelcpy(choices[index].label, label);
+  labelcpyFromString(choices[index].label, label);
   choices[index].value = value;
 }
 
@@ -304,7 +304,7 @@ void resetChoicesAndHeader() {
   choicesHeader[0] = '\0';
 }
 
-int8_t selectChoice2(int howManyChoices, int initialUserInput) {
+int8_t selectChoice(int howManyChoices, int initialUserInput) {
   int selectedIndex = 0;      // Default selection is the first choice
   int firstVisibleIndex = 0;  // Index of the first choice visible on the screen
   bool displayChanged = true;
@@ -391,7 +391,7 @@ int8_t selectChoice2(int howManyChoices, int initialUserInput) {
   }
 }
 
-void lcdFlashMessage2(char *message, char *message2=MSG_EMPTY2, uint16_t time = 1000) {
+void lcdFlashMessage(char *message, char *message2=MSG_EMPTY2, uint16_t time = 1000) {
   lcdClear();
   lcdSetCursor(0,1);
   lcdPrint2(message);
@@ -402,19 +402,19 @@ void lcdFlashMessage2(char *message, char *message2=MSG_EMPTY2, uint16_t time = 
 }
 
 
-bool alert2(char *warning = MSG_EMPTY2) {
-  setChoices2(MSG_OK2, 1);
+bool alert(char *warning = MSG_EMPTY2) {
+  setChoices(MSG_OK2, 1);
   setChoicesHeader(warning);
 
-  int8_t userInput = selectChoice2(1, 1);
+  int8_t userInput = selectChoice(1, 1);
   return 1;
 }
 
-bool confirm2(char* question, bool initialUserInput = true) {
-  setChoices2(MSG_YES2, 1, MSG_NO2, 0);
+bool confirm(char* question, bool initialUserInput = true) {
+  setChoices(MSG_YES2, 1, MSG_NO2, 0);
   setChoicesHeader(question);
 
-  int8_t userInput = selectChoice2(2, initialUserInput ? 1 : 0);
+  int8_t userInput = selectChoice(2, initialUserInput ? 1 : 0);
   return userInput == 1 ? true : false;
 }
 
@@ -431,10 +431,10 @@ void inputString(char *prompt, char *initialUserInput, char *optionalHeader = MS
 
   // Check if initialUserInput is not empty
   if (!strlen(initialUserInput) > 0) {
-    labelcpy2(userInputString, MSG_SPACES2);
+    labelcpy(userInputString, MSG_SPACES2);
     userInputString[0] = allowedStringCharacters[initialCharacterPosition];
   } else {
-    labelcpy(userInputString, initialUserInput);
+    labelcpyFromString(userInputString, initialUserInput);
     sanitizeUserInput(userInputString);
     cursorPosition = actualLength(userInputString);
   }
@@ -477,10 +477,10 @@ void inputString(char *prompt, char *initialUserInput, char *optionalHeader = MS
     analogButtonsCheck(); // This will set the global `pressedButton`
 
     if (pressedButton == &okButton) {
-      if (cursorPosition == 0) labelcpy2(userInputString, MSG_STAR2);
+      if (cursorPosition == 0) labelcpy(userInputString, MSG_STAR2);
 
       // If OK button is pressed, return the input string
-      if (asEdit) labelcpy(initialUserInput, userInputString);
+      if (asEdit) labelcpyFromString(initialUserInput, userInputString);
       return;
     } else if (pressedButton == &downButton) {
       if (cursorPosition != 0) {
@@ -505,7 +505,7 @@ void inputString(char *prompt, char *initialUserInput, char *optionalHeader = MS
     } else if (pressedButton == &leftButton) {
       if (cursorPosition == 0) {
         // This will count as "go back", the initial value will be considered
-        labelcpy(userInputString, "*");
+        labelcpyFromString(userInputString, "*");
         return;
       }
       // If LEFT button is pressed, move cursor to the previous position
