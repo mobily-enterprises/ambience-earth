@@ -6,6 +6,7 @@
 #include "config.h"
 #include "messages.h"
 #include "sensors.h"
+#include "logs.h"
 
 #include <LiquidCrystal_I2C.h>
 
@@ -16,6 +17,8 @@ unsigned int feedNumber = 0;
 // Config& gConfig = getConfig();
 extern Config config;
 extern Button *pressedButton;
+extern LogEntry logEntry;
+extern uint8_t currentLogSlot;
 
 const unsigned long interval = 2000;  // Interval in milliseconds (1000 milliseconds = 1 second)
 unsigned long previousMillis = 0;
@@ -59,6 +62,9 @@ void maybeRunActions() {
 }
 
 bool actionShouldStart(Action *action) {
+  trayState = trayWaterLevelAsState(trayWaterLevelAsPercentage(senseTrayWaterLevel()));
+  soilState = soilMoistureAsState(soilMoistureAsPercentage())
+  
   return true;
 }
 
@@ -66,8 +72,7 @@ bool actionShouldStop(Action *action) {
   return true;
 }
 
-void runAction(Action *action, bool force = 0) {
-  return;
+void runAction(Action *action, bool force = 0) { 
   static unsigned long lastExecutionTime = 0;
 
   if (millis() - lastExecutionTime >= FEED_MIN_INTERVAL) {
@@ -76,16 +81,16 @@ void runAction(Action *action, bool force = 0) {
 
   if (millis() - lastExecutionTime < MAX_FEED_TIME || force) {  // Run for at most 10 seconds
 
-
     if (!actionShouldStart(action)) return;
 
-    // LOG: Starting feed. Time from last feed: X
     digitalWrite(PUMP_OUT_DEVICE, HIGH);
 
     unsigned long feedStartTime = 0;
     bool feedRunning = false;
 
-    feedStartTime = millis();
+    unsigned long feedStartMillis = millis();
+    uint8_t soilMoistureBefore = soilMoistureAsPercentage(senseSoilMosture());
+    uint8_t trayWaterLevelBefore = trayWaterLevelAsPercentage(senseTrayWaterLevel());
 
     while (true) {
 
@@ -93,10 +98,18 @@ void runAction(Action *action, bool force = 0) {
       if (actionShouldStop(action)) shouldStop = 1;
       if (millis() - feedStartTime >= MAX_FEED_TIME) shouldStop = 2;
 
-
       if (shouldStop) {
         digitalWrite(PUMP_OUT_DEVICE, LOW);
-        // LOG: Feed finished. Timestamp. Duration.
+        clearLogEntry(logEntry);
+        logEntry.millisStart = feedStartMillis;
+        logEntry.millisEnd = millis();
+        logEntry.actionId = 1; 
+        logEntry.soilMoistureBefore = soilMoistureBefore;
+        logEntry.trayWaterLevelBefore = trayWaterLevelBefore;
+        logEntry.soilMoistureAfter = soilMoistureAsPercentage(senseSoilMosture());
+        logEntry.trayWaterLevelAfter = trayWaterLevelAsPercentage(senseTrayWaterLevel());
+        logEntry.topFeed = action->feedFrom == FeedFrom::FEED_FROM_TOP;
+        logEntry.outcome = shouldStop == 1 ? 0 : shouldStop;
         return;
       }
     }
@@ -160,6 +173,7 @@ void setup() {
   extern LiquidCrystal_I2C lcd;
 
   initSensors();
+  initLogs();
 
   loadConfig();
 
@@ -167,6 +181,7 @@ void setup() {
     // Serial.println("CHECKSUM INCORRECT?!?");
     restoreDefaultConfig();
     saveConfig();
+    wipeLogs();
   }
 
   // runInitialSetup();
@@ -184,7 +199,6 @@ uint8_t screenCounter = 0;
 
 void loop() {
 
-  // Serial.println("HERE 2");
   unsigned long currentMillis = millis();
 
 
@@ -196,7 +210,8 @@ void loop() {
     displayInfo(screenCounter);
   }
 
-
+  // Exit the main "action" loop, and go to the system's menu,
+  // if a button is pressed
   analogButtonsCheck();
   if (pressedButton != nullptr) {
     pressedButton = nullptr;
@@ -205,6 +220,26 @@ void loop() {
 }
 
 void viewLogs() {
+  lcdClear();
+
+  uint8_t curr = currentLogSlot;
+  Serial.println(curr);
+
+  // readLogEntryFromEEPROM(logEntry, curr);
+  // Serial.println(logEntry.millisStart);
+    
+
+  while (true) {
+    readLogEntryFromEEPROM(logEntry, curr);
+    Serial.println(logEntry.millisStart);
+    
+    if (!logEntry.millisStart) {
+      lcdFlashMessage(MSG_NO_LOG_ENTRIES);
+      return;
+    }
+  }
+
+  
 }
 
 void activatePumps() {
@@ -469,6 +504,7 @@ void resetData() {
   if (confirm(MSG_SURE_QUESTION)) {
     restoreDefaultConfig();
     saveConfig();
+    wipeLogs();
     while (!runInitialSetup())
       ;
   }

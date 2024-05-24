@@ -1,5 +1,5 @@
-#ifndef DATA_H
-#define DATA_H
+#ifndef CONFIG_H
+#define CONFIG_H
 
 #include <stdint.h>
 #include <Arduino.h>
@@ -79,4 +79,4 @@ void restoreDefaultConfig();
 void saveConfig();
 // Config& getConfig();
 void loadConfig();
-#endif DATA_H
+#endif CONFIG_H

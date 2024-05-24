@@ -1,3 +1,6 @@
+#ifndef SENSORS_H
+#define SENSORS_H
+
 #include <Arduino.h>
 
 #define SOIL_LITTLE_MOISTURE_SENSOR A0
@@ -22,3 +25,4 @@ bool senseTrayIsFull();
 char* trayWaterLevelInEnglish(uint8_t trayWaterLevelAsPercentage, bool trayIsFull);
 uint8_t soilMoistureAsState(uint8_t soilMoistureAsPercentage);
 uint8_t trayWaterLevelAsState(uint8_t trayWaterLevelAsPercentage);
+#endif SENSORS_H
