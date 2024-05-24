@@ -1,6 +1,7 @@
 #ifndef MESSAGES_H
 #define MESSAGES_H
 
+/*
 #define MSG_EMPTY ""
 #define MSG_AUTO_DRAIN "Auto drain?"
 #define MSG_SPACES "                    "
@@ -62,11 +63,11 @@
 
 #define MSG_LINE_IN "Line in..."
 
+*/
 
 #define MSG_RESET_DATA "Reset data"
 #define MSG_TEST_PUMPS "Test pumps/sol"
 #define MSG_RUN_ANY_ACTIONS "Run any action"
-
 
 const char PROGMEM MSG_EDIT_ACTIONS2[] = "Edit actions";
 const char PROGMEM MSG_FEEDING_FROM[] = "Feeding from";
@@ -163,5 +164,17 @@ const char PROGMEM MSG_SOAKED_MOIST_SENSOR2[] = "SOAKED moist sensor";
 const char PROGMEM MSG_PICK_ACTION2[] = "Pick action";
 const char PROGMEM MSG_PICK_A_SLOT2[] = "Pick a slot";
 const char PROGMEM MSG_LOGIC2[] = "Logic";
+
+
+const char PROGMEM MSG_START_SOIL2[] = "Feed when soil is:";
+const char PROGMEM MSG_STOP_SOIL2[] = "Stop when soil is:";
+const char PROGMEM MSG_START_TRAY2[] = "Feed when tray is:";
+const char PROGMEM MSG_STOP_TRAY2[] = "Stop when tray is:";
+
+const char PROGMEM MSG_NO_ACTION_SET2[] = "No action set!";
+
+const char PROGMEM MSG_ATTACH_WHITE_SENSOR2[] = "Attach white sensor";
+const char PROGMEM MSG_WHERE_LED_TURNS_ON2[] = "where LED turns on";
+
 
 #endif MESSAGES_H

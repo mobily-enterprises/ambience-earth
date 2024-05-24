@@ -62,11 +62,10 @@ uint8_t soilMoistureAsState(uint8_t soilMoistureAsPercentage) {
 }
 
 char* soilMoistureInEnglish(uint8_t soilMoistureState) {
-  
-  if (soilMoistureState == Conditions::SOIL_VERY_MOIST) return "Very moist";
-  else if(soilMoistureState == Conditions::SOIL_MOIST) return "Moist";
-  else if(soilMoistureState == Conditions::SOIL_LITTLE_MOIST) return "Little moist";
-  else if(soilMoistureState == Conditions::SOIL_DRY) return "Dry";
+  if (soilMoistureState == Conditions::SOIL_VERY_MOIST) return MSG_SOIL_VERY_MOIST2;
+  else if(soilMoistureState == Conditions::SOIL_MOIST) return MSG_SOIL_MOIST2;
+  else if(soilMoistureState == Conditions::SOIL_LITTLE_MOIST) return MSG_SOIL_LITTLE_MOIST2;
+  else if(soilMoistureState == Conditions::SOIL_DRY) return MSG_SOIL_DRY2;
 }
 
 uint8_t trayWaterLevelAsPercentage(uint16_t waterLevel) {
@@ -124,8 +123,8 @@ char* trayWaterLevelInEnglish(uint8_t trayWaterLevelAsState, bool trayIsFull) {
     return "Full";
   }
 
-  if (trayWaterLevelAsState == Conditions::TRAY_PLENTY) return "Plenty";
-  else if (trayWaterLevelAsState == Conditions::TRAY_SOME) return "Some";
-  else if (trayWaterLevelAsState == Conditions::TRAY_EMPTY) return "Empty";
-  else if (trayWaterLevelAsState == Conditions::TRAY_DRY) return "Dry";
+  if (trayWaterLevelAsState == Conditions::TRAY_PLENTY) return MSG_TRAY_PLENTY2;
+  else if (trayWaterLevelAsState == Conditions::TRAY_SOME) return MSG_TRAY_SOME2;
+  else if (trayWaterLevelAsState == Conditions::TRAY_EMPTY) return MSG_TRAY_EMPTY2;
+  else if (trayWaterLevelAsState == Conditions::TRAY_DRY) return MSG_TRAY_PLENTY2;
 }

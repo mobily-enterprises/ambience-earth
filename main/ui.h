@@ -6,7 +6,7 @@
 void initLcdAndButtons();
 
 #define DISPLAY_COLUMNS 20
-#define LABEL_LENGTH 13
+#define LABEL_LENGTH 20
 
 #define BUTTONS_PIN A6
 #define BUTTONS_PIN_MODE INPUT         // Set to INPUT to disable internal pull-up resistor
@@ -22,13 +22,15 @@ struct Choice {
 };
 
 bool confirm2(char* question, bool initialUserInput = true);
-bool alert2(char *question);
+bool alert2(char *question=MSG_EMPTY2);
 
-int8_t selectChoice(int howManyChoices, int initialUserInput, char *optionalHeader = "");
-int8_t selectChoice2(int howManyChoices, int initialUserInput, char *optionalHeader = "");
-void setChoices2(const char *label0="",int value0=0,const char *label1="",int value1=0,const char *label2="",int value2=0,const char *label3="",int value3=0,const char *label4="",int value4=0,const char *label5="",int value5=0);
-void setChoice(unsigned char index, const char *label="",int value=0);
-Choice* getChoices();
+int8_t selectChoice2(int howManyChoices, int initialUserInput);
+void setChoices2(const char *label0=MSG_EMPTY2,int value0=0,const char *label1=MSG_EMPTY2,int value1=0,const char *label2=MSG_EMPTY2,int value2=0,const char *label3=MSG_EMPTY2,int value3=0,const char *label4=MSG_EMPTY2,int value4=0,const char *label5=MSG_EMPTY2,int value5=0);
+void setChoicesHeader(const char *header="");
+
+
+void setChoiceFromString(unsigned char index, const char *label="",int value=0);
+void setChoice(unsigned char index, const char *label,int value=0);
 
 int inputNumber(char *prompt, int initialUserInput, int stepSize, int min = 0, int max = 100, char *postFix = "", char *optionalHeader = "");
 
@@ -39,18 +41,20 @@ char* getUserInputString();
 void labelcpy(char* destination, const char* source);
 void labelcpy2(char* destination, const char *source);
 
+void resetChoicesAndHeader();
+
 // ****************************************
 // **         USER OUTPUT                **
 // ****************************************
 
 void lcdClear();
 void lcdClearLine(uint8_t y);
-void lcdPrint(char *message, uint8_t y = 0);
-void lcdPrint2(char *message, uint8_t y = -1);
+void lcdPrint(const char *message, int8_t y = -1);
 void lcdPrintNumber(int number, uint8_t y = 0);
 void lcdPrintBool(bool b, uint8_t y = 0);
 void lcdSetCursor(uint8_t x, uint8_t y);
-void lcdFlashMessage(char *message, char *message2 = MSG_EMPTY, uint16_t time = 1000);
+void lcdFlashMessage2(char *message, char *message2=MSG_EMPTY2, uint16_t time = 1000);
+
 void analogButtonsCheck();
 
 
