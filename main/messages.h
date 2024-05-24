@@ -129,5 +129,14 @@ const char PROGMEM MSG_ERROR_1[] = "Error 1";
 
 const char PROGMEM MSG_FULL[] = "Full";
 
+const char PROGMEM MSG_ZERO_PERCENT_DASH[] = "0\%-";
+const char PROGMEM MSG_PERCENT_DRY[] = "% Dry";
+const char PROGMEM MSG_PERCENT_DASH[] = "%-";
+const char PROGMEM MSG_PERCENT_SPACE[] = "% ";
+
+const char PROGMEM MSG_PERCENT_DASH_ONEHUNDRED_PERCENT_SPACE[] = "%-100%"; 
+
+
+
 
 #endif MESSAGES_H

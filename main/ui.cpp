@@ -410,12 +410,16 @@ bool alert(char *warning = MSG_EMPTY) {
   return 1;
 }
 
-bool confirm(char* question, bool initialUserInput = true) {
+int8_t confirm(char* question, bool initialUserInput = true) {
   setChoices(MSG_YES, 1, MSG_NO, 0);
   setChoicesHeader(question);
 
-  int8_t userInput = selectChoice(2, initialUserInput ? 1 : 0);
-  return userInput == 1 ? true : false;
+  int8_t response = selectChoice(2, initialUserInput ? 1 : 0);
+  if (response == -1) {
+    lcdFlashMessage(MSG_ABORTED);
+    return response;
+  }
+  return response == 1 ? true : false;
 }
 
 

@@ -21,7 +21,7 @@ struct Choice {
   int value;
 };
 
-bool confirm(char* question, bool initialUserInput = true);
+int8_t confirm(char* question, bool initialUserInput = true);
 bool alert(char *question=MSG_EMPTY);
 
 int8_t selectChoice(int howManyChoices, int initialUserInput);

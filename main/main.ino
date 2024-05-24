@@ -478,9 +478,13 @@ void setAutoDrain() {
   if (config.feedFrom != FeedFrom::FEED_FROM_TOP) {
     lcdFlashMessage(MSG_ONLY_TOP_FEEDING, MSG_EMPTY, 2000);
   }
-  bool trayNeedsEmptying = confirm(MSG_AUTO_DRAIN, config.trayNeedsEmptying);
+  int8_t trayNeedsEmptying = confirm(MSG_AUTO_DRAIN, config.trayNeedsEmptying);
+  if (trayNeedsEmptying == -1) return;
 
-  if (confirm(MSG_SAVE_QUESTION)) {
+  int8_t confirmation = confirm(MSG_SAVE_QUESTION);
+  if (confirmation == -1) return;
+
+  if (confirmation) {
     // Only overwritten once saving
     config.trayNeedsEmptying = trayNeedsEmptying;
   }
@@ -712,24 +716,24 @@ void settingsDefaultMoistLevels() {
   lcdClear();
 
   lcd.setCursor(0, 0);
-  lcd.print("0\%-");
+  lcdPrint(MSG_ZERO_PERCENT_DASH);
   lcdPrintNumber(soilLittleMoistPercentage - 1);
-  lcd.print("% Dry");
+  lcdPrint(MSG_PERCENT_DRY);
 
   lcdPrintNumber(soilLittleMoistPercentage, 1);
-  lcd.print("%-");
+  lcdPrint(MSG_PERCENT_DASH);
   lcdPrintNumber(soilMoistPercentage - 1);
-  lcd.print("% ");
+  lcdPrint(MSG_PERCENT_SPACE);
   lcdPrint(MSG_SOIL_LITTLE_MOIST);
 
   lcdPrintNumber(soilMoistPercentage, 2);
-  lcd.print("%-");
+  lcd.print(MSG_PERCENT_DASH);
   lcdPrintNumber(soilVeryMoistPercentage - 1);
-  lcd.print("% ");
+  lcd.print(MSG_PERCENT_SPACE);
   lcdPrint(MSG_SOIL_MOIST);
 
   lcdPrintNumber(soilVeryMoistPercentage, 3);
-  lcd.print("%-100% ");
+  lcdPrint(MSG_PERCENT_DASH_ONEHUNDRED_PERCENT_SPACE);
   lcdPrint(MSG_SOIL_VERY_MOIST);
 
   delay(2000);
@@ -773,6 +777,7 @@ int runInitialSetup() {
 
   if (config.feedFrom == FeedFrom::FEED_FROM_TOP) {
     config.trayNeedsEmptying = confirm(MSG_AUTO_DRAIN, false);
+    if (config.trayNeedsEmptying == -1) return 0;
   } else {
     config.trayNeedsEmptying = false;
   }
@@ -791,7 +796,7 @@ int runInitialSetup() {
 
 int calibrateTrayWaterLevelSensors() {
 
-  uint8_t goAhead;
+  int8_t goAhead;
 
   int16_t empty;
   int16_t half;
@@ -802,10 +807,8 @@ int calibrateTrayWaterLevelSensors() {
 
 
   goAhead = confirm(MSG_TINY_BIT_OF_WATER, 1);
-  if (!goAhead) {
-    lcdFlashMessage(MSG_ABORTED);
-    return false;
-  }
+  if (goAhead == -1) return false;
+ 
   lcdClear();
   lcdPrint(MSG_EMPTY_COLUMN, 1);
   for (int i = 0; i < 8; i++) {
@@ -819,11 +822,8 @@ int calibrateTrayWaterLevelSensors() {
   delay(2000);
 
   goAhead = confirm(MSG_HALF_TRAY, 1);
-  if (!goAhead) {
-    lcdFlashMessage(MSG_ABORTED);
-    return false;
-  }
-
+  if (goAhead == -1) return false;
+ 
   lcdClear();
   lcdPrint(MSG_HALF_COLUMN, 1);
   for (int i = 0; i < 8; i++) {
@@ -835,11 +835,9 @@ int calibrateTrayWaterLevelSensors() {
   }
 
   goAhead = confirm(MSG_FULL_TRAY, 1);
-  if (!goAhead) {
-    lcdFlashMessage(MSG_ABORTED);
-    return false;
-  }
-  lcdClear();
+  if (goAhead == -1) return false;
+ 
+   lcdClear();
   lcdPrint(MSG_FULL_COLUMN, 1);
   for (int i = 0; i < 8; i++) {
     full = senseTrayWaterLevel();
@@ -853,10 +851,8 @@ int calibrateTrayWaterLevelSensors() {
 
   while (true) {
     goAhead = confirm(MSG_SENSOR_ATTACHED, 1);
-    if (!goAhead) {
-      lcdFlashMessage(MSG_ABORTED);
-      return false;
-    }
+    if (goAhead == -1) return false;
+ 
 
     trayFull = senseTrayIsFull();
     if (!trayFull) {
@@ -888,11 +884,10 @@ int calibrateSoilMoistureSensor() {
   int soaked;
   int dry;
 
+
   goAhead = confirm(MSG_DRY_MOIST_SENSOR, 1);
-  if (!goAhead) {
-    lcdFlashMessage(MSG_ABORTED);
-    return;
-  }
+  if (goAhead == -1) return false;
+
   lcdClear();
   lcdPrint(MSG_DRY_COLUMN, 1);
   for (int i = 0; i < 4; i++) {
@@ -906,10 +901,7 @@ int calibrateSoilMoistureSensor() {
   delay(2000);
 
   goAhead = confirm(MSG_SOAKED_MOIST_SENSOR, 1);
-  if (!goAhead) {
-    lcdFlashMessage(MSG_ABORTED);
-    return;
-  }
+  if (goAhead == -1) return false;
 
   lcdClear();
   lcdPrint(MSG_SOAKED_COLUMN, 1);
