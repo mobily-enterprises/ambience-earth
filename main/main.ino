@@ -133,7 +133,7 @@ void emptyTrayIfNecessary() {
         if (!pumpRunning) {
           // Start the pump and record the start time
           lcdClear();
-          lcdPrint(MSG_EXTRACTING2);
+          lcdPrint(MSG_EXTRACTING);
           digitalWrite(PUMP_OUT_DEVICE, HIGH);  // Activate the pump
           pumpStartTime = millis();
           pumpRunning = true;
@@ -211,9 +211,9 @@ void activatePumps() {
   int8_t choice;
   while (true) {
     setChoices(
-      MSG_PUMP_IN2, 0,
-      MSG_PUMP_OUT2, 1,
-      MSG_SOLENOID_IN2, 2);
+      MSG_PUMP_IN, 0,
+      MSG_PUMP_OUT, 1,
+      MSG_SOLENOID_IN, 2);
     choice = selectChoice(3, 0);
     if (choice == -1) return;
 
@@ -225,10 +225,10 @@ void mainMenu() {
   int8_t choice;
   do {
     setChoices(
-      MSG_ACTIVE_ACTIONS2, 1,
-      MSG_LOGS2, 2,
-      MSG_FORCE_ACTION2, 3,
-      MSG_SETTINGS2, 4);
+      MSG_ACTIVE_ACTIONS, 1,
+      MSG_LOGS, 2,
+      MSG_FORCE_ACTION, 3,
+      MSG_SETTINGS, 4);
 
     choice = selectChoice(4, 1);
 
@@ -243,7 +243,7 @@ void forceAction() {
   uint8_t i = 0;
   int8_t index = 0;
   if (config.activeActionsIndex0 == -1 && config.activeActionsIndex1 == -1) {
-    lcdFlashMessage(MSG_NO_ACTION_SET2);
+    lcdFlashMessage(MSG_NO_ACTION_SET);
     return;
   }
 
@@ -257,7 +257,7 @@ void forceAction() {
     i++;
   }
 
-  setChoicesHeader(MSG_PICK_ACTION2);
+  setChoicesHeader(MSG_PICK_ACTION);
   index = selectChoice(i, 0);
   if (index == -1) return;
   runAction(&config.actions[index], true);
@@ -297,58 +297,58 @@ void displayInfo1(uint8_t screen) {
   trayIsFull = senseTrayIsFull();
 
   lcdClear();
-  lcdPrint(MSG_SOIL2, 0);
-  lcdPrint(MSG_SPACE2);
+  lcdPrint(MSG_SOIL, 0);
+  lcdPrint(MSG_SPACE);
 
   lcdPrintNumber(soilMoisturePercent);
-  lcdPrint(MSG_PERCENT2);
-  lcdPrint(MSG_SPACE2);
+  lcdPrint(MSG_PERCENT);
+  lcdPrint(MSG_SPACE);
   lcdPrint(soilMoistureInEnglish(soilMoistureAsState(soilMoisturePercent)));
-  lcdPrint(MSG_SPACE2);
+  lcdPrint(MSG_SPACE);
 
-  lcdPrint(MSG_TRAY2, 1);
-  lcdPrint(MSG_SPACE2);
+  lcdPrint(MSG_TRAY, 1);
+  lcdPrint(MSG_SPACE);
   lcdPrintNumber(trayWaterLevelPercent);
-  lcdPrint(MSG_PERCENT2);
-  lcdPrint(MSG_SPACE2);
+  lcdPrint(MSG_PERCENT);
+  lcdPrint(MSG_SPACE);
 
   lcdPrint(trayWaterLevelInEnglish(trayWaterLevelAsState(trayWaterLevelPercent), trayIsFull));
 }
 
 char *trayConditionToEnglish(uint8_t condition) {
-  if (condition == Conditions::TRAY_DRY) return MSG_TRAY_DRY2;
-  else if (condition == Conditions::TRAY_EMPTY) return MSG_TRAY_EMPTY2;
-  else if (condition == Conditions::TRAY_SOME) return MSG_TRAY_SOME2;
-  else if (condition == Conditions::TRAY_PLENTY) return MSG_TRAY_PLENTY2;
-  else return MSG_EMPTY2;
+  if (condition == Conditions::TRAY_DRY) return MSG_TRAY_DRY;
+  else if (condition == Conditions::TRAY_EMPTY) return MSG_TRAY_EMPTY;
+  else if (condition == Conditions::TRAY_SOME) return MSG_TRAY_SOME;
+  else if (condition == Conditions::TRAY_PLENTY) return MSG_TRAY_PLENTY;
+  else return MSG_EMPTY;
 }
 
 
 char *soilConditionToEnglish(uint8_t condition) {
-  if (condition == Conditions::SOIL_DRY) return MSG_SOIL_DRY2;
-  else if (condition == Conditions::SOIL_LITTLE_MOIST) return MSG_SOIL_LITTLE_MOIST2;
-  else if (condition == Conditions::SOIL_MOIST) return MSG_SOIL_MOIST2;
-  else if (condition == Conditions::SOIL_VERY_MOIST) return MSG_SOIL_VERY_MOIST2;
-  else return MSG_EMPTY2;
+  if (condition == Conditions::SOIL_DRY) return MSG_SOIL_DRY;
+  else if (condition == Conditions::SOIL_LITTLE_MOIST) return MSG_SOIL_LITTLE_MOIST;
+  else if (condition == Conditions::SOIL_MOIST) return MSG_SOIL_MOIST;
+  else if (condition == Conditions::SOIL_VERY_MOIST) return MSG_SOIL_VERY_MOIST;
+  else return MSG_EMPTY;
 }
 
 void displayTriggerConditions(Conditions conditions) {
   if (conditions.tray != Conditions::TRAY_IGNORED) {
-    lcdPrint(MSG_TRAY2);
-    lcdPrint(MSG_SPACE2);
+    lcdPrint(MSG_TRAY);
+    lcdPrint(MSG_SPACE);
     lcdPrint(trayConditionToEnglish(conditions.tray));
   }
 
   if (conditions.logic != Conditions::NO_LOGIC) {
     if (conditions.logic == Conditions::TRAY_OR_SOIL) {
-      lcdPrint(MSG_OR2);
+      lcdPrint(MSG_OR);
     } else if (conditions.logic == Conditions::TRAY_AND_SOIL) {
-      lcdPrint(MSG_AND2);
+      lcdPrint(MSG_AND);
     }
   }
   if (conditions.soil != Conditions::SOIL_IGNORED) {
-    lcdPrint(MSG_SOIL2);
-    lcdPrint(MSG_SPACE2);
+    lcdPrint(MSG_SOIL);
+    lcdPrint(MSG_SPACE);
     lcdPrint(soilConditionToEnglish(conditions.soil));
   }
 }
@@ -374,19 +374,19 @@ void displayInfo2(uint8_t screen) {
   }
 
   if (active == -1) {
-    lcdPrint(MSG_INACTIVE2);
+    lcdPrint(MSG_INACTIVE);
   } else {
-    lcdPrint(MSG_ON_WHEN2);
-    lcdPrint(MSG_SPACE2);
-    lcdPrint(MSG_BR_OPEN2);
+    lcdPrint(MSG_ON_WHEN);
+    lcdPrint(MSG_SPACE);
+    lcdPrint(MSG_BR_OPEN);
     lcd.print(config.actions[active].name);
-    lcdPrint(MSG_BR_CLOSED2);
+    lcdPrint(MSG_BR_CLOSED);
     lcd.setCursor(0, 1);
 
     displayTriggerConditions(config.actions[active].triggerConditions);
 
     lcd.setCursor(0, 2);
-    lcdPrint(MSG_OFF_WHEN2);
+    lcdPrint(MSG_OFF_WHEN);
     lcd.setCursor(0, 3);
     displayTriggerConditions(config.actions[active].stopConditions);
   }
@@ -430,22 +430,22 @@ void setActiveActions() {
 
   while (true) {
     if (config.activeActionsIndex0 == -1) {
-      setChoice(0, MSG_EMPTY_SLOT2, 0);
+      setChoice(0, MSG_EMPTY_SLOT, 0);
     } else {
       setChoiceFromString(0, config.actions[config.activeActionsIndex0].name, 0);
     }
 
     if (config.activeActionsIndex0 == -1) {
-      setChoice(1,MSG_EMPTY_SLOT2, 1);
+      setChoice(1,MSG_EMPTY_SLOT, 1);
     } else {
       setChoiceFromString(1, config.actions[config.activeActionsIndex1].name, 1);
     }
 
-    setChoicesHeader(MSG_PICK_A_SLOT2);
+    setChoicesHeader(MSG_PICK_A_SLOT);
     slot = selectChoice(2, 0);
     if (slot == -1) return;
 
-    setChoice(0, MSG_EMPTY_SLOT2, 127);
+    setChoice(0, MSG_EMPTY_SLOT, 127);
     uint8_t i = 1, c = 1;
     for (i = 0; i <= 5; i++) {
       if (config.feedFrom == config.actions[i].feedFrom) {
@@ -466,7 +466,7 @@ void setActiveActions() {
 
 
 void resetData() {
-  if (confirm(MSG_SURE_QUESTION2)) {
+  if (confirm(MSG_SURE_QUESTION)) {
     restoreDefaultConfig();
     saveConfig();
     while (!runInitialSetup())
@@ -476,11 +476,11 @@ void resetData() {
 
 void setAutoDrain() {
   if (config.feedFrom != FeedFrom::FEED_FROM_TOP) {
-    lcdFlashMessage(MSG_ONLY_TOP_FEEDING2, MSG_EMPTY2, 2000);
+    lcdFlashMessage(MSG_ONLY_TOP_FEEDING, MSG_EMPTY, 2000);
   }
-  bool trayNeedsEmptying = confirm(MSG_AUTO_DRAIN2, config.trayNeedsEmptying);
+  bool trayNeedsEmptying = confirm(MSG_AUTO_DRAIN, config.trayNeedsEmptying);
 
-  if (confirm(MSG_SAVE_QUESTION2)) {
+  if (confirm(MSG_SAVE_QUESTION)) {
     // Only overwritten once saving
     config.trayNeedsEmptying = trayNeedsEmptying;
   }
@@ -488,20 +488,20 @@ void setAutoDrain() {
 
 void setFeedFrom() {
   //
-  setChoices(MSG_TOP2, FeedFrom::FEED_FROM_TOP, MSG_TRAY2, FeedFrom::FEED_FROM_TRAY);
+  setChoices(MSG_TOP, FeedFrom::FEED_FROM_TOP, MSG_TRAY, FeedFrom::FEED_FROM_TRAY);
   setChoicesHeader(MSG_FEEDING_FROM);
   int8_t feedFrom = selectChoice(2, config.feedFrom);
   if (feedFrom == -1) return;
 
-  setChoices(MSG_PUMP_IN2, FeedLine::PUMP_IN, MSG_SOLENOID_IN2, FeedLine::SOLENOID_IN);
-  setChoicesHeader(MSG_LINE_IN2);
+  setChoices(MSG_PUMP_IN, FeedLine::PUMP_IN, MSG_SOLENOID_IN, FeedLine::SOLENOID_IN);
+  setChoicesHeader(MSG_LINE_IN);
   int8_t feedLine = selectChoice(2, config.feedLine);
   if (feedLine == -1) return;
 
 
   if (feedFrom == config.feedFrom && feedLine == config.feedLine) return;
 
-  if (confirm(MSG_SAVE_QUESTION2)) {
+  if (confirm(MSG_SAVE_QUESTION)) {
 
     // Only overwritten once saving
     config.feedFrom = feedFrom;
@@ -524,18 +524,14 @@ void settings() {
   while (choice != -1) {
     lcdClear();
     setChoices(
-      MSG_EDIT_ACTIONS2, 1,
+      MSG_EDIT_ACTIONS, 1,
       MSG_FEEDING_FROM, 2,
-      MSG_AUTO_DRAIN2, 3,
+      MSG_AUTO_DRAIN, 3,
       MSG_MOISTURE_LEVELS, 4,
       MSG_CALIBRATE, 5,
-      MSG_MAINTENANCE2, 10);
+      MSG_MAINTENANCE, 10);
     choice = selectChoice(6, 1);
 
-    /*
-    "Test pumps/sols", 2,
-    if (choice == 2) activatePumps();
-*/
     if (choice == 1) settingsEditActions();
     else if (choice == 2) setFeedFrom();
     else if (choice == 3) setAutoDrain();
@@ -550,9 +546,9 @@ void maintenance() {
   while (choice != -1) {
     lcdClear();
     setChoices(
-      MSG_RESET_DATA2, 1,
-      MSG_TEST_PUMPS2, 2,
-      MSG_RUN_ANY_ACTIONS2, 3);
+      MSG_RESET_DATA, 1,
+      MSG_TEST_PUMPS, 2,
+      MSG_RUN_ANY_ACTIONS, 3);
     choice = selectChoice(3, 1);
 
     if (choice == 1) resetData();
@@ -576,31 +572,31 @@ bool isActionActive(int8_t actionId) {
 Conditions inputConditions(Conditions *initialConditions, char verb, int8_t choiceId) {
 
   setChoices(
-    MSG_TRAY_SOIL_IGNORE2, Conditions::TRAY_IGNORED,
-    MSG_TRAY_DRY2, Conditions::TRAY_DRY,
-    MSG_TRAY_EMPTY2, Conditions::TRAY_EMPTY,
-    MSG_TRAY_SOME2, Conditions::TRAY_SOME,
-    MSG_TRAY_PLENTY2, Conditions::TRAY_PLENTY);
+    MSG_TRAY_SOIL_IGNORE, Conditions::TRAY_IGNORED,
+    MSG_TRAY_DRY, Conditions::TRAY_DRY,
+    MSG_TRAY_EMPTY, Conditions::TRAY_EMPTY,
+    MSG_TRAY_SOME, Conditions::TRAY_SOME,
+    MSG_TRAY_PLENTY, Conditions::TRAY_PLENTY);
   if (verb == 'F') {
-    setChoicesHeader(MSG_START_TRAY2);
+    setChoicesHeader(MSG_START_TRAY);
   } else {
-    setChoicesHeader(MSG_STOP_TRAY2);
+    setChoicesHeader(MSG_STOP_TRAY);
   }
   int8_t tray = (int8_t)selectChoice(5, (int8_t)initialConditions->tray);
   initialConditions->tray = tray;
   if (tray == -1) return;
 
   setChoices(
-    MSG_TRAY_SOIL_IGNORE2, Conditions::SOIL_IGNORED,
-    MSG_SOIL_DRY2, Conditions::SOIL_DRY,
-    MSG_SOIL_LITTLE_MOIST2, Conditions::SOIL_LITTLE_MOIST,
-    MSG_SOIL_MOIST2, Conditions::SOIL_MOIST,
-    MSG_SOIL_VERY_MOIST2, Conditions::SOIL_VERY_MOIST);
+    MSG_TRAY_SOIL_IGNORE, Conditions::SOIL_IGNORED,
+    MSG_SOIL_DRY, Conditions::SOIL_DRY,
+    MSG_SOIL_LITTLE_MOIST, Conditions::SOIL_LITTLE_MOIST,
+    MSG_SOIL_MOIST, Conditions::SOIL_MOIST,
+    MSG_SOIL_VERY_MOIST, Conditions::SOIL_VERY_MOIST);
   
   if (verb == 'F') {
-    setChoicesHeader(MSG_START_SOIL2);
+    setChoicesHeader(MSG_START_SOIL);
   } else {
-    setChoicesHeader(MSG_STOP_SOIL2);
+    setChoicesHeader(MSG_STOP_SOIL);
   }
 
   int8_t soil = (int8_t)selectChoice(5, (int8_t)initialConditions->soil);
@@ -611,9 +607,9 @@ Conditions inputConditions(Conditions *initialConditions, char verb, int8_t choi
 
   if (tray != Conditions::TRAY_IGNORED && soil != Conditions::SOIL_IGNORED) {
     setChoices(
-      MSG_BOTH2, Conditions::TRAY_AND_SOIL,
-      MSG_EITHER2, Conditions::TRAY_AND_SOIL);
-    setChoicesHeader(MSG_LOGIC2);
+      MSG_BOTH, Conditions::TRAY_AND_SOIL,
+      MSG_EITHER, Conditions::TRAY_AND_SOIL);
+    setChoicesHeader(MSG_LOGIC);
     logic = (int8_t)selectChoice(2, (int8_t)initialConditions->logic);
     initialConditions->logic = logic;
     if (logic == -1) return;
@@ -642,7 +638,7 @@ void settingsEditActions() {
     // Note: until saved, the value will stay in userInputString
     // I don't want to waste 20 bytes to store something that might
     // not get used
-    inputString("Name:", config.actions[choiceId].name, "Action name");
+    inputString(MSG_NAME_COLUMN, config.actions[choiceId].name, MSG_ACTION_NAME);
     if (getUserInputString()[0] == '*') continue;
 
     Conditions triggerConditions;
@@ -667,16 +663,16 @@ void settingsEditActions() {
     } else {
 
       setChoices(
-        MSG_TOP2, FeedFrom::FEED_FROM_TOP,
-        MSG_TRAY2, FeedFrom::FEED_FROM_TRAY
+        MSG_TOP, FeedFrom::FEED_FROM_TOP,
+        MSG_TRAY, FeedFrom::FEED_FROM_TRAY
       );
-      setChoicesHeader(MSG_FEED_FROM2);
+      setChoicesHeader(MSG_FEED_FROM);
       feedFrom = (int8_t)selectChoice(2, config.actions[choiceId].feedFrom);
 
       if (feedFrom == -1) return;
     }
 
-    if (confirm(MSG_SAVE_QUESTION2)) {
+    if (confirm(MSG_SAVE_QUESTION)) {
 
       // Main "action" fields, only overwritten once saving
       labelcpyFromString(config.actions[choiceId].name, getUserInputString());
@@ -704,13 +700,13 @@ void settingsDefaultMoistLevels() {
   int8_t soilMoistPercentage;
   int8_t soilVeryMoistPercentage;
 
-  soilVeryMoistPercentage = inputNumber("Over ", config.soilVeryMoistPercentage, 5, 0, 95, "%", "Very moist");
+  soilVeryMoistPercentage = inputNumber(MSG_OVER, config.soilVeryMoistPercentage, 5, 0, 95, MSG_PERCENT,  MSG_SOIL_VERY_MOIST);
   if (soilVeryMoistPercentage == -1) return;
 
-  soilMoistPercentage = inputNumber("Over ", config.soilMoistPercentage, 5, 0, config.soilVeryMoistPercentage - 5, "%", "Moist");
+  soilMoistPercentage = inputNumber(MSG_OVER, config.soilMoistPercentage, 5, 0, config.soilMoistPercentage - 5, MSG_PERCENT,  MSG_SOIL_MOIST);
   if (soilVeryMoistPercentage == -1) return;
 
-  soilLittleMoistPercentage = inputNumber("Over ", config.soilLittleMoistPercentage, 5, 0, config.soilMoistPercentage - 5, "%", "Little moist");
+  soilLittleMoistPercentage = inputNumber(MSG_OVER, config.soilLittleMoistPercentage, 5, 0, config.soilMoistPercentage - 5, MSG_PERCENT,  MSG_SOIL_LITTLE_MOIST);
   if (soilVeryMoistPercentage == -1) return;
 
   lcdClear();
@@ -724,20 +720,20 @@ void settingsDefaultMoistLevels() {
   lcd.print("%-");
   lcdPrintNumber(soilMoistPercentage - 1);
   lcd.print("% ");
-  lcdPrint(MSG_SOIL_LITTLE_MOIST2);
+  lcdPrint(MSG_SOIL_LITTLE_MOIST);
 
   lcdPrintNumber(soilMoistPercentage, 2);
   lcd.print("%-");
   lcdPrintNumber(soilVeryMoistPercentage - 1);
   lcd.print("% ");
-  lcdPrint(MSG_SOIL_MOIST2);
+  lcdPrint(MSG_SOIL_MOIST);
 
   lcdPrintNumber(soilVeryMoistPercentage, 3);
   lcd.print("%-100% ");
-  lcdPrint(MSG_SOIL_VERY_MOIST2);
+  lcdPrint(MSG_SOIL_VERY_MOIST);
 
   delay(2000);
-  if (confirm(MSG_SAVE_QUESTION2)) {
+  if (confirm(MSG_SAVE_QUESTION)) {
     config.soilLittleMoistPercentage = soilLittleMoistPercentage;
     config.soilMoistPercentage = soilMoistPercentage;
     config.soilVeryMoistPercentage = soilVeryMoistPercentage;
@@ -750,7 +746,7 @@ void settingsCalibrate() {
   bool calibrated;
 
   while (true) {
-    setChoices(MSG_MOISTURE_SENSOR2, 0, MSG_WATER_LEVELS2, 1);
+    setChoices(MSG_MOISTURE_SENSOR, 0, MSG_WATER_LEVELS, 1);
     setChoicesHeader(MSG_CALIBRATE);
     int8_t choice = selectChoice(2, 0);
 
@@ -765,18 +761,18 @@ void settingsCalibrate() {
 }
 
 int runInitialSetup() {
-  setChoices(MSG_TOP2, FeedFrom::FEED_FROM_TOP, MSG_TRAY2, FeedFrom::FEED_FROM_TRAY);
-  setChoicesHeader(MSG_FEED_FROM2);
+  setChoices(MSG_TOP, FeedFrom::FEED_FROM_TOP, MSG_TRAY, FeedFrom::FEED_FROM_TRAY);
+  setChoicesHeader(MSG_FEED_FROM);
   config.feedFrom = selectChoice(2, FeedFrom::FEED_FROM_TOP);
   if (config.feedFrom == -1) return false;
 
-  setChoices(MSG_PUMP_IN2, FeedLine::PUMP_IN, MSG_SOLENOID_IN2, FeedLine::SOLENOID_IN);
-  setChoicesHeader(MSG_LINE_IN2);
+  setChoices(MSG_PUMP_IN, FeedLine::PUMP_IN, MSG_SOLENOID_IN, FeedLine::SOLENOID_IN);
+  setChoicesHeader(MSG_LINE_IN);
   config.feedLine = selectChoice(2, config.feedLine);
   if (config.feedLine == -1) return false;
 
   if (config.feedFrom == FeedFrom::FEED_FROM_TOP) {
-    config.trayNeedsEmptying = confirm(MSG_AUTO_DRAIN2, false);
+    config.trayNeedsEmptying = confirm(MSG_AUTO_DRAIN, false);
   } else {
     config.trayNeedsEmptying = false;
   }
@@ -788,7 +784,7 @@ int runInitialSetup() {
   saveConfig();
 
   lcdClear();
-  lcdPrint("Done!");
+  lcdPrint(MSG_DONE);
 
   return 1;
 }
@@ -802,76 +798,76 @@ int calibrateTrayWaterLevelSensors() {
   int16_t full;
   bool trayFull;
 
-  lcdFlashMessage(MSG_SENSOR_2_MM_WATER2, MSG_EMPTY2, 2000);
+  lcdFlashMessage(MSG_SENSOR__MM_WATER2, MSG_EMPTY, 2000);
 
 
-  goAhead = confirm(MSG_TINY_BIT_OF_WATER2, 1);
+  goAhead = confirm(MSG_TINY_BIT_OF_WATER, 1);
   if (!goAhead) {
-    lcdFlashMessage(MSG_ABORTED2);
+    lcdFlashMessage(MSG_ABORTED);
     return false;
   }
   lcdClear();
-  lcdPrint("Empty: ", 1);
+  lcdPrint(MSG_EMPTY_COLUMN, 1);
   for (int i = 0; i < 8; i++) {
     empty = senseTrayWaterLevel();
     // lcdClear();
     lcdPrintNumber(empty);
-    lcdPrint(MSG_SPACE2);
+    lcdPrint(MSG_SPACE);
     delay(900);
   }
 
   delay(2000);
 
-  goAhead = confirm(MSG_HALF_TRAY2, 1);
+  goAhead = confirm(MSG_HALF_TRAY, 1);
   if (!goAhead) {
-    lcdFlashMessage(MSG_ABORTED2);
+    lcdFlashMessage(MSG_ABORTED);
     return false;
   }
 
   lcdClear();
-  lcdPrint("Half: ", 1);
+  lcdPrint(MSG_HALF_COLUMN, 1);
   for (int i = 0; i < 8; i++) {
     half = senseTrayWaterLevel();
     // lcdClear();
     lcdPrintNumber(half);
-    lcdPrint(MSG_SPACE2);
+    lcdPrint(MSG_SPACE);
     delay(900);
   }
 
-  goAhead = confirm(MSG_FULL_TRAY2, 1);
+  goAhead = confirm(MSG_FULL_TRAY, 1);
   if (!goAhead) {
-    lcdFlashMessage(MSG_ABORTED2);
+    lcdFlashMessage(MSG_ABORTED);
     return false;
   }
   lcdClear();
-  lcdPrint("Full: ", 1);
+  lcdPrint(MSG_FULL_COLUMN, 1);
   for (int i = 0; i < 8; i++) {
     full = senseTrayWaterLevel();
     // lcdClear();
     lcdPrintNumber(full);
-    lcdPrint(MSG_SPACE2);
+    lcdPrint(MSG_SPACE);
     delay(900);
   }
 
-  lcdFlashMessage(MSG_ATTACH_WHITE_SENSOR2, MSG_WHERE_LED_TURNS_ON2, 2000);
+  lcdFlashMessage(MSG_ATTACH_WHITE_SENSOR, MSG_WHERE_LED_TURNS_ON, 2000);
 
   while (true) {
-    goAhead = confirm(MSG_SENSOR_ATTACHED2, 1);
+    goAhead = confirm(MSG_SENSOR_ATTACHED, 1);
     if (!goAhead) {
-      lcdFlashMessage(MSG_ABORTED2);
+      lcdFlashMessage(MSG_ABORTED);
       return false;
     }
 
     trayFull = senseTrayIsFull();
     if (!trayFull) {
-      lcdFlashMessage("Sensor not sensing", "water");
+      lcdFlashMessage(MSG_SENSOR_NOT_SENSING_WATER_1, MSG_SENSOR_NOT_SENSING_WATER_2);
     } else {
       break;
     }
   }
 
   // Confirm to save
-  if (confirm(MSG_SAVE_QUESTION2)) {
+  if (confirm(MSG_SAVE_QUESTION)) {
     config.trayWaterLevelSensorCalibrationEmpty = empty;
     config.trayWaterLevelSensorCalibrationHalf = half;
     config.trayWaterLevelSensorCalibrationFull = full;
@@ -892,41 +888,41 @@ int calibrateSoilMoistureSensor() {
   int soaked;
   int dry;
 
-  goAhead = confirm(MSG_DRY_MOIST_SENSOR2, 1);
+  goAhead = confirm(MSG_DRY_MOIST_SENSOR, 1);
   if (!goAhead) {
-    lcdFlashMessage(MSG_ABORTED2);
+    lcdFlashMessage(MSG_ABORTED);
     return;
   }
   lcdClear();
-  lcdPrint("Dry: ", 1);
+  lcdPrint(MSG_DRY_COLUMN, 1);
   for (int i = 0; i < 4; i++) {
     dry = senseSoilMosture();
     // lcdClear();
     lcdPrintNumber(dry);
-    lcdPrint(" ");
+    lcdPrint(MSG_SPACE);
     delay(900);
   }
 
   delay(2000);
 
-  goAhead = confirm(MSG_SOAKED_MOIST_SENSOR2, 1);
+  goAhead = confirm(MSG_SOAKED_MOIST_SENSOR, 1);
   if (!goAhead) {
-    lcdFlashMessage(MSG_ABORTED2);
+    lcdFlashMessage(MSG_ABORTED);
     return;
   }
 
   lcdClear();
-  lcdPrint("Soaked: ", 1);
+  lcdPrint(MSG_SOAKED_COLUMN, 1);
   for (int i = 0; i < 4; i++) {
     soaked = senseSoilMosture();
     // lcdClear();
     lcdPrintNumber(soaked);
-    lcdPrint(" ");
+    lcdPrint(MSG_SPACE);
     delay(900);
   }
 
   // Confirm to save
-  if (confirm(MSG_SAVE_QUESTION2)) {
+  if (confirm(MSG_SAVE_QUESTION)) {
     config.moistSensorCalibrationSoaked = soaked;
     config.moistSensorCalibrationDry = dry;
     return true;

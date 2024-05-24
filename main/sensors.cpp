@@ -62,26 +62,16 @@ uint8_t soilMoistureAsState(uint8_t soilMoistureAsPercentage) {
 }
 
 char* soilMoistureInEnglish(uint8_t soilMoistureState) {
-  if (soilMoistureState == Conditions::SOIL_VERY_MOIST) return MSG_SOIL_VERY_MOIST2;
-  else if(soilMoistureState == Conditions::SOIL_MOIST) return MSG_SOIL_MOIST2;
-  else if(soilMoistureState == Conditions::SOIL_LITTLE_MOIST) return MSG_SOIL_LITTLE_MOIST2;
-  else if(soilMoistureState == Conditions::SOIL_DRY) return MSG_SOIL_DRY2;
+  if (soilMoistureState == Conditions::SOIL_VERY_MOIST) return MSG_SOIL_VERY_MOIST;
+  else if(soilMoistureState == Conditions::SOIL_MOIST) return MSG_SOIL_MOIST;
+  else if(soilMoistureState == Conditions::SOIL_LITTLE_MOIST) return MSG_SOIL_LITTLE_MOIST;
+  else if(soilMoistureState == Conditions::SOIL_DRY) return MSG_SOIL_DRY;
 }
 
 uint8_t trayWaterLevelAsPercentage(uint16_t waterLevel) {
   uint16_t empty = config.trayWaterLevelSensorCalibrationEmpty;
   uint16_t half = config.trayWaterLevelSensorCalibrationHalf;
   uint16_t full = config.trayWaterLevelSensorCalibrationFull;
-
-
-/*  Serial.print(empty);
-  Serial.print(" ");
-  Serial.print(half);
-  Serial.print(" ");
-  Serial.print(full);
-  Serial.print(" -- ");
-  Serial.println(waterLevel);
-*/
 
   if (waterLevel <= 200 ) {
     return 0;
@@ -119,12 +109,12 @@ uint8_t trayWaterLevelAsState(uint8_t trayWaterLevelAsPercentage) {
 
 char* trayWaterLevelInEnglish(uint8_t trayWaterLevelAsState, bool trayIsFull) { 
   if (trayIsFull) {
-    if (trayWaterLevelAsState != Conditions::TRAY_PLENTY) return "Error 1";
-    return "Full";
+    if (trayWaterLevelAsState != Conditions::TRAY_PLENTY) return MSG_ERROR_1;
+    return MSG_FULL;
   }
 
-  if (trayWaterLevelAsState == Conditions::TRAY_PLENTY) return MSG_TRAY_PLENTY2;
-  else if (trayWaterLevelAsState == Conditions::TRAY_SOME) return MSG_TRAY_SOME2;
-  else if (trayWaterLevelAsState == Conditions::TRAY_EMPTY) return MSG_TRAY_EMPTY2;
-  else if (trayWaterLevelAsState == Conditions::TRAY_DRY) return MSG_TRAY_PLENTY2;
+  if (trayWaterLevelAsState == Conditions::TRAY_PLENTY) return MSG_TRAY_PLENTY;
+  else if (trayWaterLevelAsState == Conditions::TRAY_SOME) return MSG_TRAY_SOME;
+  else if (trayWaterLevelAsState == Conditions::TRAY_EMPTY) return MSG_TRAY_EMPTY;
+  else if (trayWaterLevelAsState == Conditions::TRAY_DRY) return MSG_TRAY_PLENTY;
 }
