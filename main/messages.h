@@ -13,6 +13,7 @@ const char PROGMEM MSG_OK[] = "OK";
 const char PROGMEM MSG_EMPTY[] = "";
 const char PROGMEM MSG_AUTO_DRAIN[] = "Auto drain?";
 const char PROGMEM MSG_SPACES[] = "                    ";
+
 const char PROGMEM MSG_SPACE[] = " ";
 const char PROGMEM MSG_STAR[] = "*";
 
@@ -129,6 +130,7 @@ const char PROGMEM MSG_ERROR_1[] = "Error 1";
 
 const char PROGMEM MSG_FULL[] = "Full";
 
+const char PROGMEM MSG_DASH[] = "-";
 const char PROGMEM MSG_ZERO_PERCENT_DASH[] = "0\%-";
 const char PROGMEM MSG_PERCENT_DRY[] = "% Dry";
 const char PROGMEM MSG_PERCENT_DASH[] = "%-";
@@ -139,5 +141,11 @@ const char PROGMEM MSG_PERCENT_DASH_ONEHUNDRED_PERCENT_SPACE[] = "%-100%";
 const char PROGMEM MSG_NO_LOG_ENTRIES[] = "No log entries!"; 
 const char PROGMEM MSG_RESET_ONLY_LOGS[] = "Reset only logs"; 
 const char PROGMEM MSG_WIPING[] = "Wiping..."; 
+const char PROGMEM MSG_PRESS_OK_TO_STOP[] = "Press OK to stop..."; 
+
+const char PROGMEM MSG_LOG_TYPE_0[] = "Boot up";
+const char PROGMEM MSG_LOG_TYPE_1[] = "Feed   ";
+const char PROGMEM MSG_AGO[] = "ago";
+
 
 #endif MESSAGES_H
