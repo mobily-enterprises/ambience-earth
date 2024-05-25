@@ -137,5 +137,7 @@ const char PROGMEM MSG_PERCENT_SPACE[] = "% ";
 const char PROGMEM MSG_PERCENT_DASH_ONEHUNDRED_PERCENT_SPACE[] = "%-100%"; 
 
 const char PROGMEM MSG_NO_LOG_ENTRIES[] = "No log entries!"; 
+const char PROGMEM MSG_RESET_ONLY_LOGS[] = "Reset only logs"; 
+const char PROGMEM MSG_WIPING[] = "Wiping..."; 
 
 #endif MESSAGES_H

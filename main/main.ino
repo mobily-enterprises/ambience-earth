@@ -10,6 +10,14 @@
 
 #include <LiquidCrystal_I2C.h>
 
+/*
+  Make it log properly
+  Make it possible to view logs
+  Have extra screen with extra info:
+    Average time between feed
+    Time since last feed
+*/
+
 // Define the address where the config will be stored in EEPROM
 
 unsigned int feedNumber = 0;
@@ -18,7 +26,7 @@ unsigned int feedNumber = 0;
 extern Config config;
 extern Button *pressedButton;
 extern LogEntry logEntry;
-extern uint8_t currentLogSlot;
+extern uint8_t lastWrittenLogSlot;
 
 const unsigned long interval = 2000;  // Interval in milliseconds (1000 milliseconds = 1 second)
 unsigned long previousMillis = 0;
@@ -40,18 +48,22 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
   uint8_t trayState = trayWaterLevelAsState(trayWaterLevelAsPercentage(senseTrayWaterLevel()), senseTrayIsFull());
   uint8_t soilState = soilMoistureAsState(soilMoistureAsPercentage(senseSoilMoisture()));
 
-  // Serial.println("B");
-  // Serial.println(trayState);
-  // Serial.println(soilState);
+  /*
+  Serial.println("B");
+  Serial.println(trayState);
+  Serial.println(soilState);
+  */
 
   uint8_t actionTrayState = c->tray;
   uint8_t actionSoilState = c->soil;
   uint8_t actionLogic = c->logic;
 
-  // Serial.println("C");
-  // Serial.println(actionTrayState);
-  // Serial.println(actionSoilState);
-  // Serial.println(actionLogic);
+  /*
+  Serial.println("C");
+  Serial.println(actionTrayState);
+  Serial.println(actionSoilState);
+  Serial.println(actionLogic);
+  */
 
   bool satisfied = false;
 
@@ -65,10 +77,12 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
     soilSatisfied = soilState >= actionSoilState;
   }
 
-  // Serial.println("D");
-  // Serial.println(traySatisfied);
-  // Serial.println(soilSatisfied);
- 
+  /*
+  Serial.println("D");
+  Serial.println(traySatisfied);
+  Serial.println(soilSatisfied);
+  */
+
   bool r;
   if (!actionTrayState && !actionSoilState) r = false;
   else if (!actionTrayState && actionSoilState) r = soilSatisfied;
@@ -76,8 +90,10 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
   else if (actionLogic == Conditions::TRAY_OR_SOIL) r = soilSatisfied || traySatisfied;
   else /* if (actionLogic == Conditions::TRAY_AND_SOIL)*/ r = soilSatisfied && traySatisfied;  
 
-  // Serial.println("E");
-  // Serial.println(r);
+  /*
+  Serial.println("E");
+  Serial.println(r);
+  */
 
   return r;
 }
@@ -103,7 +119,7 @@ void runAction(Action *action, bool force = 0) {
 
   lcdClear();
   lcdPrint(MSG_FEEDING, 2);
-
+ 
   // Serial.println("3");
 
   // Let water in
@@ -130,7 +146,7 @@ void runAction(Action *action, bool force = 0) {
       // Serial.println(shouldStop);
 
       closeLineIn();
-      
+
       clearLogEntry(logEntry);
       logEntry.millisStart = feedStartMillis;
       logEntry.millisEnd = millis();
@@ -142,7 +158,7 @@ void runAction(Action *action, bool force = 0) {
       logEntry.topFeed = action->feedFrom == FeedFrom::FEED_FROM_TOP;
       logEntry.outcome = shouldStop == 1 ? 0 : shouldStop;
 
-      
+      addLogEntry(logEntry);
 
       return;
     }
@@ -241,16 +257,16 @@ void loop() {
 void viewLogs() {
   lcdClear();
 
-  uint8_t curr = currentLogSlot;
+  uint8_t curr = lastWrittenLogSlot;
   
   Serial.println(curr);
 
-  // readLogEntryFromEEPROM(logEntry, curr);
+  // readLogEntry(logEntry, curr);
   // Serial.println(logEntry.millisStart);
     
 
   while (true) {
-    readLogEntryFromEEPROM(logEntry, curr);
+    readLogEntry(logEntry, curr);
     
     if (!logEntry.millisStart) {
       lcdFlashMessage(MSG_NO_LOG_ENTRIES);
@@ -607,14 +623,32 @@ void maintenance() {
     lcdClear();
     setChoices(
       MSG_RESET_DATA, 1,
-      MSG_TEST_PUMPS, 2,
-      MSG_RUN_ANY_ACTIONS, 3);
-    choice = selectChoice(3, 1);
+      MSG_RESET_ONLY_LOGS, 2,
+      MSG_TEST_PUMPS, 3,
+      MSG_RUN_ANY_ACTIONS, 4
+      
+      );
+    choice = selectChoice(4, 1);
 
     if (choice == 1) resetData();
-    else if (choice == 2) activatePumps();
-    else if (choice == 3) pickAndRunAction();
+    else if (choice == 2) resetOnlyLogs();
+    else if (choice == 3) activatePumps();
+    else if (choice == 4) pickAndRunAction();
   }
+}
+
+void resetOnlyLogs() {
+  uint8_t confirmWipe;
+
+  confirmWipe = confirm(MSG_SURE_QUESTION);
+  if (confirmWipe == -1) return;
+
+  if (confirmWipe) {
+    lcdClear();
+    lcdPrint(MSG_WIPING, 2);
+    wipeLogs();
+    
+  };
 }
 
 bool isActionActive(int8_t actionId) {
@@ -732,8 +766,12 @@ void settingsEditActions() {
       if (feedFrom == -1) return;
     }
 
-    if (confirm(MSG_SAVE_QUESTION)) {
-
+    uint8_t confirmSave = confirm(MSG_SAVE_QUESTION);
+    if (confirmSave == -1) {
+      return;
+    }
+    
+    if (confirmSave) {
       // Main "action" fields, only overwritten once saving
       labelcpyFromString(config.actions[choiceId].name, getUserInputString());
       config.actions[choiceId].feedFrom = feedFrom;

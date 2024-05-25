@@ -10,6 +10,7 @@ const char PROGMEM LOG_ACTION_ID [] = "No log entries!";
 
 
 typedef struct {
+  unsigned int seq : 6;
   unsigned long millisStart;
   unsigned long millisEnd;
   unsigned int actionId : 3;
@@ -19,17 +20,18 @@ typedef struct {
   unsigned int outcome : 4;
   unsigned int trayWaterLevelAfter : 7;
   unsigned int soilMoistureAfter : 7;
-  unsigned int padding1 : 24;
+  unsigned int padding1 : 16;
 } LogEntry;
 
-void readLogEntryFromEEPROM(LogEntry &logEntry, int slotNumber);
-void writeLogEntryToEEPROM(const LogEntry &logEntry, int slotNumber);
-uint8_t findSlotNumberOfHighestMillisStartLog();
+void readLogEntry(LogEntry &logEntry, int slotNumber);
+void writeLogEntry(const LogEntry &logEntry, int slotNumber);
+uint8_t findSlotNumberOfHighestSeqStartLog();
+void addLogEntry(LogEntry &logEntry);
 void wipeLogs();
 void initLogs();
 
-uint8_t getNextSlot(int currentLogSlot);
-uint8_t getPreviousSlot(int currentLogSlot);
+uint8_t getNextSlot(int lastWrittenLogSlot);
+uint8_t getPreviousSlot(int lastWrittenLogSlot);
 void clearLogEntry(LogEntry &logEntry);
 
 #include <EEPROM.h>
