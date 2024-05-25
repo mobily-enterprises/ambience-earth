@@ -25,15 +25,41 @@ unsigned int feedNumber = 0;
 // Config& gConfig = getConfig();
 extern Config config;
 extern Button *pressedButton;
-extern LogEntry logEntry;
-extern uint8_t lastWrittenLogSlot;
+
+typedef struct {
+  unsigned int seq : 8;
+  unsigned long millisStart;
+  unsigned long millisEnd;
+  unsigned int actionId : 3;
+  unsigned int trayWaterLevelBefore : 7;
+  unsigned int soilMoistureBefore : 7;
+  bool topFeed : 1;
+  unsigned int outcome : 4;
+  unsigned int trayWaterLevelAfter : 7;
+  unsigned int soilMoistureAfter : 7;
+  unsigned int padding1 : 14;
+} LogEntry;
+
+LogEntry currentLogEntry;
+LogEntry newLogEntry;
+
+extern Button upButton;
+extern Button leftButton;
+extern Button downButton;
+extern Button rightButton;
+extern Button okButton;
+
 
 const unsigned long interval = 2000;  // Interval in milliseconds (1000 milliseconds = 1 second)
 unsigned long previousMillis = 0;
 
 enum PumpState { IDLE, PUMPING, COMPLETED };
 
+
 void runAction(Action *action, bool force = 0);
+void mainMenu();
+int runInitialSetup();
+void displayInfo(uint8_t screen);
 
 void maybeRunActions() {
   if (config.activeActionsIndex0 != -1) runAction(&config.actions[config.activeActionsIndex0]);
@@ -42,8 +68,7 @@ void maybeRunActions() {
 
 bool actionShouldStartOrStop(Action *action, bool start = true) {
   Conditions* c;
-  
-  c = start ? &action->triggerConditions : &action->stopConditions;
+    c = start ? &action->triggerConditions : &action->stopConditions;
 
   uint8_t trayState = trayWaterLevelAsState(trayWaterLevelAsPercentage(senseTrayWaterLevel()), senseTrayIsFull());
   uint8_t soilState = soilMoistureAsState(soilMoistureAsPercentage(senseSoilMoisture()));
@@ -147,18 +172,18 @@ void runAction(Action *action, bool force = 0) {
 
       closeLineIn();
 
-      clearLogEntry(logEntry);
-      logEntry.millisStart = feedStartMillis;
-      logEntry.millisEnd = millis();
-      logEntry.actionId = 1; 
-      logEntry.soilMoistureBefore = soilMoistureBefore;
-      logEntry.trayWaterLevelBefore = trayWaterLevelBefore;
-      logEntry.soilMoistureAfter = soilMoistureAsPercentage(senseSoilMoisture());
-      logEntry.trayWaterLevelAfter = trayWaterLevelAsPercentage(senseTrayWaterLevel());
-      logEntry.topFeed = action->feedFrom == FeedFrom::FEED_FROM_TOP;
-      logEntry.outcome = shouldStop == 1 ? 0 : shouldStop;
+      clearLogEntry((void *) &newLogEntry);
+      newLogEntry.millisStart = feedStartMillis;
+      newLogEntry.millisEnd = 12; // millis();
+      newLogEntry.actionId = 1; 
+      newLogEntry.soilMoistureBefore = soilMoistureBefore;
+      newLogEntry.trayWaterLevelBefore = trayWaterLevelBefore;
+      newLogEntry.soilMoistureAfter = soilMoistureAsPercentage(senseSoilMoisture());
+      newLogEntry.trayWaterLevelAfter = trayWaterLevelAsPercentage(senseTrayWaterLevel());
+      newLogEntry.topFeed = action->feedFrom == FeedFrom::FEED_FROM_TOP;
+      newLogEntry.outcome = shouldStop == 1 ? 0 : shouldStop;
 
-      addLogEntry(logEntry);
+      writeLogEntry((void *) &newLogEntry);
 
       return;
     }
@@ -208,7 +233,9 @@ void setup() {
   extern LiquidCrystal_I2C lcd;
 
   initSensors();
-  initLogs();
+
+  // Init logs memory
+  initLogs(&currentLogEntry, 1024, 256, 768, sizeof(currentLogEntry));
 
   loadConfig();
 
@@ -222,8 +249,7 @@ void setup() {
   // runInitialSetup();
 
   if (config.mustRunInitialSetup) {
-    while (!runInitialSetup())
-      ;
+    while (!runInitialSetup());
   }
 }
 #include <LiquidCrystal_I2C.h>
@@ -257,26 +283,39 @@ void loop() {
 void viewLogs() {
   lcdClear();
 
-  uint8_t curr = lastWrittenLogSlot;
-  
-  Serial.println(curr);
-
-  // readLogEntry(logEntry, curr);
-  // Serial.println(logEntry.millisStart);
+  if (noLogs()) {
+    lcdFlashMessage(MSG_NO_LOG_ENTRIES);
+    return;
+  }
     
+  bool dataChanged = true;
+  while(1) {
+    if (dataChanged) {
+      lcdClearLine(1);
+      lcd.setCursor(0, 1);
+      lcd.print(currentLogEntry.millisStart);
+      lcdPrint(MSG_SPACE);
+      lcd.print(currentLogEntry.millisEnd);
 
-  while (true) {
-    readLogEntry(logEntry, curr);
-    
-    if (!logEntry.millisStart) {
-      lcdFlashMessage(MSG_NO_LOG_ENTRIES);
-      return;
+      lcdClearLine(2);
+      lcd.setCursor(0, 2);
+      lcd.print(currentLogEntry.seq);
+      
+      dataChanged = false;
+    }
+ 
+    analogButtonsCheck();
+    if (pressedButton == &leftButton) {
+      break;
+    } else if (pressedButton == &upButton) {
+      getPreviousSlot();
+      dataChanged = true;
+    } else if (pressedButton == &downButton) {
+      goToNextSlot();
+      dataChanged = true;
     }
   }
-
-  
 }
-
 void activatePumps() {
   int8_t choice;
   while (true) {
@@ -537,12 +576,15 @@ void setActiveActions() {
 
 
 void resetData() {
-  if (confirm(MSG_SURE_QUESTION)) {
+  int8_t reset = confirm(MSG_SURE_QUESTION);
+
+  if (reset == -1) return;
+
+  if (reset) {
     restoreDefaultConfig();
     saveConfig();
     wipeLogs();
-    while (!runInitialSetup())
-      ;
+    while (!runInitialSetup());
   }
 }
 
