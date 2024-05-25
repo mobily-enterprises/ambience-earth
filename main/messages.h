@@ -143,8 +143,8 @@ const char PROGMEM MSG_RESET_ONLY_LOGS[] = "Reset only logs";
 const char PROGMEM MSG_WIPING[] = "Wiping..."; 
 const char PROGMEM MSG_PRESS_OK_TO_STOP[] = "Press OK to stop..."; 
 
-const char PROGMEM MSG_LOG_TYPE_0[] = "Boot up";
-const char PROGMEM MSG_LOG_TYPE_1[] = "Feed   ";
+const char PROGMEM MSG_LOG_TYPE_0[] = "BootUp";
+const char PROGMEM MSG_LOG_TYPE_1[] = "Feed  ";
 const char PROGMEM MSG_AGO[] = "ago";
 
 

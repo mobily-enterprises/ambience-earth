@@ -1,80 +1,55 @@
+/*
+  * Log views
+    * Print all relevant log information neatly
+  * Average feeding time
+    * Add variables averageTimeBetweenFeed and timeSinceLastFeed
+    * Write procedure that works out those variables reading the logs
+    * Print this information in the home screen
+  
+  LATER:
+  * Make MIN_FEED_INTERVAL a variable set at setup time and in settings 
+
+*/
 
 #include <AnalogButtons.h>
 #include <Arduino.h>
+#include "main.h"
 #include "ui.h"
 #include "sensors.h"
 #include "config.h"
 #include "messages.h"
 #include "sensors.h"
 #include "logs.h"
-
 #include <LiquidCrystal_I2C.h>
 
-/*
-  * Log views
-    * Make list of strings for string types, where ID has the same index of the string
-    * Write function to translate millis to h:m
-    * Print all relevant log information neatly
-  * Average feeding time
-    * Add variables averageTimeBetweenFeed and timeSinceLastFeed
-    * Write procedure that works out those variables reading the logs
-    * Print this information in the home screen  
-*/
+extern LiquidCrystal_I2C lcd;
+uint8_t screenCounter = 0;
 
-
-unsigned int feedNumber = 0;
-
-// Config& gConfig = getConfig();
 extern Config config;
-extern Button *pressedButton;
-
-typedef struct {
-  unsigned int seq : 8;
-  unsigned int entryType : 3;
-  unsigned long millisStart;
-  unsigned long millisEnd;
-  unsigned int actionId : 3;
-  unsigned int trayWaterLevelBefore : 7;
-  unsigned int soilMoistureBefore : 7;
-  bool topFeed : 1;
-  unsigned int outcome : 4;
-  unsigned int trayWaterLevelAfter : 7;
-  unsigned int soilMoistureAfter : 7;
-  unsigned int padding1 : 11;
-} LogEntry;
 
 LogEntry currentLogEntry;
 LogEntry newLogEntry;
 
+extern Button *pressedButton;
 extern Button upButton;
 extern Button leftButton;
 extern Button downButton;
 extern Button rightButton;
 extern Button okButton;
 
-
 const unsigned long interval = 2000;  // Interval in milliseconds (1000 milliseconds = 1 second)
 unsigned long previousMillis = 0;
 
-enum PumpState { IDLE, PUMPING, COMPLETED };
-
-
-void runAction(Action *action, uint8_t index, bool force = 0);
-void mainMenu();
-int runInitialSetup();
-void displayInfo(uint8_t screen);
-
-
-void createBootLogEntry(){
+void createBootLogEntry() {
   unsigned long bootedUpMillis = millis();
   uint8_t soilMoistureBefore = soilMoistureAsPercentage(senseSoilMoisture());
   uint8_t trayWaterLevelBefore = trayWaterLevelAsPercentage(senseTrayWaterLevel());
 
-  clearLogEntry((void *) &newLogEntry);
+  clearLogEntry((void *)&newLogEntry);
   newLogEntry.millisStart = bootedUpMillis;
   newLogEntry.millisEnd = millis();
   newLogEntry.entryType = 0;  // BOOTED UP
-  newLogEntry.actionId = 7; // NOT RELEVANT
+  newLogEntry.actionId = 7;   // NOT RELEVANT
   newLogEntry.soilMoistureBefore = soilMoistureBefore;
   newLogEntry.trayWaterLevelBefore = trayWaterLevelBefore;
   newLogEntry.soilMoistureAfter = 0;
@@ -82,7 +57,7 @@ void createBootLogEntry(){
   newLogEntry.topFeed = 0;
   newLogEntry.outcome = 0;
 
-  writeLogEntry((void *) &newLogEntry);
+  writeLogEntry((void *)&newLogEntry);
 }
 
 
@@ -92,8 +67,8 @@ void maybeRunActions() {
 }
 
 bool actionShouldStartOrStop(Action *action, bool start = true) {
-  Conditions* c;
-    c = start ? &action->triggerConditions : &action->stopConditions;
+  Conditions *c;
+  c = start ? &action->triggerConditions : &action->stopConditions;
 
   uint8_t trayState = trayWaterLevelAsState(trayWaterLevelAsPercentage(senseTrayWaterLevel()), senseTrayIsFull());
   uint8_t soilState = soilMoistureAsState(soilMoistureAsPercentage(senseSoilMoisture()));
@@ -138,7 +113,7 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
   else if (!actionTrayState && actionSoilState) r = soilSatisfied;
   else if (actionTrayState && !actionSoilState) r = traySatisfied;
   else if (actionLogic == Conditions::TRAY_OR_SOIL) r = soilSatisfied || traySatisfied;
-  else /* if (actionLogic == Conditions::TRAY_AND_SOIL)*/ r = soilSatisfied && traySatisfied;  
+  else /* if (actionLogic == Conditions::TRAY_AND_SOIL)*/ r = soilSatisfied && traySatisfied;
 
   /*
   Serial.println("E");
@@ -149,12 +124,12 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
 }
 
 
-void runAction(Action *action, uint8_t index, bool force = 0) { 
+void runAction(Action *action, uint8_t index, bool force = 0) {
   static unsigned long lastExecutionTime = 0;
 
   // Serial.println("INDEX:");
   // Serial.println(index);
-  
+
 
   // Quit if not enough time has lapsed OR if the conditions
   // are not satisfied
@@ -164,14 +139,14 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
   }
 
   // Serial.println("2");
-  
+
   // We are in!
   // Set a new execution time
   lastExecutionTime = millis();
 
   lcdClear();
   lcdPrint(MSG_FEEDING, 2);
- 
+
   // Serial.println("3");
 
   // Let water in
@@ -183,12 +158,12 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
 
   while (true) {
     // Serial.println("4");
-  
+
     uint8_t shouldStop = 0;
     if (actionShouldStartOrStop(action, 0)) shouldStop = 1;
     if (millis() - feedStartMillis >= MAX_FEED_TIME) shouldStop = 2;
     // Serial.println("5");
-    
+
     // Keep emptying the tray if necessary
     emptyTrayIfNecessary();
     // Serial.println("6");
@@ -200,8 +175,8 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
       closeLineIn();
 
       delay(60);
-      clearLogEntry((void *) &newLogEntry);
-      newLogEntry.entryType = 1; // FEED
+      clearLogEntry((void *)&newLogEntry);
+      newLogEntry.entryType = 1;  // FEED
       newLogEntry.millisStart = feedStartMillis;
       newLogEntry.millisEnd = millis();
       newLogEntry.actionId = index;
@@ -212,7 +187,7 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
       newLogEntry.topFeed = action->feedFrom == FeedFrom::FEED_FROM_TOP;
       newLogEntry.outcome = shouldStop == 1 ? 0 : shouldStop;
 
-      writeLogEntry((void *) &newLogEntry);
+      writeLogEntry((void *)&newLogEntry);
 
       return;
     }
@@ -232,7 +207,7 @@ void emptyTrayIfNecessary() {
   const uint8_t trayState = trayWaterLevelAsState(trayWaterLevelAsPercentage(senseTrayWaterLevel()), senseTrayIsFull());
   switch (pumpState) {
     case IDLE:
-      if (millis() - lastPumpOutExecutionTime >= PUMP_REST_TIME && trayState >= Conditions::TRAY_SOME ) {
+      if (millis() - lastPumpOutExecutionTime >= PUMP_REST_TIME && trayState >= Conditions::TRAY_SOME) {
         lastPumpOutExecutionTime = millis();
         openPumpOut();
         pumpOutStartMillis = millis();
@@ -278,19 +253,14 @@ void setup() {
   // runInitialSetup();
 
   if (config.mustRunInitialSetup) {
-    while (!runInitialSetup());
+    while (!runInitialSetup())
+      ;
   }
 
   // Add a boot log entry IF needed
   // (avoid repeating them unnecessarily)
   createBootLogEntry();
-
 }
-#include <LiquidCrystal_I2C.h>
-
-extern LiquidCrystal_I2C lcd;
-
-uint8_t screenCounter = 0;
 
 void loop() {
 
@@ -367,21 +337,21 @@ void viewLogs() {
     lcdFlashMessage(MSG_NO_LOG_ENTRIES);
     return;
   }
-    
+
   bool dataChanged = true;
-  while(1) {
+  while (1) {
     if (dataChanged) {
 
       if (currentLogEntry.entryType == 0) showLogType0();
-      if (currentLogEntry.entryType == 1) showLogType1(); 
+      if (currentLogEntry.entryType == 1) showLogType1();
       dataChanged = false;
     }
- 
+
     analogButtonsCheck();
     if (pressedButton == &leftButton) {
       break;
     } else if (pressedButton == &downButton && currentLogEntry.entryType != 0) {
-      if (goToPreviousLogSlot()){
+      if (goToPreviousLogSlot()) {
         dataChanged = true;
       }
     } else if (pressedButton == &upButton) {
@@ -448,9 +418,9 @@ void forceAction() {
   setChoicesHeader(MSG_PICK_ACTION);
   index = selectChoice(i, 0);
   if (index == -1) return;
-  Serial.println("INDEX:");
-  
-  Serial.println(index);
+  // Serial.println("INDEX:");
+
+  // Serial.println(index);
   runAction(&config.actions[index], index, true);
 }
 
@@ -627,7 +597,7 @@ void setActiveActions() {
     }
 
     if (config.activeActionsIndex1 == -1) {
-      setChoice(1,MSG_EMPTY_SLOT, 1);
+      setChoice(1, MSG_EMPTY_SLOT, 1);
     } else {
       setChoiceFromString(1, config.actions[config.activeActionsIndex1].name, 1);
     }
@@ -651,7 +621,7 @@ void setActiveActions() {
     if (choice == 127) choice = -1;
     if (slot == 0) config.activeActionsIndex0 = choice;
     if (slot == 1) config.activeActionsIndex1 = choice;
-    
+
     saveConfig();
   }
 }
@@ -667,13 +637,15 @@ void resetData() {
     saveConfig();
     wipeLogs();
     createBootLogEntry();
-    while (!runInitialSetup());
+    while (!runInitialSetup())
+      ;
   }
 }
 
 void setAutoDrain() {
   if (config.feedFrom != FeedFrom::FEED_FROM_TOP) {
     lcdFlashMessage(MSG_ONLY_TOP_FEEDING, MSG_EMPTY, 2000);
+    return;
   }
   int8_t trayNeedsEmptying = confirm(MSG_AUTO_DRAIN, config.trayNeedsEmptying);
   if (trayNeedsEmptying == -1) return;
@@ -684,6 +656,7 @@ void setAutoDrain() {
   if (confirmation) {
     // Only overwritten once saving
     config.trayNeedsEmptying = trayNeedsEmptying;
+    saveConfig();
   }
 }
 
@@ -751,8 +724,8 @@ void maintenance() {
       MSG_RESET_ONLY_LOGS, 2,
       MSG_TEST_PUMPS, 3,
       MSG_RUN_ANY_ACTIONS, 4
-      
-      );
+
+    );
     choice = selectChoice(4, 1);
 
     if (choice == 1) resetData();
@@ -811,7 +784,7 @@ Conditions inputConditions(Conditions *initialConditions, char verb, int8_t choi
     MSG_SOIL_LITTLE_MOIST, Conditions::SOIL_LITTLE_MOIST,
     MSG_SOIL_MOIST, Conditions::SOIL_MOIST,
     MSG_SOIL_VERY_MOIST, Conditions::SOIL_VERY_MOIST);
-  
+
   if (verb == 'F') {
     setChoicesHeader(MSG_START_SOIL);
   } else {
@@ -883,8 +856,7 @@ void settingsEditActions() {
 
       setChoices(
         MSG_TOP, FeedFrom::FEED_FROM_TOP,
-        MSG_TRAY, FeedFrom::FEED_FROM_TRAY
-      );
+        MSG_TRAY, FeedFrom::FEED_FROM_TRAY);
       setChoicesHeader(MSG_FEED_FROM);
       feedFrom = (int8_t)selectChoice(2, config.actions[choiceId].feedFrom);
 
@@ -895,7 +867,7 @@ void settingsEditActions() {
     if (confirmSave == -1) {
       return;
     }
-    
+
     if (confirmSave) {
       // Main "action" fields, only overwritten once saving
       labelcpyFromString(config.actions[choiceId].name, getUserInputString());
@@ -923,13 +895,13 @@ void settingsDefaultMoistLevels() {
   int8_t soilMoistPercentage;
   int8_t soilVeryMoistPercentage;
 
-  soilVeryMoistPercentage = inputNumber(MSG_OVER, config.soilVeryMoistPercentage, 5, 0, 95, MSG_PERCENT,  MSG_SOIL_VERY_MOIST);
+  soilVeryMoistPercentage = inputNumber(MSG_OVER, config.soilVeryMoistPercentage, 5, 0, 95, MSG_PERCENT, MSG_SOIL_VERY_MOIST);
   if (soilVeryMoistPercentage == -1) return;
 
-  soilMoistPercentage = inputNumber(MSG_OVER, config.soilMoistPercentage, 5, 0, config.soilMoistPercentage - 5, MSG_PERCENT,  MSG_SOIL_MOIST);
+  soilMoistPercentage = inputNumber(MSG_OVER, config.soilMoistPercentage, 5, 0, config.soilMoistPercentage - 5, MSG_PERCENT, MSG_SOIL_MOIST);
   if (soilVeryMoistPercentage == -1) return;
 
-  soilLittleMoistPercentage = inputNumber(MSG_OVER, config.soilLittleMoistPercentage, 5, 0, config.soilMoistPercentage - 5, MSG_PERCENT,  MSG_SOIL_LITTLE_MOIST);
+  soilLittleMoistPercentage = inputNumber(MSG_OVER, config.soilLittleMoistPercentage, 5, 0, config.soilMoistPercentage - 5, MSG_PERCENT, MSG_SOIL_LITTLE_MOIST);
   if (soilVeryMoistPercentage == -1) return;
 
   lcdClear();
@@ -1027,7 +999,7 @@ int calibrateTrayWaterLevelSensors() {
 
   goAhead = confirm(MSG_TINY_BIT_OF_WATER, 1);
   if (goAhead == -1) return false;
- 
+
   lcdClear();
   lcdPrint(MSG_EMPTY_COLUMN, 1);
   for (int i = 0; i < 8; i++) {
@@ -1042,7 +1014,7 @@ int calibrateTrayWaterLevelSensors() {
 
   goAhead = confirm(MSG_HALF_TRAY, 1);
   if (goAhead == -1) return false;
- 
+
   lcdClear();
   lcdPrint(MSG_HALF_COLUMN, 1);
   for (int i = 0; i < 8; i++) {
@@ -1055,8 +1027,8 @@ int calibrateTrayWaterLevelSensors() {
 
   goAhead = confirm(MSG_FULL_TRAY, 1);
   if (goAhead == -1) return false;
- 
-   lcdClear();
+
+  lcdClear();
   lcdPrint(MSG_FULL_COLUMN, 1);
   for (int i = 0; i < 8; i++) {
     full = senseTrayWaterLevel();
@@ -1071,7 +1043,7 @@ int calibrateTrayWaterLevelSensors() {
   while (true) {
     goAhead = confirm(MSG_SENSOR_ATTACHED, 1);
     if (goAhead == -1) return false;
- 
+
 
     trayFull = senseTrayIsFull();
     if (!trayFull) {
