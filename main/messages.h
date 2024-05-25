@@ -144,8 +144,11 @@ const char PROGMEM MSG_WIPING[] = "Wiping...";
 const char PROGMEM MSG_PRESS_OK_TO_STOP[] = "Press OK to stop..."; 
 
 const char PROGMEM MSG_LOG_TYPE_0[] = "BootUp";
-const char PROGMEM MSG_LOG_TYPE_1[] = "Feed  ";
+const char PROGMEM MSG_LOG_TYPE_1[] = "Feed";
 const char PROGMEM MSG_AGO[] = "ago";
+
+const char PROGMEM MSG_S_COLUMN[] = "S:";
+const char PROGMEM MSG_T_COLUMN[] = "T:";
 
 
 #endif MESSAGES_H
