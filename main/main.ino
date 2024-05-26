@@ -1,14 +1,3 @@
-/*
-  * Average feeding time
-    * Add variables averageTimeBetweenFeed and timeOfLastFeed
-    * Write procedure that works out those variables reading the logs
-    * Print this information in the home screen
-  
-  LATER:
-  * Make MIN_FEED_INTERVAL a variable set at setup time and in settings 
-  * Same for the max feed duration and max pump IN/OUT is on. Put them in maintenance
-
-*/
 #include <AnalogButtons.h>
 #include <Arduino.h>
 #include "main.h"
@@ -39,8 +28,8 @@ extern Button okButton;
 const unsigned long actionInterval = 2000;  // Interval in milliseconds (1000 milliseconds = 1 second)
 unsigned long actionPreviousMillis = 0;
 
-double averageTimeBetweenFeeds = 0.0;
-unsigned long int timeOfLastFeed = 0;
+double averageMsBetweenFeeds = 0.0;
+unsigned long int millisSinceEndOfLastFeed = 0;
 
 void setup() {
   Serial.begin(230400);  // Initialize serial communication at 9600 baud rate
@@ -67,10 +56,10 @@ void setup() {
     while (!runInitialSetup());
   }
 
-  initialAverageTimeBetweenFeeds();
+  initialaverageMsBetweenFeeds();
   createBootLogEntry();
   
-  Serial.println("GOING TO LATEST SLOT FOR DEBUGGING REASONS:");
+  // Serial.println("GOING TO LATEST SLOT FOR DEBUGGING REASONS:");
   goToLatestSlot();
 }
 
@@ -91,12 +80,12 @@ void createBootLogEntry() {
   newLogEntry.topFeed = 0;
   newLogEntry.outcome = 0;
 
-  Serial.println("Writing initial boot entry...");
+  // Serial.println("Writing initial boot entry...");
   writeLogEntry((void *)&newLogEntry);
 }
 
 
-void initialAverageTimeBetweenFeeds() {
+void initialaverageMsBetweenFeeds() {
   int8_t currentLogSlotBefore = getCurrentLogSlot();
   int8_t count = 0;
   int8_t totalLogSlots = getTotalLogSlots();
@@ -106,16 +95,16 @@ void initialAverageTimeBetweenFeeds() {
   while (true) {
 
     // currentLogEntry
-    Serial.print("Seq: ");Serial.print(currentLogEntry.seq);
-    Serial.print(" Type: ");Serial.print(currentLogEntry.entryType);
-    Serial.print(" Outcome: ");Serial.print(currentLogEntry.outcome);
-    Serial.print(" Started at: ");Serial.print(currentLogEntry.millisStart);
-    Serial.print(" Ended at: ");Serial.println(currentLogEntry.millisEnd);
+    // Serial.print("Seq: ");// Serial.print(currentLogEntry.seq);
+    // Serial.print(" Type: ");// Serial.print(currentLogEntry.entryType);
+    // Serial.print(" Outcome: ");// Serial.print(currentLogEntry.outcome);
+    // Serial.print(" Started at: ");// Serial.print(currentLogEntry.millisStart);
+    // Serial.print(" Ended at: ");// Serial.println(currentLogEntry.millisEnd);
 
     if (currentLogEntry.entryType == 1) {
-      if (!found) found = currentLogEntry.millisStart;
+      if (!found) found = currentLogEntry.millisEnd;
       else {
-        updateAverageTimeBetweenFeeds(abs(found - currentLogEntry.millisStart));
+        updateaverageMsBetweenFeeds(abs(found - currentLogEntry.millisStart));
         found = currentLogEntry.millisEnd;
       }
     } else {
@@ -129,18 +118,18 @@ void initialAverageTimeBetweenFeeds() {
   goToLogSlot(currentLogSlotBefore);
 }
 
-void updateAverageTimeBetweenFeeds(unsigned long durationMillis) {
+void updateaverageMsBetweenFeeds(unsigned long durationMillis) {
     static unsigned long callCount = 0;
-    Serial.print("Called updateAverageTimeBetweenFeeds() with param: ");
-    Serial.println(durationMillis);
+    // Serial.print("Called updateaverageMsBetweenFeeds() with param: ");
+    // Serial.println(durationMillis);
     
-    Serial.print("Count: ");Serial.println(callCount);
-    Serial.print("Previous average: ");Serial.println(averageTimeBetweenFeeds);
+    // Serial.print("Count: ");// Serial.println(callCount);
+    // Serial.print("Previous average: ");// Serial.println(averageMsBetweenFeeds);
 
     callCount++;
-    averageTimeBetweenFeeds += (durationMillis - averageTimeBetweenFeeds) / callCount;
+    averageMsBetweenFeeds += (durationMillis - averageMsBetweenFeeds) / callCount;
 
-    Serial.print("New average: ");Serial.println(averageTimeBetweenFeeds);
+    // Serial.print("New average: ");// Serial.println(averageMsBetweenFeeds);
     
 
 }
@@ -337,7 +326,7 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
   // Quit if not enough time has lapsed OR if the conditions
   // are not satisfied
   if (!force) {
-    if (lastExecutionTime && millis() - lastExecutionTime < FEED_MIN_INTERVAL) return;
+    if (lastExecutionTime && millis() - lastExecutionTime < config.minFeedInterval) return;
     if (!actionShouldStartOrStop(action, 1)) return;
   }
 
@@ -356,7 +345,7 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
   openLineIn();
 
   unsigned long feedStartMillis = millis();
-  Serial.print("feedStartMillis: "); Serial.println(feedStartMillis);
+  // Serial.print("feedStartMillis: "); Serial.println(feedStartMillis);
 
 
   uint8_t soilMoistureBefore = soilMoistureAsPercentage(senseSoilMoisture());
@@ -365,10 +354,8 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
   uint8_t shouldStop = 0;
   uint8_t retCode = 0;
   
-  Serial.print("timeOfLastFeed: "); Serial.println(timeOfLastFeed);
-  if (timeOfLastFeed) updateAverageTimeBetweenFeeds(millis() - timeOfLastFeed);  
-  timeOfLastFeed = millis();
-
+  // Serial.print("millisSinceEndOfLastFeed: "); Serial.println(millisSinceEndOfLastFeed);
+  
   while (true) {
     // Serial.println("4");
 
@@ -377,7 +364,7 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
       shouldStop = true;
       retCode = 0; // OK
     }
-    if (millis() - feedStartMillis >= MAX_FEED_TIME) {
+    if (millis() - feedStartMillis >= config.maxFeedTime) {
       shouldStop = true;
       retCode = 1; // INTERRUPTED
     }
@@ -391,10 +378,12 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
       // Serial.println("7");
       // Serial.println(shouldStop);
 
+      if (millisSinceEndOfLastFeed) updateaverageMsBetweenFeeds(millis() - millisSinceEndOfLastFeed);  
+      millisSinceEndOfLastFeed = millis();
+
       closeLineIn();
 
-      delay(3500);
-      Serial.print("MS: "); Serial.println(millis());
+      // Serial.print("MS: "); Serial.println(millis());
 
       clearLogEntry((void *)&newLogEntry);
       newLogEntry.entryType = 1;  // FEED
@@ -436,7 +425,7 @@ void emptyTrayIfNecessary() {
   const uint8_t trayState = trayWaterLevelAsState(trayWaterLevelAsPercentage(senseTrayWaterLevel()), senseTrayIsFull());
   switch (pumpState) {
     case IDLE:
-      if (millis() - lastPumpOutExecutionTime >= PUMP_REST_TIME && trayState >= Conditions::TRAY_SOME) {
+      if (millis() - lastPumpOutExecutionTime >= config.pumpOutRestTime && trayState >= Conditions::TRAY_SOME) {
         lastPumpOutExecutionTime = millis();
         openPumpOut();
         pumpOutStartMillis = millis();
@@ -445,7 +434,7 @@ void emptyTrayIfNecessary() {
       break;
 
     case PUMPING:
-      if (millis() - pumpOutStartMillis >= MAX_PUMP_TIME || trayState <= Conditions::TRAY_EMPTY) {
+      if (millis() - pumpOutStartMillis >= config.maxPumpOutTime || trayState <= Conditions::TRAY_EMPTY) {
         closePumpOut();
         pumpState = COMPLETED;
       }
@@ -678,14 +667,14 @@ void displayInfo1(uint8_t screen) {
   lcdPrint(trayWaterLevelInEnglish(trayWaterLevelAsState(trayWaterLevelPercent, trayIsFull), trayIsFull));
 
   lcdPrint(MSG_LAST_FEED, 2);
-  if (!timeOfLastFeed) lcdPrint(MSG_NOT_YET); 
-  else lcdPrintTimeSince(timeOfLastFeed);
+  if (!millisSinceEndOfLastFeed) lcdPrint(MSG_NOT_YET); 
+  else lcdPrintTimeSince(millisSinceEndOfLastFeed);
   // lcdPrintNumber(actionPreviousMillis);
 
   lcdPrint(MSG_AVG_COLUMN, 3);
-  if (!averageTimeBetweenFeeds) lcdPrint(MSG_NA);
-  // else lcdPrintNumber(averageTimeBetweenFeeds);
-  else lcdPrintTime(averageTimeBetweenFeeds);
+  if (!averageMsBetweenFeeds) lcdPrint(MSG_NA);
+  // else lcdPrintNumber(averageMsBetweenFeeds);
+  else lcdPrintTime(averageMsBetweenFeeds);
 }
 
 char *trayConditionToEnglish(uint8_t condition) {

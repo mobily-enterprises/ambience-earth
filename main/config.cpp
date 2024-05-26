@@ -78,6 +78,12 @@ void restoreDefaultConfig() {
   config.trayWaterLevelSensorCalibrationHalf;
   config.trayWaterLevelSensorCalibrationFull;
 
+  config.minFeedInterval = 1000L * 60 * 30;
+
+  config.maxFeedTime = 1000L * 60 * 3;
+  config.maxPumpOutTime = 1000L * 60 * 3;
+  config.pumpOutRestTime = 1000L * 60 * 3;
+
   // Set default checksum
   config.checksum = calculateConfigChecksum();
 

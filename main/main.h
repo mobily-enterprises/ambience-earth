@@ -26,5 +26,6 @@ int runInitialSetup();
 void displayInfo(uint8_t screen);
 void runAction(Action *action, uint8_t index, bool force = 0);
 void updateAverageTimeBetweenFeed();
-void initialAverageTimeBetweenFeeds();
+void initialaverageMsBetweenFeeds();
+void lcdPrintTime(unsigned long milliseconds);
 #endif MAIN_H

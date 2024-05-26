@@ -18,4 +18,5 @@ void setAutoDrain();
 void resetData();
 void activatePumps();
 void createBootLogEntry();
+void settingsSafetyLimits();
 #endif UI_H

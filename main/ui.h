@@ -32,7 +32,7 @@ void setChoicesHeader(const char *header=MSG_EMPTY);
 void setChoiceFromString(unsigned char index, const char *label="",int value=0);
 void setChoice(unsigned char index, const char *label,int value=0);
 
-int inputNumber(char *prompt, int initialUserInput, int stepSize, int min = 0, int max = 100, char *postFix = MSG_EMPTY, char *optionalHeader = MSG_EMPTY);
+long int inputNumber(char *prompt, long int initialUserInput, int stepSize, long int min = 0, long int max = 100, char *postFix = MSG_EMPTY, char *optionalHeader = MSG_EMPTY);
 
 void inputString(char *prompt, char *initialUserInput, char *optionalHeader, bool asEdit = false);
 

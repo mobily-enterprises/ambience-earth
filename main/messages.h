@@ -155,7 +155,7 @@ const char PROGMEM MSG_LOG_OUTCOME_0[] = "Success";
 const char PROGMEM MSG_LOG_OUTCOME_1[] = "Interrupted";
 
 const char PROGMEM MSG_LAST_FEED[] = "Last feed: ";
-const char PROGMEM MSG_AVG_COLUMN[] = "Avg: ";
+const char PROGMEM MSG_AVG_COLUMN[] = "Avg bw feeds: ";
 
 
 const char PROGMEM MSG_AGO[] = "ago";
@@ -164,6 +164,16 @@ const char PROGMEM MSG_S_COLUMN[] = "S:";
 const char PROGMEM MSG_W_COLUMN[] = "W:";
 
 const char PROGMEM MSG_NOT_YET[] = "Not yet";
-const char PROGMEM MSG_NA[] = "Not yet";
+const char PROGMEM MSG_NA[] = "n/a";
+
+const char PROGMEM MSG_MINUTES[] = "Minutes";
+const char PROGMEM MSG_SECONDS[] = "Seconds";
+
+const char PROGMEM MSG_MIN_FEED_INTERVAL[] = "Min interval bw feed";
+const char PROGMEM MSG_MAX_FEED_TIME[] = "Max feeding time";
+const char PROGMEM MSG_MAX_PUMP_OUT_TIME[] = "Max pump out time";
+const char PROGMEM MSG_PUMP_OUT_REST_TIME[] = "Pump out rest time";
+
+const char PROGMEM MSG_SAFETY_LIMITS[] = "Safety limits";
 
 #endif MESSAGES_H

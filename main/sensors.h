@@ -11,10 +11,6 @@
 #define PUMP_IN_DEVICE 3
 #define PUMP_OUT_DEVICE 4
 
-#define MAX_PUMP_TIME 2000
-#define PUMP_REST_TIME 5000
-
-
 
 void initSensors();
 uint16_t senseSoilMoisture();

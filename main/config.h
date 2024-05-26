@@ -7,11 +7,6 @@
 
 #define CONFIG_ADDRESS 0
 
-// #define FEED_MIN_INTERVAL 60000 * 60
-#define FEED_MIN_INTERVAL 0
-
-#define MAX_FEED_TIME 50000 * 5
-
 #define ACTIONS_ARRAY_SIZE 5
 // ************************************************************
 // ** TYPE DEFINITIONS
@@ -66,6 +61,11 @@ typedef struct {
     int16_t trayWaterLevelSensorCalibrationEmpty;
     int16_t trayWaterLevelSensorCalibrationHalf;
     int16_t trayWaterLevelSensorCalibrationFull;
+
+    uint32_t minFeedInterval;
+    uint32_t maxFeedTime;
+    uint32_t maxPumpOutTime;
+    uint32_t pumpOutRestTime;
 
     Action actions[ACTIONS_ARRAY_SIZE];
 

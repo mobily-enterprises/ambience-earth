@@ -27,7 +27,7 @@ char choicesHeader[LABEL_LENGTH + 1];
 
 char userInputString[LABEL_LENGTH + 1];
 
- 
+
 // ACTUAL keypad
 Button upButton = Button(35, &upClick);
 Button leftButton = Button(2, &leftClick);
@@ -226,13 +226,14 @@ int isCharacterAllowed(char character) {
 /* *     LOW LEVEL UI FUNCTIONS              */
 /* ***************************************** */
 
-int inputNumber(char *prompt, int initialUserInput, int stepSize = 1, int min = 0, int max = 100, char * postFix = MSG_EMPTY, char * optionalHeader = MSG_EMPTY) {
-  int userInput;
+
+long int inputNumber(char *prompt, long int initialUserInput, int stepSize = 1, long int min = 0, long int max = 100, char * postFix = MSG_EMPTY, char * optionalHeader = MSG_EMPTY) {
+  long int userInput;
   bool displayChanged = true;
 #define HEADER_Y 0
 #define PROMPT_Y 2
 #define INPUT_Y 3
-
+  
   // Check if initialUserInput is not empty
   if (initialUserInput != -1) {
     userInput = initialUserInput;

@@ -17,8 +17,8 @@ extern Config config;
 extern LogEntry currentLogEntry;
 extern LogEntry newLogEntry;
 
-extern double averageTimeBetweenFeeds;
-extern unsigned long int timeOfLastFeed;
+extern double averageMsBetweenFeeds;
+extern unsigned long int millisSinceEndOfLastFeed;
 
 void settings() {
   int8_t choice = 0;
@@ -48,29 +48,31 @@ void maintenance() {
   while (choice != -1) {
     lcdClear();
     setChoices(
-      MSG_RESET_DATA, 1,
-      MSG_RESET_ONLY_LOGS, 2,
-      MSG_TEST_PUMPS, 3
+      MSG_SAFETY_LIMITS, 1,
+      MSG_TEST_PUMPS, 2,
+      MSG_RESET_ONLY_LOGS, 3,
+      MSG_RESET_DATA, 4
 
     );
-    choice = selectChoice(3, 1);
+    choice = selectChoice(4, 1);
 
-    if (choice == 1) resetData();
-    else if (choice == 2) resetOnlyLogs();
-    else if (choice == 3) activatePumps();
+    if (choice == 1) settingsSafetyLimits();
+    else if (choice == 2) activatePumps();
+    else if (choice == 3) resetOnlyLogs();
+    else if (choice == 4) resetData();
   }
 }
 
 
 void wipeLogsAndResetVars() {
-  averageTimeBetweenFeeds = 0.0;
-  timeOfLastFeed = 0;
+  averageMsBetweenFeeds = 0.0;
+  millisSinceEndOfLastFeed = 0;
   wipeLogs();
-  initialAverageTimeBetweenFeeds();
+  initialaverageMsBetweenFeeds();
 }
 
 void resetOnlyLogs() {
-  uint8_t confirmWipe;
+  int8_t confirmWipe;
 
   confirmWipe = confirm(MSG_SURE_QUESTION);
   if (confirmWipe == -1) return;
@@ -223,6 +225,44 @@ void settingsEditActions() {
     break;
   }
 }
+
+void settingsSafetyLimits() {
+  uint32_t minFeedInterval;
+  uint32_t maxFeedTime;
+  uint32_t maxPumpOutTime;
+  uint32_t pumpOutRestTime;
+
+  minFeedInterval = inputNumber(MSG_MINUTES, config.minFeedInterval/1000/60, 30, 0, 600, MSG_EMPTY, MSG_MIN_FEED_INTERVAL);
+  if (minFeedInterval == -1) return;
+
+  maxFeedTime = inputNumber(MSG_SECONDS, config.maxFeedTime/1000, 10, 0, 600, MSG_EMPTY, MSG_MAX_FEED_TIME);
+  if (maxFeedTime == -1) return;
+
+  maxPumpOutTime = inputNumber(MSG_SECONDS, config.maxPumpOutTime/1000, 10, 0, 600, MSG_EMPTY, MSG_MAX_PUMP_OUT_TIME);
+  if (maxPumpOutTime == -1) return;
+
+  pumpOutRestTime = inputNumber(MSG_SECONDS, config.pumpOutRestTime/1000, 5, 0, 600, MSG_EMPTY, MSG_PUMP_OUT_REST_TIME);
+  if (pumpOutRestTime == -1) return;
+  
+  // Normalise to ms
+  minFeedInterval = minFeedInterval * 1000L * 60;
+  maxFeedTime = maxFeedTime * 1000L;
+  maxPumpOutTime = maxPumpOutTime * 1000L;
+  pumpOutRestTime = pumpOutRestTime * 1000L;
+
+  lcdClear();
+
+  if (confirm(MSG_SAVE_QUESTION)) {
+    config.minFeedInterval = minFeedInterval;
+    config.maxFeedTime = maxFeedTime;
+    config.maxPumpOutTime = maxPumpOutTime;
+    config.pumpOutRestTime = pumpOutRestTime;
+
+    saveConfig();
+  }
+}
+
+
 
 void settingsDefaultMoistLevels() {
   int8_t soilLittleMoistPercentage;
@@ -453,6 +493,8 @@ void resetData() {
   if (reset == -1) return;
 
   if (reset) {
+    lcdClear();
+    lcdPrint(MSG_WIPING, 2);
     restoreDefaultConfig();
     saveConfig();
     wipeLogsAndResetVars();
