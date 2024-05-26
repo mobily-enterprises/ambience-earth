@@ -85,18 +85,6 @@ void lcdPrint(const char *message, int8_t y = -1) {
   lcd.print(buffer);
 }
 
-void lcdPrint2(char *message, int8_t y = -1) {
-  char buffer[LABEL_LENGTH + 1];
-    
-  if (y != -1) { 
-    lcdClearLine(y);
-    lcdSetCursor(0, y);
-  } 
-
-  labelcpy(buffer, message);
-  lcd.print(buffer);
-}
-
 void lcdPrintNumber(int number, uint8_t y = 0) {
   if (y) {
     lcdClearLine(y);
@@ -395,9 +383,9 @@ int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = 
 void lcdFlashMessage(char *message, char *message2=MSG_EMPTY, uint16_t time = 1000) {
   lcdClear();
   lcdSetCursor(0,1);
-  lcdPrint2(message);
+  lcdPrint(message);
   lcdSetCursor(0,2);
-  lcdPrint2(message2);
+  lcdPrint(message2);
   
   delay(time);
 }
