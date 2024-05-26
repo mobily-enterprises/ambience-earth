@@ -8,6 +8,7 @@
 #include "sensors.h"
 #include "logs.h"
 #include "settings.h"
+#include "main.h"
 #include <LiquidCrystal_I2C.h>
 
 extern LiquidCrystal_I2C lcd;
@@ -16,6 +17,8 @@ extern Config config;
 extern LogEntry currentLogEntry;
 extern LogEntry newLogEntry;
 
+extern double averageTimeBetweenFeeds;
+extern unsigned long int timeOfLastFeed;
 
 void settings() {
   int8_t choice = 0;
@@ -58,6 +61,14 @@ void maintenance() {
   }
 }
 
+
+void wipeLogsAndResetVars() {
+  averageTimeBetweenFeeds = 0.0;
+  timeOfLastFeed = 0;
+  wipeLogs();
+  initialAverageTimeBetweenFeeds();
+}
+
 void resetOnlyLogs() {
   uint8_t confirmWipe;
 
@@ -67,7 +78,7 @@ void resetOnlyLogs() {
   if (confirmWipe) {
     lcdClear();
     lcdPrint(MSG_WIPING, 2);
-    wipeLogs();
+    wipeLogsAndResetVars();
     createBootLogEntry();
   };
 }
@@ -444,7 +455,7 @@ void resetData() {
   if (reset) {
     restoreDefaultConfig();
     saveConfig();
-    wipeLogs();
+    wipeLogsAndResetVars();
     createBootLogEntry();
     while (!runInitialSetup())
       ;
@@ -516,26 +527,6 @@ void activatePumps() {
     digitalWrite(choice, LOW);
     return;
   }
-}
-
-void createBootLogEntry() {
-  unsigned long bootedUpMillis = millis();
-  uint8_t soilMoistureBefore = soilMoistureAsPercentage(senseSoilMoisture());
-  uint8_t trayWaterLevelBefore = trayWaterLevelAsPercentage(senseTrayWaterLevel());
-
-  clearLogEntry((void *)&newLogEntry);
-  newLogEntry.millisStart = bootedUpMillis;
-  newLogEntry.millisEnd = millis();
-  newLogEntry.entryType = 0;  // BOOTED UP
-  newLogEntry.actionId = 7;   // NOT RELEVANT
-  newLogEntry.soilMoistureBefore = soilMoistureBefore;
-  newLogEntry.trayWaterLevelBefore = trayWaterLevelBefore;
-  newLogEntry.soilMoistureAfter = 0;
-  newLogEntry.trayWaterLevelAfter = 0;
-  newLogEntry.topFeed = 0;
-  newLogEntry.outcome = 0;
-
-  writeLogEntry((void *)&newLogEntry);
 }
 
 

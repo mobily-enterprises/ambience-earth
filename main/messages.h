@@ -154,10 +154,16 @@ const char PROGMEM MSG_LOG_TYPE_1[] = "Feed";
 const char PROGMEM MSG_LOG_OUTCOME_0[] = "Success";
 const char PROGMEM MSG_LOG_OUTCOME_1[] = "Interrupted";
 
+const char PROGMEM MSG_LAST_FEED[] = "Last feed: ";
+const char PROGMEM MSG_AVG_COLUMN[] = "Avg: ";
+
 
 const char PROGMEM MSG_AGO[] = "ago";
 
 const char PROGMEM MSG_S_COLUMN[] = "S:";
 const char PROGMEM MSG_W_COLUMN[] = "W:";
+
+const char PROGMEM MSG_NOT_YET[] = "Not yet";
+const char PROGMEM MSG_NA[] = "Not yet";
 
 #endif MESSAGES_H

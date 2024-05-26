@@ -1,6 +1,6 @@
 /*
   * Average feeding time
-    * Add variables averageTimeBetweenFeed and timeSinceLastFeed
+    * Add variables averageTimeBetweenFeed and timeOfLastFeed
     * Write procedure that works out those variables reading the logs
     * Print this information in the home screen
   
@@ -39,7 +39,8 @@ extern Button okButton;
 const unsigned long actionInterval = 2000;  // Interval in milliseconds (1000 milliseconds = 1 second)
 unsigned long actionPreviousMillis = 0;
 
-int averageTimeBetweenFeed = 0, timeSinceLastFeed = 0;
+double averageTimeBetweenFeeds = 0.0;
+unsigned long int timeOfLastFeed = 0;
 
 void setup() {
   Serial.begin(230400);  // Initialize serial communication at 9600 baud rate
@@ -52,7 +53,7 @@ void setup() {
 
   // Init logs memory
   initLogs(&currentLogEntry, 1024, 256, 768, sizeof(currentLogEntry));
-
+  
   loadConfig();
 
   if (!configChecksumCorrect()) {
@@ -62,16 +63,86 @@ void setup() {
     wipeLogs();
   }
 
-  // runInitialSetup();
-
   if (config.mustRunInitialSetup) {
-    while (!runInitialSetup())
-      ;
+    while (!runInitialSetup());
   }
 
-  // Add a boot log entry IF needed
-  // (avoid repeating them unnecessarily)
+  initialAverageTimeBetweenFeeds();
   createBootLogEntry();
+  
+  Serial.println("GOING TO LATEST SLOT FOR DEBUGGING REASONS:");
+  goToLatestSlot();
+}
+
+
+void createBootLogEntry() {
+  uint8_t soilMoistureBefore = soilMoistureAsPercentage(senseSoilMoisture());
+  uint8_t trayWaterLevelBefore = trayWaterLevelAsPercentage(senseTrayWaterLevel());
+
+  clearLogEntry((void *)&newLogEntry);
+  newLogEntry.millisStart = 0;
+  newLogEntry.millisEnd = millis();
+  newLogEntry.entryType = 0;  // BOOTED UP
+  newLogEntry.actionId = 7;   // NOT RELEVANT
+  newLogEntry.soilMoistureBefore = soilMoistureBefore;
+  newLogEntry.trayWaterLevelBefore = trayWaterLevelBefore;
+  newLogEntry.soilMoistureAfter = 0;
+  newLogEntry.trayWaterLevelAfter = 0;
+  newLogEntry.topFeed = 0;
+  newLogEntry.outcome = 0;
+
+  Serial.println("Writing initial boot entry...");
+  writeLogEntry((void *)&newLogEntry);
+}
+
+
+void initialAverageTimeBetweenFeeds() {
+  int8_t currentLogSlotBefore = getCurrentLogSlot();
+  int8_t count = 0;
+  int8_t totalLogSlots = getTotalLogSlots();
+
+  unsigned long int found = 0;
+
+  while (true) {
+
+    // currentLogEntry
+    Serial.print("Seq: ");Serial.print(currentLogEntry.seq);
+    Serial.print(" Type: ");Serial.print(currentLogEntry.entryType);
+    Serial.print(" Outcome: ");Serial.print(currentLogEntry.outcome);
+    Serial.print(" Started at: ");Serial.print(currentLogEntry.millisStart);
+    Serial.print(" Ended at: ");Serial.println(currentLogEntry.millisEnd);
+
+    if (currentLogEntry.entryType == 1) {
+      if (!found) found = currentLogEntry.millisStart;
+      else {
+        updateAverageTimeBetweenFeeds(abs(found - currentLogEntry.millisStart));
+        found = currentLogEntry.millisEnd;
+      }
+    } else {
+      found = 0;
+    }
+
+    if (count++ >= totalLogSlots) break;
+    goToPreviousLogSlot(true);
+    if (!currentLogEntry.seq) break; 
+  }
+  goToLogSlot(currentLogSlotBefore);
+}
+
+void updateAverageTimeBetweenFeeds(unsigned long durationMillis) {
+    static unsigned long callCount = 0;
+    Serial.print("Called updateAverageTimeBetweenFeeds() with param: ");
+    Serial.println(durationMillis);
+    
+    Serial.print("Count: ");Serial.println(callCount);
+    Serial.print("Previous average: ");Serial.println(averageTimeBetweenFeeds);
+
+    callCount++;
+    averageTimeBetweenFeeds += (durationMillis - averageTimeBetweenFeeds) / callCount;
+
+    Serial.print("New average: ");Serial.println(averageTimeBetweenFeeds);
+    
+
 }
 
 void loop() {
@@ -285,11 +356,19 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
   openLineIn();
 
   unsigned long feedStartMillis = millis();
+  Serial.print("feedStartMillis: "); Serial.println(feedStartMillis);
+
+
   uint8_t soilMoistureBefore = soilMoistureAsPercentage(senseSoilMoisture());
   uint8_t trayWaterLevelBefore = trayWaterLevelAsPercentage(senseTrayWaterLevel());
 
   uint8_t shouldStop = 0;
   uint8_t retCode = 0;
+  
+  Serial.print("timeOfLastFeed: "); Serial.println(timeOfLastFeed);
+  if (timeOfLastFeed) updateAverageTimeBetweenFeeds(millis() - timeOfLastFeed);  
+  timeOfLastFeed = millis();
+
   while (true) {
     // Serial.println("4");
 
@@ -315,6 +394,8 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
       closeLineIn();
 
       delay(3500);
+      Serial.print("MS: "); Serial.println(millis());
+
       clearLogEntry((void *)&newLogEntry);
       newLogEntry.entryType = 1;  // FEED
       newLogEntry.millisStart = feedStartMillis;
@@ -383,6 +464,31 @@ void emptyTrayIfNecessary() {
     * This allows users to go through the logs
     ***********************************************************************
 */
+
+
+void lcdPrintTime(unsigned long milliseconds) {
+  
+  // Calculate the total number of seconds, minutes, and hours
+  unsigned long totalSeconds = milliseconds / 1000;
+  unsigned long seconds = totalSeconds % 60;
+  unsigned long totalMinutes = totalSeconds / 60;
+  unsigned long minutes = totalMinutes % 60;
+  unsigned long hours = totalMinutes / 60;
+
+  if (hours) {
+    lcd.print(hours);
+    lcd.print('h');
+  }
+
+  if (minutes) {
+    lcd.print(minutes);
+    lcd.print('m');
+  }
+
+  lcd.print(seconds);
+  lcd.print('s');
+}
+
 
 void lcdPrintTimeSince(unsigned long milliseconds) {
   // Calculate elapsed time in milliseconds
@@ -568,9 +674,18 @@ void displayInfo1(uint8_t screen) {
   lcdPrint(MSG_SPACE);
   lcdPrintNumber(trayWaterLevelPercent);
   lcdPrint(MSG_PERCENT);
-  lcdPrint(MSG_SPACE);
-
+  lcdPrint(MSG_SPACE);  
   lcdPrint(trayWaterLevelInEnglish(trayWaterLevelAsState(trayWaterLevelPercent, trayIsFull), trayIsFull));
+
+  lcdPrint(MSG_LAST_FEED, 2);
+  if (!timeOfLastFeed) lcdPrint(MSG_NOT_YET); 
+  else lcdPrintTimeSince(timeOfLastFeed);
+  // lcdPrintNumber(actionPreviousMillis);
+
+  lcdPrint(MSG_AVG_COLUMN, 3);
+  if (!averageTimeBetweenFeeds) lcdPrint(MSG_NA);
+  // else lcdPrintNumber(averageTimeBetweenFeeds);
+  else lcdPrintTime(averageTimeBetweenFeeds);
 }
 
 char *trayConditionToEnglish(uint8_t condition) {

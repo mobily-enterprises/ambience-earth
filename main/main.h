@@ -1,10 +1,13 @@
+#ifndef MAIN_H
+#define MAIN_H
+
 #include "config.h"
 
 typedef struct {
   unsigned int seq : 8;
-  unsigned int entryType : 3;
   unsigned long millisStart;
   unsigned long millisEnd;
+  unsigned int entryType : 3;
   unsigned int actionId : 3;
   unsigned int trayWaterLevelBefore : 7;
   unsigned int soilMoistureBefore : 7;
@@ -22,3 +25,6 @@ void mainMenu();
 int runInitialSetup();
 void displayInfo(uint8_t screen);
 void runAction(Action *action, uint8_t index, bool force = 0);
+void updateAverageTimeBetweenFeed();
+void initialAverageTimeBetweenFeeds();
+#endif MAIN_H
