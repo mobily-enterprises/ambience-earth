@@ -29,6 +29,12 @@ const char PROGMEM MSG_SOIL_LITTLE_MOIST[] = "damp";
 const char PROGMEM MSG_SOIL_MOIST[] = "mid";
 const char PROGMEM MSG_SOIL_VERY_MOIST[] = "wet";
 
+const char PROGMEM MSG_SOIL_WHEN_DRY[] = "Dry means";
+const char PROGMEM MSG_SOIL_WHEN_LITTLE_MOIST[] = "Damp means";
+const char PROGMEM MSG_SOIL_WHEN_MOIST[] = "Mid wet means";
+const char PROGMEM MSG_SOIL_WHEN_VERY_MOIST[] = "Wet means";
+
+
 const char PROGMEM MSG_TOP[] = "Top";
 const char PROGMEM MSG_FEED_FROM[] = "Feed from:";
 
@@ -122,7 +128,6 @@ const char PROGMEM MSG_SOAKED_COLUMN[] = "Soaked: ";
 const char PROGMEM MSG_NAME_COLUMN[] = "Name: ";
 const char PROGMEM MSG_ACTION_NAME[] = "Action name";
 
-
 const char PROGMEM MSG_SENSOR_NOT_SENSING_WATER_1[] = "Sensor not sensing";
 const char PROGMEM MSG_SENSOR_NOT_SENSING_WATER_2[] = "water";
 
@@ -132,7 +137,7 @@ const char PROGMEM MSG_FULL[] = "Full";
 
 const char PROGMEM MSG_DASH[] = "-";
 const char PROGMEM MSG_ZERO_PERCENT_DASH[] = "0\%-";
-const char PROGMEM MSG_PERCENT_DRY[] = "% Dry";
+const char PROGMEM MSG_PERCENT_DRY[] = "% dry";
 const char PROGMEM MSG_PERCENT_DASH[] = "%-";
 const char PROGMEM MSG_PERCENT_SPACE[] = "% ";
 
@@ -145,10 +150,14 @@ const char PROGMEM MSG_PRESS_OK_TO_STOP[] = "Press OK to stop...";
 
 const char PROGMEM MSG_LOG_TYPE_0[] = "BootUp";
 const char PROGMEM MSG_LOG_TYPE_1[] = "Feed";
+
+const char PROGMEM MSG_LOG_OUTCOME_0[] = "Success";
+const char PROGMEM MSG_LOG_OUTCOME_1[] = "Interrupted";
+
+
 const char PROGMEM MSG_AGO[] = "ago";
 
 const char PROGMEM MSG_S_COLUMN[] = "S:";
-const char PROGMEM MSG_T_COLUMN[] = "T:";
-
+const char PROGMEM MSG_W_COLUMN[] = "W:";
 
 #endif MESSAGES_H

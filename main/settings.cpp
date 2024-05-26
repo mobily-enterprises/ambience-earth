@@ -218,18 +218,17 @@ void settingsDefaultMoistLevels() {
   int8_t soilMoistPercentage;
   int8_t soilVeryMoistPercentage;
 
-  soilVeryMoistPercentage = inputNumber(MSG_OVER, config.soilVeryMoistPercentage, 5, 0, 95, MSG_PERCENT, MSG_SOIL_VERY_MOIST);
+  soilVeryMoistPercentage = inputNumber(MSG_OVER, config.soilVeryMoistPercentage, 5, 0, 95, MSG_PERCENT, MSG_SOIL_WHEN_VERY_MOIST);
   if (soilVeryMoistPercentage == -1) return;
 
-  soilMoistPercentage = inputNumber(MSG_OVER, config.soilMoistPercentage, 5, 0, config.soilMoistPercentage - 5, MSG_PERCENT, MSG_SOIL_MOIST);
+  soilMoistPercentage = inputNumber(MSG_OVER, config.soilMoistPercentage, 5, 0, config.soilMoistPercentage - 5, MSG_PERCENT, MSG_SOIL_WHEN_MOIST);
   if (soilVeryMoistPercentage == -1) return;
 
-  soilLittleMoistPercentage = inputNumber(MSG_OVER, config.soilLittleMoistPercentage, 5, 0, config.soilMoistPercentage - 5, MSG_PERCENT, MSG_SOIL_LITTLE_MOIST);
+  soilLittleMoistPercentage = inputNumber(MSG_OVER, config.soilLittleMoistPercentage, 5, 0, config.soilMoistPercentage - 5, MSG_PERCENT, MSG_SOIL_WHEN_LITTLE_MOIST);
   if (soilVeryMoistPercentage == -1) return;
 
   lcdClear();
 
-  lcd.setCursor(0, 0);
   lcdPrint(MSG_ZERO_PERCENT_DASH);
   lcdPrintNumber(soilLittleMoistPercentage - 1);
   lcdPrint(MSG_PERCENT_DRY);
@@ -241,16 +240,16 @@ void settingsDefaultMoistLevels() {
   lcdPrint(MSG_SOIL_LITTLE_MOIST);
 
   lcdPrintNumber(soilMoistPercentage, 2);
-  lcd.print(MSG_PERCENT_DASH);
+  lcdPrint(MSG_PERCENT_DASH);
   lcdPrintNumber(soilVeryMoistPercentage - 1);
-  lcd.print(MSG_PERCENT_SPACE);
+  lcdPrint(MSG_PERCENT_SPACE);
   lcdPrint(MSG_SOIL_MOIST);
 
   lcdPrintNumber(soilVeryMoistPercentage, 3);
   lcdPrint(MSG_PERCENT_DASH_ONEHUNDRED_PERCENT_SPACE);
   lcdPrint(MSG_SOIL_VERY_MOIST);
 
-  delay(2000);
+  delay(6000);
   if (confirm(MSG_SAVE_QUESTION)) {
     config.soilLittleMoistPercentage = soilLittleMoistPercentage;
     config.soilMoistPercentage = soilMoistPercentage;

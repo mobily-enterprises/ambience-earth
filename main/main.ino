@@ -1,6 +1,4 @@
 /*
-  * Log views
-    * Print all relevant log information neatly
   * Average feeding time
     * Add variables averageTimeBetweenFeed and timeSinceLastFeed
     * Write procedure that works out those variables reading the logs
@@ -8,9 +6,9 @@
   
   LATER:
   * Make MIN_FEED_INTERVAL a variable set at setup time and in settings 
+  * Same for the max feed duration and max pump IN/OUT is on. Put them in maintenance
 
 */
-
 #include <AnalogButtons.h>
 #include <Arduino.h>
 #include "main.h"
@@ -38,8 +36,10 @@ extern Button downButton;
 extern Button rightButton;
 extern Button okButton;
 
-const unsigned long interval = 2000;  // Interval in milliseconds (1000 milliseconds = 1 second)
-unsigned long previousMillis = 0;
+const unsigned long actionInterval = 2000;  // Interval in milliseconds (1000 milliseconds = 1 second)
+unsigned long actionPreviousMillis = 0;
+
+int averageTimeBetweenFeed = 0, timeSinceLastFeed = 0;
 
 void setup() {
   Serial.begin(230400);  // Initialize serial communication at 9600 baud rate
@@ -79,8 +79,8 @@ void loop() {
   unsigned long currentMillis = millis();
 
 
-  if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;
+  if (currentMillis - actionPreviousMillis >= actionInterval) {
+    actionPreviousMillis = currentMillis;
     screenCounter = (screenCounter + 1) % 8;
     maybeRunActions();
     emptyTrayIfNecessary();
@@ -288,12 +288,20 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
   uint8_t soilMoistureBefore = soilMoistureAsPercentage(senseSoilMoisture());
   uint8_t trayWaterLevelBefore = trayWaterLevelAsPercentage(senseTrayWaterLevel());
 
+  uint8_t shouldStop = 0;
+  uint8_t retCode = 0;
   while (true) {
     // Serial.println("4");
 
-    uint8_t shouldStop = 0;
-    if (actionShouldStartOrStop(action, 0)) shouldStop = 1;
-    if (millis() - feedStartMillis >= MAX_FEED_TIME) shouldStop = 2;
+    
+    if (actionShouldStartOrStop(action, 0)) {
+      shouldStop = true;
+      retCode = 0; // OK
+    }
+    if (millis() - feedStartMillis >= MAX_FEED_TIME) {
+      shouldStop = true;
+      retCode = 1; // INTERRUPTED
+    }
     // Serial.println("5");
 
     // Keep emptying the tray if necessary
@@ -317,7 +325,7 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
       newLogEntry.soilMoistureAfter = soilMoistureAsPercentage(senseSoilMoisture());
       newLogEntry.trayWaterLevelAfter = trayWaterLevelAsPercentage(senseTrayWaterLevel());
       newLogEntry.topFeed = action->feedFrom == FeedFrom::FEED_FROM_TOP;
-      newLogEntry.outcome = shouldStop == 1 ? 0 : shouldStop;
+      newLogEntry.outcome = retCode;
 
       writeLogEntry((void *)&newLogEntry);
 
@@ -447,16 +455,29 @@ void showLogType1() {
 
   lcd.setCursor(0, 1);
   lcd.print(config.actions[currentLogEntry.actionId].name);
+  lcd.setCursor(15, 1);
+  lcdPrint(MSG_SPACE);
+  lcdPrintTimeDuration(currentLogEntry.millisStart, currentLogEntry.millisEnd);
 
   lcd.setCursor(0, 2);
-  lcdPrintTimeDuration(currentLogEntry.millisStart, currentLogEntry.millisEnd);
-  lcdPrint(MSG_SPACE);
   lcdPrint(MSG_S_COLUMN);
   lcdPrintNumber(currentLogEntry.soilMoistureBefore);
   lcdPrint(MSG_PERCENT);
   lcdPrint(MSG_DASH);
   lcdPrintNumber(currentLogEntry.soilMoistureAfter);
   lcdPrint(MSG_PERCENT);
+  lcdPrint(MSG_SPACE);
+  
+  lcdPrint(MSG_W_COLUMN);
+  lcdPrintNumber(currentLogEntry.trayWaterLevelBefore);
+  lcdPrint(MSG_PERCENT);
+  lcdPrint(MSG_DASH);
+  lcdPrintNumber(currentLogEntry.trayWaterLevelAfter);
+  lcdPrint(MSG_PERCENT);
+  
+  lcd.setCursor(0, 3);
+  if (currentLogEntry.outcome == 0) lcdPrint(MSG_LOG_OUTCOME_0);
+  if (currentLogEntry.outcome == 1) lcdPrint(MSG_LOG_OUTCOME_1);
   
   // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureBefore);
   // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureAfter);
