@@ -411,7 +411,7 @@ bool alert(char *warning = MSG_EMPTY) {
   return 1;
 }
 
-int8_t confirm(char* question, bool initialUserInput = true) {
+int8_t yesOrNo(char* question, bool initialUserInput = true) {
   setChoices(MSG_YES, 1, MSG_NO, 0);
   setChoicesHeader(question);
 
@@ -424,7 +424,7 @@ int8_t confirm(char* question, bool initialUserInput = true) {
 }
 
 
-int8_t confirm1(char* top, const char *promptText=MSG_EMPTY, const char *line2=MSG_EMPTY, const char *line3=MSG_EMPTY) {
+int8_t giveOk(char* top, const char *promptText=MSG_EMPTY, const char *line2=MSG_EMPTY, const char *line3=MSG_EMPTY) {
   setChoices(promptText, 1);
   setChoicesHeader(top);
   lcdPrint(line2, 2);

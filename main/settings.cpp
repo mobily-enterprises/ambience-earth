@@ -18,7 +18,7 @@ extern LogEntry currentLogEntry;
 extern LogEntry newLogEntry;
 
 extern double averageMsBetweenFeeds;
-extern unsigned long int millisSinceEndOfLastFeed;
+extern unsigned long int millisAtEndOfLastFeed;
 
 void settings() {
   int8_t choice = 0;
@@ -66,7 +66,7 @@ void maintenance() {
 
 void wipeLogsAndResetVars() {
   averageMsBetweenFeeds = 0.0;
-  millisSinceEndOfLastFeed = 0;
+  millisAtEndOfLastFeed = 0;
   wipeLogs();
   initialaverageMsBetweenFeeds();
 }
@@ -74,7 +74,7 @@ void wipeLogsAndResetVars() {
 void resetOnlyLogs() {
   int8_t confirmWipe;
 
-  confirmWipe = confirm(MSG_SURE_QUESTION);
+  confirmWipe = yesOrNo(MSG_SURE_QUESTION);
   if (confirmWipe == -1) return;
 
   if (confirmWipe) {
@@ -199,7 +199,7 @@ void settingsEditActions() {
       if (feedFrom == -1) return;
     }
 
-    uint8_t confirmSave = confirm(MSG_SAVE_QUESTION);
+    uint8_t confirmSave = yesOrNo(MSG_SAVE_QUESTION);
     if (confirmSave == -1) {
       return;
     }
@@ -231,7 +231,7 @@ void settingsSafetyLimits() {
   uint32_t maxFeedTime;
   uint32_t maxPumpOutTime;
   uint32_t pumpOutRestTime;
-  uint8_t goAhead;
+  int8_t goAhead;
 
   minFeedInterval = inputNumber(MSG_MINUTES, config.minFeedInterval/1000/60, 30, 0, 600, MSG_EMPTY, MSG_MIN_FEED_INTERVAL);
   if (minFeedInterval == -1) return;
@@ -253,7 +253,7 @@ void settingsSafetyLimits() {
 
   lcdClear();
 
-  goAhead = confirm(MSG_SAVE_QUESTION);
+  goAhead = yesOrNo(MSG_SAVE_QUESTION);
   if (goAhead == -1) return;
 
   if (goAhead) {
@@ -272,7 +272,7 @@ void settingsDefaultMoistLevels() {
   int8_t soilLittleMoistPercentage;
   int8_t soilMoistPercentage;
   int8_t soilVeryMoistPercentage;
-  uint8_t goAhead;
+  int8_t goAhead;
 
   soilVeryMoistPercentage = inputNumber(MSG_OVER, config.soilVeryMoistPercentage, 5, 0, 95, MSG_PERCENT, MSG_SOIL_WHEN_VERY_MOIST);
   if (soilVeryMoistPercentage == -1) return;
@@ -307,7 +307,7 @@ void settingsDefaultMoistLevels() {
 
   delay(5000);
   
-  goAhead = confirm(MSG_SAVE_QUESTION);
+  goAhead = yesOrNo(MSG_SAVE_QUESTION);
   if (goAhead == -1) return;
 
   if (goAhead) {
@@ -349,7 +349,7 @@ int runInitialSetup() {
   if (config.feedLine == -1) return false;
 
   if (config.feedFrom == FeedFrom::FEED_FROM_TOP) {
-    config.trayNeedsEmptying = confirm(MSG_AUTO_DRAIN, false);
+    config.trayNeedsEmptying = yesOrNo(MSG_AUTO_DRAIN, false);
     if (config.trayNeedsEmptying == -1) return 0;
   } else {
     config.trayNeedsEmptying = false;
@@ -379,7 +379,7 @@ int calibrateTrayWaterLevelSensors() {
   lcdFlashMessage(MSG_SENSOR_2_MM_WATER, MSG_EMPTY, 2000);
 
 
-  goAhead = confirm1(MSG_WATER_TRAY_SENSOR, MSG_YES_2_MM, MSG_EMPTY, MSG_HOLD_IT_STILL);
+  goAhead = giveOk(MSG_WATER_TRAY_SENSOR, MSG_YES_2_MM, MSG_EMPTY, MSG_HOLD_IT_STILL);
   if (goAhead == -1) return false;
 
   lcdClear();
@@ -394,7 +394,7 @@ int calibrateTrayWaterLevelSensors() {
 
   delay(2000);
 
-  goAhead = confirm1(MSG_WATER_TRAY_SENSOR, MSG_YES_HALF_WAY, MSG_NOW_HALF_WAY, MSG_HOLD_IT_STILL);
+  goAhead = giveOk(MSG_WATER_TRAY_SENSOR, MSG_YES_HALF_WAY, MSG_NOW_HALF_WAY, MSG_HOLD_IT_STILL);
   if (goAhead == -1) return false;
 
   lcdClear();
@@ -407,7 +407,7 @@ int calibrateTrayWaterLevelSensors() {
     delay(900);
   }
 
-  goAhead = confirm1(MSG_WATER_TRAY_SENSOR, MSG_YES_FULL_IN, MSG_NOW_FULL_IN, MSG_DO_NOT_SUBMERGE);
+  goAhead = giveOk(MSG_WATER_TRAY_SENSOR, MSG_YES_FULL_IN, MSG_NOW_FULL_IN, MSG_DO_NOT_SUBMERGE);
   if (goAhead == -1) return false;
 
   lcdClear();
@@ -423,7 +423,7 @@ int calibrateTrayWaterLevelSensors() {
   lcdFlashMessage(MSG_ATTACH_WHITE_SENSOR, MSG_WHERE_LED_TURNS_ON, 2000);
 
   while (true) {
-    goAhead = confirm(MSG_SENSOR_ATTACHED, 1);
+    goAhead = yesOrNo(MSG_SENSOR_ATTACHED, 1);
     if (goAhead == -1 || !goAhead) return false;
 
     trayFull = senseTrayIsFull();
@@ -434,7 +434,7 @@ int calibrateTrayWaterLevelSensors() {
     }
   }
 
-  goAhead = confirm(MSG_SAVE_QUESTION, 1);
+  goAhead = yesOrNo(MSG_SAVE_QUESTION, 1);
   if (goAhead == -1  || !goAhead) return false;
 
   config.trayWaterLevelSensorCalibrationEmpty = empty;
@@ -449,11 +449,11 @@ int readSensor(int sensor) {
 }
 
 int calibrateSoilMoistureSensor() {
-  uint8_t goAhead;
+  int8_t goAhead;
   int soaked;
   int dry;
 
-  goAhead = confirm1(MSG_MOIST_SENSOR, MSG_YES_ITS_DRY, MSG_ENSURE_SENSOR_IS, MSG_VERY_DRY);
+  goAhead = giveOk(MSG_MOIST_SENSOR, MSG_YES_ITS_DRY, MSG_ENSURE_SENSOR_IS, MSG_VERY_DRY);
   if (goAhead == -1) return false;
 
   lcdClear();
@@ -468,7 +468,7 @@ int calibrateSoilMoistureSensor() {
 
   delay(2000);
 
-  goAhead = confirm1(MSG_MOIST_SENSOR, MSG_YES_ITS_SOAKED, MSG_ENSURE_SENSOR_IS, MSG_VERY_SOAKED);
+  goAhead = giveOk(MSG_MOIST_SENSOR, MSG_YES_ITS_SOAKED, MSG_ENSURE_SENSOR_IS, MSG_VERY_SOAKED);
   if (goAhead == -1) return false;
 
   lcdClear();
@@ -481,7 +481,7 @@ int calibrateSoilMoistureSensor() {
     delay(900);
   }
 
-  goAhead = confirm(MSG_SAVE_QUESTION);
+  goAhead = yesOrNo(MSG_SAVE_QUESTION);
   if (goAhead == -1) return;
 
   // Confirm to save
@@ -495,7 +495,7 @@ int calibrateSoilMoistureSensor() {
 }
 
 void resetData() {
-  int8_t reset = confirm(MSG_SURE_QUESTION);
+  int8_t reset = yesOrNo(MSG_SURE_QUESTION);
 
   if (reset == -1) return;
 
@@ -516,10 +516,10 @@ void setAutoDrain() {
     lcdFlashMessage(MSG_ONLY_TOP_FEEDING, MSG_EMPTY, 2000);
     return;
   }
-  int8_t trayNeedsEmptying = confirm(MSG_AUTO_DRAIN, config.trayNeedsEmptying);
+  int8_t trayNeedsEmptying = yesOrNo(MSG_AUTO_DRAIN, config.trayNeedsEmptying);
   if (trayNeedsEmptying == -1) return;
 
-  int8_t confirmation = confirm(MSG_SAVE_QUESTION);
+  int8_t confirmation = yesOrNo(MSG_SAVE_QUESTION);
   if (confirmation == -1) return;
 
   if (confirmation) {
@@ -530,7 +530,7 @@ void setAutoDrain() {
 }
 
 void setFeedFrom() {
-  uint8_t goAhead;
+  int8_t goAhead;
   //
   setChoices(MSG_TOP, FeedFrom::FEED_FROM_TOP, MSG_TRAY, FeedFrom::FEED_FROM_TRAY);
   setChoicesHeader(MSG_FEEDING_FROM);
@@ -545,7 +545,7 @@ void setFeedFrom() {
 
   if (feedFrom == config.feedFrom && feedLine == config.feedLine) return false;
 
-  goAhead = confirm(MSG_SAVE_QUESTION);
+  goAhead = yesOrNo(MSG_SAVE_QUESTION);
   if (goAhead == -1) return false;
 
   if (goAhead) {

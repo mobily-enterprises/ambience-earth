@@ -29,7 +29,7 @@ const unsigned long actionInterval = 2000;  // Interval in milliseconds (1000 mi
 unsigned long actionPreviousMillis = 0;
 
 double averageMsBetweenFeeds = 0.0;
-unsigned long int millisSinceEndOfLastFeed = 0;
+unsigned long int millisAtEndOfLastFeed = 0;
 
 void setup() {
   Serial.begin(230400);  // Initialize serial communication at 9600 baud rate
@@ -317,7 +317,6 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
 
 
 void runAction(Action *action, uint8_t index, bool force = 0) {
-  static unsigned long lastExecutionTime = 0;
 
   // Serial.println("INDEX:");
   // Serial.println(index);
@@ -326,15 +325,11 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
   // Quit if not enough time has lapsed OR if the conditions
   // are not satisfied
   if (!force) {
-    if (lastExecutionTime && millis() - lastExecutionTime < config.minFeedInterval) return;
+    if (millisAtEndOfLastFeed && millis() - millisAtEndOfLastFeed <  config.minFeedInterval) return;
     if (!actionShouldStartOrStop(action, 1)) return;
   }
 
   // Serial.println("2");
-
-  // We are in!
-  // Set a new execution time
-  lastExecutionTime = millis();
 
   lcdClear();
   lcdPrint(MSG_FEEDING, 2);
@@ -354,7 +349,7 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
   uint8_t shouldStop = 0;
   uint8_t retCode = 0;
   
-  // Serial.print("millisSinceEndOfLastFeed: "); Serial.println(millisSinceEndOfLastFeed);
+  // Serial.print("millisAtEndOfLastFeed: "); Serial.println(millisAtEndOfLastFeed);
   
   while (true) {
     // Serial.println("4");
@@ -378,8 +373,8 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
       // Serial.println("7");
       // Serial.println(shouldStop);
 
-      if (millisSinceEndOfLastFeed) updateaverageMsBetweenFeeds(millis() - millisSinceEndOfLastFeed);  
-      millisSinceEndOfLastFeed = millis();
+      if (millisAtEndOfLastFeed) updateaverageMsBetweenFeeds(millis() - millisAtEndOfLastFeed);  
+      millisAtEndOfLastFeed = millis();
 
       closeLineIn();
 
@@ -620,18 +615,20 @@ void displayInfo(uint8_t screen) {
   switch (screen) {
     case 0:
     case 1:
+      displayInfo1(screen);
+      break;
     case 2:
     case 3:
-    case 4:
+      displayInfo3(screen);
+      break;
+    case 4:  
     case 5:
       displayInfo1(screen);
       break;
     case 6:
-      displayInfo2(screen);
-      break;
     case 7:
       displayInfo2(screen);
-      break;
+    break;
   }
 }
 
@@ -650,7 +647,7 @@ void displayInfo1(uint8_t screen) {
   trayIsFull = senseTrayIsFull();
 
   lcdClear();
-  lcdPrint(MSG_SOIL, 0);
+  lcdPrint(MSG_SOIL_NOW, 0);
   lcdPrint(MSG_SPACE);
 
   lcdPrintNumber(soilMoisturePercent);
@@ -659,7 +656,7 @@ void displayInfo1(uint8_t screen) {
   lcdPrint(soilMoistureInEnglish(soilMoistureAsState(soilMoisturePercent)));
   lcdPrint(MSG_SPACE);
 
-  lcdPrint(MSG_TRAY, 1);
+  lcdPrint(MSG_TRAY_NOW, 1);
   lcdPrint(MSG_SPACE);
   lcdPrintNumber(trayWaterLevelPercent);
   lcdPrint(MSG_PERCENT);
@@ -667,14 +664,30 @@ void displayInfo1(uint8_t screen) {
   lcdPrint(trayWaterLevelInEnglish(trayWaterLevelAsState(trayWaterLevelPercent, trayIsFull), trayIsFull));
 
   lcdPrint(MSG_LAST_FEED, 2);
-  if (!millisSinceEndOfLastFeed) lcdPrint(MSG_NOT_YET); 
-  else lcdPrintTimeSince(millisSinceEndOfLastFeed);
+  if (!millisAtEndOfLastFeed) lcdPrint(MSG_NOT_YET); 
+  else lcdPrintTimeSince(millisAtEndOfLastFeed);
   // lcdPrintNumber(actionPreviousMillis);
 
   lcdPrint(MSG_AVG_COLUMN, 3);
   if (!averageMsBetweenFeeds) lcdPrint(MSG_NA);
   // else lcdPrintNumber(averageMsBetweenFeeds);
   else lcdPrintTime(averageMsBetweenFeeds);
+}
+
+
+
+
+void displayInfo3(uint8_t screen) {
+  lcdClear();
+  lcdPrint(MSG_NEXT_FEED, 1);
+
+  uint32_t  millisSinceLastFeed = millis() - millisAtEndOfLastFeed;
+  if (millisAtEndOfLastFeed && millisSinceLastFeed < config.minFeedInterval) {
+    lcdPrintTime(config.minFeedInterval - millisSinceLastFeed);
+    lcdPrint(MSG_AT_THE_EARLIEST, 2);  
+  } else {
+    lcdPrint(MSG_WHEN_CONDITIONS_ALLOW, 2); 
+  }
 }
 
 char *trayConditionToEnglish(uint8_t condition) {
@@ -752,10 +765,6 @@ void displayInfo2(uint8_t screen) {
     lcd.setCursor(0, 3);
     displayTriggerConditions(config.actions[active].stopConditions);
   }
-}
-
-void displayInfo3(uint8_t screen) {
-  lcdClear();
 }
 
 void displayInfo4(uint8_t screen) {

@@ -52,7 +52,9 @@ const char PROGMEM MSG_WATER_LEVELS[] = "Tray water lvs";
 const char PROGMEM MSG_ABORTED[] = "Aborted!";
 
 const char PROGMEM MSG_SOIL[] = "Soil";
+const char PROGMEM MSG_SOIL_NOW[] = "Soil now:";
 const char PROGMEM MSG_TRAY[] = "Tray";
+const char PROGMEM MSG_TRAY_NOW[] = "Tray now:";
 const char PROGMEM MSG_PERCENT[] = "%";
 const char PROGMEM MSG_ON_WHEN[] = "On:";
 const char PROGMEM MSG_OFF_WHEN[] = "Off:";
@@ -148,7 +150,7 @@ const char PROGMEM MSG_SENSOR_NOT_SENSING_WATER_2[] = "water";
 
 const char PROGMEM MSG_ERROR_1[] = "Error 1";
 
-const char PROGMEM MSG_FULL[] = "Full";
+const char PROGMEM MSG_FULL[] = "full";
 
 const char PROGMEM MSG_DASH[] = "-";
 const char PROGMEM MSG_ZERO_PERCENT_DASH[] = "0\%-";
@@ -169,8 +171,11 @@ const char PROGMEM MSG_LOG_TYPE_1[] = "Feed";
 const char PROGMEM MSG_LOG_OUTCOME_0[] = "Success";
 const char PROGMEM MSG_LOG_OUTCOME_1[] = "Interrupted";
 
+const char PROGMEM MSG_NEXT_FEED[] = "Next feed: ";
 const char PROGMEM MSG_LAST_FEED[] = "Last feed: ";
+const char PROGMEM MSG_AT_THE_EARLIEST[] = "at the earliest";
 const char PROGMEM MSG_AVG_COLUMN[] = "Avg bw feeds: ";
+const char PROGMEM MSG_WHEN_CONDITIONS_ALLOW[] = "w/conditions allow";
 
 
 const char PROGMEM MSG_AGO[] = "ago";
