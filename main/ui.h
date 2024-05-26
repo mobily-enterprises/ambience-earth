@@ -23,8 +23,8 @@ struct Choice {
 
 int8_t confirm(char* question, bool initialUserInput = true);
 bool alert(char *question=MSG_EMPTY);
-
-int8_t selectChoice(int howManyChoices, int initialUserInput);
+int8_t confirm1(char* top, const char *promptText=MSG_EMPTY, const char *line2=MSG_EMPTY, const char *line3=MSG_EMPTY);
+int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = false);
 void setChoices(const char *label0=MSG_EMPTY,int value0=0,const char *label1=MSG_EMPTY,int value1=0,const char *label2=MSG_EMPTY,int value2=0,const char *label3=MSG_EMPTY,int value3=0,const char *label4=MSG_EMPTY,int value4=0,const char *label5=MSG_EMPTY,int value5=0);
 void setChoicesHeader(const char *header=MSG_EMPTY);
 

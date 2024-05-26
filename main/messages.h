@@ -75,7 +75,7 @@ const char PROGMEM MSG_SOLENOID_IN[] = "Solenoid";
 
 const char PROGMEM MSG_ONLY_TOP_FEEDING[] = "Only top feeding";
 
-const char PROGMEM MSG_SENSOR__MM_WATER2[] = "Sensor in 2mm water";
+const char PROGMEM MSG_SENSOR_2_MM_WATER[] = "Sensor in 2mm water";
 
 const char PROGMEM MSG_LINE_IN[] = "Line in...";
 
@@ -92,13 +92,28 @@ const char PROGMEM MSG_BOTH[] = "Both";
 const char PROGMEM MSG_EITHER[] = "Either";
 
 const char PROGMEM MSG_TINY_BIT_OF_WATER[] = "TINY bit of water";
-
 const char PROGMEM MSG_HALF_TRAY[] = "HALF tray";
 const char PROGMEM MSG_FULL_TRAY[] = "FULL tray";
 
+const char PROGMEM MSG_WATER_TRAY_SENSOR[] = "Water tray sensor";
+const char PROGMEM MSG_YES_2_MM[] = "Yes, 2mm of water!";
+const char PROGMEM MSG_HOLD_IT_STILL[] = "Hold it still";
+const char PROGMEM MSG_YES_HALF_WAY[] = "Yes, it's half in!";
+const char PROGMEM MSG_NOW_HALF_WAY[] = "Now half in water";
+const char PROGMEM MSG_YES_FULL_IN[] = "Yes, it's fully in!";
+const char PROGMEM MSG_NOW_FULL_IN[] = "Now fully in";
+const char PROGMEM MSG_DO_NOT_SUBMERGE[] = "DO NOT SUBMERGE!";
+
+
 const char PROGMEM MSG_SENSOR_ATTACHED[] = "Sensor attached?";
 
-const char PROGMEM MSG_DRY_MOIST_SENSOR[] = "DRY moist sensor";
+const char PROGMEM MSG_MOIST_SENSOR[] = "Moist sensor";
+const char PROGMEM MSG_YES_ITS_DRY[] = "Yes, it's dry!";
+const char PROGMEM MSG_ENSURE_SENSOR_IS[] = "Ensure sensor is";
+const char PROGMEM MSG_VERY_DRY[] = "very DRY";
+const char PROGMEM MSG_VERY_SOAKED[] = "soaked in water";
+const char PROGMEM MSG_YES_ITS_SOAKED[] = "Yes, it's soaked!";
+
 
 const char PROGMEM MSG_SOAKED_MOIST_SENSOR[] = "SOAKED moist sensor";
 

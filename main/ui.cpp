@@ -305,7 +305,7 @@ void resetChoicesAndHeader() {
   choicesHeader[0] = '\0';
 }
 
-int8_t selectChoice(int howManyChoices, int initialUserInput) {
+int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = false) {
   int selectedIndex = 0;      // Default selection is the first choice
   int firstVisibleIndex = 0;  // Index of the first choice visible on the screen
   bool displayChanged = true;
@@ -314,7 +314,7 @@ int8_t selectChoice(int howManyChoices, int initialUserInput) {
   #define MAX_VISIBLE_CHOICES (choicesHeader[0] != '\0' ? 3 : 4)  // Maximum number of choices visible on the screen at a time
   #define CHOICES_START_Y (choicesHeader[0] != '\0' ? 1 : 0)      // Adjust CHOICES_START_Y based on whether optionalHeader is provided or not
 
-  lcd.clear();
+  if (!doNotClear) lcd.clear();
 
   // Find the index of the choice matching the initialUserInput
   for (int i = 0; i < howManyChoices; i++) {
@@ -423,6 +423,20 @@ int8_t confirm(char* question, bool initialUserInput = true) {
   return response == 1 ? true : false;
 }
 
+
+int8_t confirm1(char* top, const char *promptText=MSG_EMPTY, const char *line2=MSG_EMPTY, const char *line3=MSG_EMPTY) {
+  setChoices(promptText, 1);
+  setChoicesHeader(top);
+  lcdPrint(line2, 2);
+  lcdPrint(line3, 3);
+  int8_t response = selectChoice(1, 1, true);
+  if (response == -1) {
+    lcdFlashMessage(MSG_ABORTED);
+    return -1;
+  }
+
+  return 1;
+}
 
 void inputString(char *prompt, char *initialUserInput, char *optionalHeader = MSG_EMPTY, bool asEdit = false) {
   uint8_t cursorPosition = 0;

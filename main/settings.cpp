@@ -231,6 +231,7 @@ void settingsSafetyLimits() {
   uint32_t maxFeedTime;
   uint32_t maxPumpOutTime;
   uint32_t pumpOutRestTime;
+  uint8_t goAhead;
 
   minFeedInterval = inputNumber(MSG_MINUTES, config.minFeedInterval/1000/60, 30, 0, 600, MSG_EMPTY, MSG_MIN_FEED_INTERVAL);
   if (minFeedInterval == -1) return;
@@ -252,7 +253,10 @@ void settingsSafetyLimits() {
 
   lcdClear();
 
-  if (confirm(MSG_SAVE_QUESTION)) {
+  goAhead = confirm(MSG_SAVE_QUESTION);
+  if (goAhead == -1) return;
+
+  if (goAhead) {
     config.minFeedInterval = minFeedInterval;
     config.maxFeedTime = maxFeedTime;
     config.maxPumpOutTime = maxPumpOutTime;
@@ -268,6 +272,7 @@ void settingsDefaultMoistLevels() {
   int8_t soilLittleMoistPercentage;
   int8_t soilMoistPercentage;
   int8_t soilVeryMoistPercentage;
+  uint8_t goAhead;
 
   soilVeryMoistPercentage = inputNumber(MSG_OVER, config.soilVeryMoistPercentage, 5, 0, 95, MSG_PERCENT, MSG_SOIL_WHEN_VERY_MOIST);
   if (soilVeryMoistPercentage == -1) return;
@@ -300,8 +305,12 @@ void settingsDefaultMoistLevels() {
   lcdPrint(MSG_PERCENT_DASH_ONEHUNDRED_PERCENT_SPACE);
   lcdPrint(MSG_SOIL_VERY_MOIST);
 
-  delay(6000);
-  if (confirm(MSG_SAVE_QUESTION)) {
+  delay(5000);
+  
+  goAhead = confirm(MSG_SAVE_QUESTION);
+  if (goAhead == -1) return;
+
+  if (goAhead) {
     config.soilLittleMoistPercentage = soilLittleMoistPercentage;
     config.soilMoistPercentage = soilMoistPercentage;
     config.soilVeryMoistPercentage = soilVeryMoistPercentage;
@@ -367,10 +376,10 @@ int calibrateTrayWaterLevelSensors() {
   int16_t full;
   bool trayFull;
 
-  lcdFlashMessage(MSG_SENSOR__MM_WATER2, MSG_EMPTY, 2000);
+  lcdFlashMessage(MSG_SENSOR_2_MM_WATER, MSG_EMPTY, 2000);
 
 
-  goAhead = confirm(MSG_TINY_BIT_OF_WATER, 1);
+  goAhead = confirm1(MSG_WATER_TRAY_SENSOR, MSG_YES_2_MM, MSG_EMPTY, MSG_HOLD_IT_STILL);
   if (goAhead == -1) return false;
 
   lcdClear();
@@ -385,7 +394,7 @@ int calibrateTrayWaterLevelSensors() {
 
   delay(2000);
 
-  goAhead = confirm(MSG_HALF_TRAY, 1);
+  goAhead = confirm1(MSG_WATER_TRAY_SENSOR, MSG_YES_HALF_WAY, MSG_NOW_HALF_WAY, MSG_HOLD_IT_STILL);
   if (goAhead == -1) return false;
 
   lcdClear();
@@ -398,7 +407,7 @@ int calibrateTrayWaterLevelSensors() {
     delay(900);
   }
 
-  goAhead = confirm(MSG_FULL_TRAY, 1);
+  goAhead = confirm1(MSG_WATER_TRAY_SENSOR, MSG_YES_FULL_IN, MSG_NOW_FULL_IN, MSG_DO_NOT_SUBMERGE);
   if (goAhead == -1) return false;
 
   lcdClear();
@@ -415,8 +424,7 @@ int calibrateTrayWaterLevelSensors() {
 
   while (true) {
     goAhead = confirm(MSG_SENSOR_ATTACHED, 1);
-    if (goAhead == -1) return false;
-
+    if (goAhead == -1 || !goAhead) return false;
 
     trayFull = senseTrayIsFull();
     if (!trayFull) {
@@ -426,16 +434,13 @@ int calibrateTrayWaterLevelSensors() {
     }
   }
 
-  // Confirm to save
-  if (confirm(MSG_SAVE_QUESTION)) {
-    config.trayWaterLevelSensorCalibrationEmpty = empty;
-    config.trayWaterLevelSensorCalibrationHalf = half;
-    config.trayWaterLevelSensorCalibrationFull = full;
-    return true;
+  goAhead = confirm(MSG_SAVE_QUESTION, 1);
+  if (goAhead == -1  || !goAhead) return false;
 
-  } else {
-    return false;
-  }
+  config.trayWaterLevelSensorCalibrationEmpty = empty;
+  config.trayWaterLevelSensorCalibrationHalf = half;
+  config.trayWaterLevelSensorCalibrationFull = full;
+  return true;
 }
 
 
@@ -444,12 +449,11 @@ int readSensor(int sensor) {
 }
 
 int calibrateSoilMoistureSensor() {
-  int goAhead;
+  uint8_t goAhead;
   int soaked;
   int dry;
 
-
-  goAhead = confirm(MSG_DRY_MOIST_SENSOR, 1);
+  goAhead = confirm1(MSG_MOIST_SENSOR, MSG_YES_ITS_DRY, MSG_ENSURE_SENSOR_IS, MSG_VERY_DRY);
   if (goAhead == -1) return false;
 
   lcdClear();
@@ -464,7 +468,7 @@ int calibrateSoilMoistureSensor() {
 
   delay(2000);
 
-  goAhead = confirm(MSG_SOAKED_MOIST_SENSOR, 1);
+  goAhead = confirm1(MSG_MOIST_SENSOR, MSG_YES_ITS_SOAKED, MSG_ENSURE_SENSOR_IS, MSG_VERY_SOAKED);
   if (goAhead == -1) return false;
 
   lcdClear();
@@ -477,8 +481,11 @@ int calibrateSoilMoistureSensor() {
     delay(900);
   }
 
+  goAhead = confirm(MSG_SAVE_QUESTION);
+  if (goAhead == -1) return;
+
   // Confirm to save
-  if (confirm(MSG_SAVE_QUESTION)) {
+  if (goAhead) {
     config.moistSensorCalibrationSoaked = soaked;
     config.moistSensorCalibrationDry = dry;
     return true;
@@ -523,21 +530,25 @@ void setAutoDrain() {
 }
 
 void setFeedFrom() {
+  uint8_t goAhead;
   //
   setChoices(MSG_TOP, FeedFrom::FEED_FROM_TOP, MSG_TRAY, FeedFrom::FEED_FROM_TRAY);
   setChoicesHeader(MSG_FEEDING_FROM);
   int8_t feedFrom = selectChoice(2, config.feedFrom);
-  if (feedFrom == -1) return;
+  if (feedFrom == -1) return false;
 
   setChoices(MSG_PUMP_IN, FeedLine::PUMP_IN, MSG_SOLENOID_IN, FeedLine::SOLENOID_IN);
   setChoicesHeader(MSG_LINE_IN);
   int8_t feedLine = selectChoice(2, config.feedLine);
-  if (feedLine == -1) return;
+  if (feedLine == -1) return false;
 
 
-  if (feedFrom == config.feedFrom && feedLine == config.feedLine) return;
+  if (feedFrom == config.feedFrom && feedLine == config.feedLine) return false;
 
-  if (confirm(MSG_SAVE_QUESTION)) {
+  goAhead = confirm(MSG_SAVE_QUESTION);
+  if (goAhead == -1) return false;
+
+  if (goAhead) {
 
     // Only overwritten once saving
     config.feedFrom = feedFrom;
@@ -551,6 +562,9 @@ void setFeedFrom() {
     // Zap action field if went this far
     config.activeActionsIndex0 = -1;
     config.activeActionsIndex1 = -1;
+    return true;
+  } else {
+    return false;
   }
 }
 
