@@ -104,13 +104,15 @@ Conditions inputConditions(Conditions *initialConditions, char verb, int8_t choi
     MSG_TRAY_DRY, Conditions::TRAY_DRY,
     MSG_TRAY_EMPTY, Conditions::TRAY_EMPTY,
     MSG_TRAY_SOME, Conditions::TRAY_SOME,
-    MSG_TRAY_PLENTY, Conditions::TRAY_PLENTY);
+    MSG_TRAY_PLENTY, Conditions::TRAY_PLENTY,
+    MSG_TRAY_FULL, Conditions::TRAY_FULL
+  );
   if (verb == 'F') {
     setChoicesHeader(MSG_START_TRAY);
   } else {
     setChoicesHeader(MSG_STOP_TRAY);
   }
-  int8_t tray = (int8_t)selectChoice(5, (int8_t)initialConditions->tray);
+  int8_t tray = (int8_t)selectChoice(6, (int8_t)initialConditions->tray);
   initialConditions->tray = tray;
   if (tray == -1) return;
 
@@ -578,12 +580,18 @@ void activatePumps() {
     choice = selectChoice(3, 0);
     if (choice == -1) return;
 
-    digitalWrite(choice, HIGH);
-    alert(MSG_PRESS_OK_TO_STOP);
-    digitalWrite(choice, LOW);
-    return;
+  lcdFlashMessage(MSG_DEVICE_WILL_BLINK, MSG_THREE_TIMES, 100);
+ 
+   // pinMode(choice, OUTPUT);
+    for(int i = 0; i <= 3; i++) {
+      digitalWrite(choice, HIGH);
+      delay(1000);
+      digitalWrite(choice, LOW);
+      delay(1000);
+    }
   }
 }
+
 
 
 /*

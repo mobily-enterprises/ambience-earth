@@ -27,7 +27,7 @@ enum FeedLine : int8_t {
 };
 
 typedef struct {
-  enum : int8_t { TRAY_IGNORED, TRAY_DRY, TRAY_EMPTY, TRAY_SOME, TRAY_PLENTY } tray;
+  enum : int8_t { TRAY_IGNORED, TRAY_DRY, TRAY_EMPTY, TRAY_SOME, TRAY_PLENTY, TRAY_FULL } tray;
   enum : int8_t { SOIL_IGNORED, SOIL_DRY, SOIL_LITTLE_MOIST, SOIL_MOIST, SOIL_VERY_MOIST } soil;
   enum : int8_t { NO_LOGIC, TRAY_OR_SOIL, TRAY_AND_SOIL } logic;
 } Conditions;

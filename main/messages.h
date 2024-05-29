@@ -23,6 +23,8 @@ const char PROGMEM MSG_TRAY_DRY[] = "dry";
 const char PROGMEM MSG_TRAY_EMPTY[] = "empty";
 const char PROGMEM MSG_TRAY_SOME[] = "some";
 const char PROGMEM MSG_TRAY_PLENTY[] = "lots";
+const char PROGMEM MSG_TRAY_FULL[] = "full";
+
 
 const char PROGMEM MSG_SOIL_DRY[] = "dry";
 const char PROGMEM MSG_SOIL_LITTLE_MOIST[] = "damp";
@@ -193,6 +195,9 @@ const char PROGMEM MSG_MIN_FEED_INTERVAL[] = "Min interval bw feed";
 const char PROGMEM MSG_MAX_FEED_TIME[] = "Max feeding time";
 const char PROGMEM MSG_MAX_PUMP_OUT_TIME[] = "Max pump out time";
 const char PROGMEM MSG_PUMP_OUT_REST_TIME[] = "Pump out rest time";
+const char PROGMEM MSG_DEVICE_WILL_BLINK[] = "Device will blink";
+const char PROGMEM MSG_THREE_TIMES[] = "three times...";
+
 
 const char PROGMEM MSG_SAFETY_LIMITS[] = "Safety limits";
 

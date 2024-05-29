@@ -89,10 +89,7 @@ void lcdPrintNumber(int number, uint8_t y = 0) {
   if (y) {
     lcdClearLine(y);
     lcdSetCursor(0, y);
-  }
-  // int y = lcd.cursorY();
-  // labelcpyFromString(displayedLine, message);
-  // displayedLine[DISPLAY_COLUMS - y] = '\0';  
+  } 
   lcd.print(number);
 }
 

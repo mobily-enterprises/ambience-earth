@@ -3,12 +3,10 @@
 
 #include "messages.h"
 
-void initLcdAndButtons();
-
 #define DISPLAY_COLUMNS 20
 #define LABEL_LENGTH 20
 
-#define BUTTONS_PIN A6
+#define BUTTONS_PIN A7
 #define BUTTONS_PIN_MODE INPUT         // Set to INPUT to disable internal pull-up resistor
 #define BUTTONS_DEBOUNCE_MULTIPLIER 2  // Set debounce frequency multiplier
 #define BUTTONS_ANALOG_MARGIN 20       // Set analog value margin
@@ -21,6 +19,7 @@ struct Choice {
   int value;
 };
 
+void initLcdAndButtons();
 int8_t yesOrNo(char* question, bool initialUserInput = true);
 bool alert(char *question=MSG_EMPTY);
 int8_t giveOk(char* top, const char *promptText=MSG_EMPTY, const char *line2=MSG_EMPTY, const char *line3=MSG_EMPTY);

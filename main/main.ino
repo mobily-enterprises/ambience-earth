@@ -316,6 +316,33 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
 }
 
 
+void printSoilAndWaterTrayStatus() {
+  uint16_t soilMoisture = senseSoilMoisture();
+  uint16_t soilMoisturePercent = soilMoistureAsPercentage(soilMoisture);
+  uint16_t trayWaterLevel = senseTrayWaterLevel();
+  uint16_t trayWaterLevelPercent = trayWaterLevelAsPercentage(trayWaterLevel);
+ 
+  bool trayIsFull = senseTrayIsFull();
+
+
+  lcdPrint(MSG_SOIL_NOW, 0);
+  lcdPrint(MSG_SPACE);
+  lcdPrintNumber(soilMoisturePercent);
+  lcdPrint(MSG_PERCENT);
+  lcdPrint(MSG_SPACE);
+  lcdPrint(soilMoistureInEnglish(soilMoistureAsState(soilMoisturePercent)));
+  lcdPrint(MSG_SPACE);
+
+  lcdPrint(MSG_TRAY_NOW, 1);
+  lcdPrint(MSG_SPACE);
+  lcdPrintNumber(trayWaterLevelPercent);
+  lcdPrint(MSG_PERCENT);
+  lcdPrint(MSG_SPACE);  
+  lcdPrint(trayWaterLevelInEnglish(trayWaterLevelAsState(trayWaterLevelPercent, trayIsFull), trayIsFull));
+}
+
+
+
 void runAction(Action *action, uint8_t index, bool force = 0) {
 
   // Serial.println("INDEX:");
@@ -331,8 +358,17 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
 
   // Serial.println("2");
 
+  bool trayIsFull = senseTrayIsFull();
+
+  lcdPrint(MSG_SOIL_NOW, 0);
+  lcdPrint(MSG_SPACE);
+
+
+ 
   lcdClear();
+  
   lcdPrint(MSG_FEEDING, 2);
+ 
 
   // Serial.println("3");
 
@@ -350,10 +386,21 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
   uint8_t retCode = 0;
   
   // Serial.print("millisAtEndOfLastFeed: "); Serial.println(millisAtEndOfLastFeed);
-  
+
+   unsigned long lastUpdateMillis = 0; // Store the time when we last updated the status
+   const unsigned long updateInterval = 500; // Update interval in milliseconds (500 ms = 0.5 second)
+
   while (true) {
     // Serial.println("4");
 
+    unsigned long currentMillis = millis();
+    if (currentMillis - lastUpdateMillis >= updateInterval) {
+      // Update the last update time
+      lastUpdateMillis = currentMillis;
+    
+      // Update the status
+      printSoilAndWaterTrayStatus();
+    }
     
     if (actionShouldStartOrStop(action, 0)) {
       shouldStop = true;
@@ -399,6 +446,8 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
     delay(100);
   }
 }
+
+
 
 /*  
     **********************************************************************
@@ -619,7 +668,8 @@ void displayInfo(uint8_t screen) {
       break;
     case 2:
     case 3:
-      displayInfo3(screen);
+      // displayInfo3(screen);
+      displayInfo1(screen);
       break;
     case 4:  
     case 5:
@@ -627,7 +677,8 @@ void displayInfo(uint8_t screen) {
       break;
     case 6:
     case 7:
-      displayInfo2(screen);
+      displayInfo1(screen);
+      //displayInfo2(screen);
     break;
   }
 }
@@ -640,29 +691,8 @@ void displayInfo1(uint8_t screen) {
   uint16_t trayWaterLevel;
   bool trayIsFull;
 
-  soilMoisture = senseSoilMoisture();
-  soilMoisturePercent = soilMoistureAsPercentage(soilMoisture);
-  trayWaterLevel = senseTrayWaterLevel();
-  trayWaterLevelPercent = trayWaterLevelAsPercentage(trayWaterLevel);
-  trayIsFull = senseTrayIsFull();
-
-  lcdClear();
-  lcdPrint(MSG_SOIL_NOW, 0);
-  lcdPrint(MSG_SPACE);
-
-  lcdPrintNumber(soilMoisturePercent);
-  lcdPrint(MSG_PERCENT);
-  lcdPrint(MSG_SPACE);
-  lcdPrint(soilMoistureInEnglish(soilMoistureAsState(soilMoisturePercent)));
-  lcdPrint(MSG_SPACE);
-
-  lcdPrint(MSG_TRAY_NOW, 1);
-  lcdPrint(MSG_SPACE);
-  lcdPrintNumber(trayWaterLevelPercent);
-  lcdPrint(MSG_PERCENT);
-  lcdPrint(MSG_SPACE);  
-  lcdPrint(trayWaterLevelInEnglish(trayWaterLevelAsState(trayWaterLevelPercent, trayIsFull), trayIsFull));
-
+  printSoilAndWaterTrayStatus();
+  
   lcdPrint(MSG_LAST_FEED, 2);
   if (!millisAtEndOfLastFeed) lcdPrint(MSG_NOT_YET); 
   else lcdPrintTimeSince(millisAtEndOfLastFeed);
@@ -681,6 +711,7 @@ void displayInfo3(uint8_t screen) {
   lcdClear();
   lcdPrint(MSG_NEXT_FEED, 1);
 
+
   uint32_t  millisSinceLastFeed = millis() - millisAtEndOfLastFeed;
   if (millisAtEndOfLastFeed && millisSinceLastFeed < config.minFeedInterval) {
     lcdPrintTime(config.minFeedInterval - millisSinceLastFeed);
@@ -695,6 +726,8 @@ char *trayConditionToEnglish(uint8_t condition) {
   else if (condition == Conditions::TRAY_EMPTY) return MSG_TRAY_EMPTY;
   else if (condition == Conditions::TRAY_SOME) return MSG_TRAY_SOME;
   else if (condition == Conditions::TRAY_PLENTY) return MSG_TRAY_PLENTY;
+  else if (condition == Conditions::TRAY_FULL) return MSG_TRAY_FULL;
+  
   else return MSG_EMPTY;
 }
 

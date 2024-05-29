@@ -3,13 +3,13 @@
 
 #include <Arduino.h>
 
-#define SOIL_LITTLE_MOISTURE_SENSOR A0
-#define TRAY_WATER_LEVEL_SENSOR A1
-#define TRAY_FULL_SENSOR 6
+#define SOIL_MOISTURE_SENSOR A0
+#define TRAY_WATER_LEVEL_SENSOR A2
+#define TRAY_FULL_SENSOR 12
 
-#define SOLENOID_IN_DEVICE 2
-#define PUMP_IN_DEVICE 3
-#define PUMP_OUT_DEVICE 4
+#define SOLENOID_IN_DEVICE 10
+#define PUMP_IN_DEVICE 7
+#define PUMP_OUT_DEVICE 2
 
 
 void initSensors();
