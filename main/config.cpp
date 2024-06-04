@@ -74,9 +74,9 @@ void restoreDefaultConfig() {
   config.moistSensorCalibrationSoaked = 400;
   config.moistSensorCalibrationDry = 780;
 
-  config.trayWaterLevelSensorCalibrationEmpty;
+  config.trayWaterLevelSensorCalibrationQuarter;
   config.trayWaterLevelSensorCalibrationHalf;
-  config.trayWaterLevelSensorCalibrationFull;
+  config.trayWaterLevelSensorCalibrationThreeQuarters;
 
   config.minFeedInterval = 1000L * 60 * 30;
 
@@ -102,7 +102,7 @@ void restoreDefaultConfig() {
   config.actions[2] = Action {
     "STACK FEED",
     { Conditions::TRAY_IGNORED, Conditions::SOIL_LITTLE_MOIST, Conditions::NO_LOGIC },
-    { Conditions::TRAY_EMPTY, Conditions::SOIL_LITTLE_MOIST, Conditions::TRAY_OR_SOIL },
+    { Conditions::TRAY_LITTLE, Conditions::SOIL_LITTLE_MOIST, Conditions::TRAY_OR_SOIL },
     FeedFrom::FEED_FROM_TOP,
   };
   config.actions[3] = Action {

@@ -26,13 +26,16 @@ extern Button rightButton;
 extern Button okButton;
 
 const unsigned long actionInterval = 2000;  // Interval in milliseconds (1000 milliseconds = 1 second)
+// const unsigned long actionInterval = 2000;  // Interval in milliseconds (1000 milliseconds = 1 second)
 unsigned long actionPreviousMillis = 0;
 
 double averageMsBetweenFeeds = 0.0;
 unsigned long int millisAtEndOfLastFeed = 0;
+unsigned long lastButtonPressTime = 0;
+bool screenSaverMode = false;
 
 void setup() {
-  Serial.begin(230400);  // Initialize serial communication at 9600 baud rate
+  Serial.begin(9600);  // Initialize serial communication at 9600 baud rate
 
   initLcdAndButtons();
 
@@ -40,9 +43,25 @@ void setup() {
 
   initSensors();
 
+
+  // 0: TRAY WATER LEVEL
+  pinMode(A1, OUTPUT);
+  digitalWrite(A1, LOW);
+  // 2: MOISTURE SENSOR
+  // pinMode(A3, OUTPUT); digitalWrite(A3, LOW);
+  // 4: I2C
+  // 5: I2C
+  pinMode(A6, OUTPUT);
+  digitalWrite(A6, LOW);
+  pinMode(A7, OUTPUT);
+  digitalWrite(A7, LOW);
+
+
+  // TEMP();
+
   // Init logs memory
   initLogs(&currentLogEntry, 1024, 256, 768, sizeof(currentLogEntry));
-  
+
   loadConfig();
 
   if (!configChecksumCorrect()) {
@@ -53,20 +72,72 @@ void setup() {
   }
 
   if (config.mustRunInitialSetup) {
-    while (!runInitialSetup());
+    while (!runInitialSetup())
+      ;
   }
 
   initialaverageMsBetweenFeeds();
   createBootLogEntry();
-  
+
   // Serial.println("GOING TO LATEST SLOT FOR DEBUGGING REASONS:");
   goToLatestSlot();
 }
 
+/*
+void TEMP() {
+  lcd.init();
+  // delay(1000);
+  lcd.backlight(); 
+
+  // Set up the LCD's number of columns and rows
+  lcd.setCursor(0, 0);
+
+  // Print a message to the LCD
+  lcd.print("A0 M: ");
+  lcd.setCursor(0, 2);
+  lcd.print("A2 W: ");
+
+  pinMode(4, OUTPUT);
+  digitalWrite(4,  HIGH); // Ensure the sensor is on
+
+  pinMode(A2, INPUT);
+  pinMode(A0, INPUT);
+  while(true) {
+    int sensorA0 = analogRead(A0);
+    delay(100);
+    analogRead(A2);
+    int sensorA2 = analogRead(A2);
+
+    // pinMode(A0, OUTPUT);
+    // digitalWrite(A0, LOW);
+    // pinMode(A2, OUTPUT);
+    // // digitalWrite(A2, LOW);
+
+
+    // Display the readings on the LCD
+    lcd.setCursor(6, 0);
+    lcd.print(sensorA0);
+    lcd.print("   ");  // Clear any trailing characters
+    lcd.setCursor(6, 2);
+    lcd.print(sensorA2);
+    lcd.print("   ");  // Clear any trailing characters
+
+    // Wait for 50 milliseconds
+    delay(200);
+  }  
+
+}
+
+*/
+
 
 void createBootLogEntry() {
-  uint8_t soilMoistureBefore = soilMoistureAsPercentage(senseSoilMoisture());
-  uint8_t trayWaterLevelBefore = trayWaterLevelAsPercentage(senseTrayWaterLevel());
+  senseSoilMoisture(1);
+  senseTrayWaterLevel(1);
+  delay(500);
+
+  uint8_t soilMoistureBefore = soilMoistureAsPercentage(senseSoilMoisture(2));
+  uint8_t trayWaterLevelBefore = trayWaterLevelAsPercentage(senseTrayWaterLevel(2));
 
   clearLogEntry((void *)&newLogEntry);
   newLogEntry.millisStart = 0;
@@ -82,6 +153,8 @@ void createBootLogEntry() {
 
   // Serial.println("Writing initial boot entry...");
   writeLogEntry((void *)&newLogEntry);
+
+  senseTrayWaterLevel(1);
 }
 
 
@@ -113,31 +186,45 @@ void initialaverageMsBetweenFeeds() {
 
     if (count++ >= totalLogSlots) break;
     goToPreviousLogSlot(true);
-    if (!currentLogEntry.seq) break; 
+    if (!currentLogEntry.seq) break;
   }
   goToLogSlot(currentLogSlotBefore);
 }
 
 void updateaverageMsBetweenFeeds(unsigned long durationMillis) {
-    static unsigned long callCount = 0;
-    // Serial.print("Called updateaverageMsBetweenFeeds() with param: ");
-    // Serial.println(durationMillis);
-    
-    // Serial.print("Count: ");// Serial.println(callCount);
-    // Serial.print("Previous average: ");// Serial.println(averageMsBetweenFeeds);
+  static unsigned long callCount = 0;
+  // Serial.print("Called updateaverageMsBetweenFeeds() with param: ");
+  // Serial.println(durationMillis);
 
-    callCount++;
-    averageMsBetweenFeeds += (durationMillis - averageMsBetweenFeeds) / callCount;
+  // Serial.print("Count: ");// Serial.println(callCount);
+  // Serial.print("Previous average: ");// Serial.println(averageMsBetweenFeeds);
 
-    // Serial.print("New average: ");// Serial.println(averageMsBetweenFeeds);
-    
+  callCount++;
+  averageMsBetweenFeeds += (durationMillis - averageMsBetweenFeeds) / callCount;
 
+  // Serial.print("New average: ");// Serial.println(averageMsBetweenFeeds);
 }
 
 void loop() {
 
   unsigned long currentMillis = millis();
 
+
+  /*
+  pinMode(A7, INPUT_PULLUP);
+  while(true) {
+    // Read the value from analog pin A7
+    int sensorValue = analogRead(A7);
+    // Print the value to the Serial Monitor
+    Serial.println("STOCAZZO");
+    Serial.println(sensorValue);
+    // Wait for 500 milliseconds (0.5 seconds)
+    delay(1500);
+  }
+  */
+
+
+  if (millis() - lastButtonPressTime > SCREENSAVER_TRIGGER_TIME) screenSaverModeOn();
 
   if (currentMillis - actionPreviousMillis >= actionInterval) {
     actionPreviousMillis = currentMillis;
@@ -147,18 +234,49 @@ void loop() {
     displayInfo(screenCounter);
   }
 
+// delay(3000);
+
+
+/*
+while(1) {
+    openLineIn();
+    delay(20);
+    closeLineIn();
+    delay(20);
+  }
+*/
+
+
+  // To change the state (esp. turning it off after reading) if necessary
+  // senseTrayWaterLevel(1);
+
+  
   // Exit the main "action" loop, and go to the system's menu,
   // if a button is pressed
   analogButtonsCheck();
   if (pressedButton != nullptr) {
-    pressedButton = nullptr;
-    mainMenu();
+    lastButtonPressTime = millis();
+
+    if (pressedButton == &okButton) mainMenu();
+    else screenSaverModeOff();
+    // pressedButton = nullptr;
   }
 }
 
+void screenSaverModeOff() {
+  screenSaverMode = false;
+  lcd.backlight();
+}
+
+void screenSaverModeOn() {
+  screenSaverMode = true;
+  lcd.noBacklight();
+}
 
 void mainMenu() {
   int8_t choice;
+
+  lcd.backlight();
   do {
     setChoices(
       MSG_ACTIVE_ACTIONS, 1,
@@ -169,8 +287,8 @@ void mainMenu() {
     choice = selectChoice(4, 1);
 
     if (choice == 1) setActiveActions();
-    if (choice == 2) viewLogs();
-    if (choice == 3) forceAction();
+    else if (choice == 2) viewLogs();
+    else if (choice == 3) forceAction();
     else if (choice == 4) settings();
   } while (choice != -1);
 }
@@ -189,13 +307,13 @@ void setActiveActions() {
 
   while (true) {
     if (config.activeActionsIndex0 == -1) {
-      setChoice(0, MSG_EMPTY_SLOT, 0);
+      setChoice(0, MSG_LITTLE_SLOT, 0);
     } else {
       setChoiceFromString(0, config.actions[config.activeActionsIndex0].name, 0);
     }
 
     if (config.activeActionsIndex1 == -1) {
-      setChoice(1, MSG_EMPTY_SLOT, 1);
+      setChoice(1, MSG_LITTLE_SLOT, 1);
     } else {
       setChoiceFromString(1, config.actions[config.activeActionsIndex1].name, 1);
     }
@@ -204,7 +322,7 @@ void setActiveActions() {
     slot = selectChoice(2, 0);
     if (slot == -1) return;
 
-    setChoice(0, MSG_EMPTY_SLOT, 127);
+    setChoice(0, MSG_LITTLE_SLOT, 127);
     uint8_t i = 1, c = 1;
     for (i = 0; i < ACTIONS_ARRAY_SIZE; i++) {
       if (config.feedFrom == config.actions[i].feedFrom) {
@@ -321,7 +439,7 @@ void printSoilAndWaterTrayStatus() {
   uint16_t soilMoisturePercent = soilMoistureAsPercentage(soilMoisture);
   uint16_t trayWaterLevel = senseTrayWaterLevel();
   uint16_t trayWaterLevelPercent = trayWaterLevelAsPercentage(trayWaterLevel);
- 
+
   bool trayIsFull = senseTrayIsFull();
 
 
@@ -337,7 +455,7 @@ void printSoilAndWaterTrayStatus() {
   lcdPrint(MSG_SPACE);
   lcdPrintNumber(trayWaterLevelPercent);
   lcdPrint(MSG_PERCENT);
-  lcdPrint(MSG_SPACE);  
+  lcdPrint(MSG_SPACE);
   lcdPrint(trayWaterLevelInEnglish(trayWaterLevelAsState(trayWaterLevelPercent, trayIsFull), trayIsFull));
 }
 
@@ -352,11 +470,11 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
   // Quit if not enough time has lapsed OR if the conditions
   // are not satisfied
   if (!force) {
-    if (millisAtEndOfLastFeed && millis() - millisAtEndOfLastFeed <  config.minFeedInterval) return;
+    if (millis() < 10000) return;
+    if (millisAtEndOfLastFeed && millis() - millisAtEndOfLastFeed < config.minFeedInterval) return;
     if (!actionShouldStartOrStop(action, 1)) return;
   }
 
-  // Serial.println("2");
 
   bool trayIsFull = senseTrayIsFull();
 
@@ -364,16 +482,20 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
   lcdPrint(MSG_SPACE);
 
 
- 
+
   lcdClear();
-  
+
   lcdPrint(MSG_FEEDING, 2);
- 
+
 
   // Serial.println("3");
 
   // Let water in
   openLineIn();
+
+  senseTrayWaterLevel(2);
+  senseSoilMoisture(2);
+  
 
   unsigned long feedStartMillis = millis();
   // Serial.print("feedStartMillis: "); Serial.println(feedStartMillis);
@@ -384,11 +506,11 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
 
   uint8_t shouldStop = 0;
   uint8_t retCode = 0;
-  
+
   // Serial.print("millisAtEndOfLastFeed: "); Serial.println(millisAtEndOfLastFeed);
 
-   unsigned long lastUpdateMillis = 0; // Store the time when we last updated the status
-   const unsigned long updateInterval = 500; // Update interval in milliseconds (500 ms = 0.5 second)
+  unsigned long lastUpdateMillis = 0;        // Store the time when we last updated the status
+  const unsigned long updateInterval = 500;  // Update interval in milliseconds (500 ms = 0.5 second)
 
   while (true) {
     // Serial.println("4");
@@ -397,19 +519,20 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
     if (currentMillis - lastUpdateMillis >= updateInterval) {
       // Update the last update time
       lastUpdateMillis = currentMillis;
-    
+
       // Update the status
       printSoilAndWaterTrayStatus();
     }
-    
+
     if (actionShouldStartOrStop(action, 0)) {
       shouldStop = true;
-      retCode = 0; // OK
+      retCode = 0;  // OK
     }
     if (millis() - feedStartMillis >= config.maxFeedTime) {
       shouldStop = true;
-      retCode = 1; // INTERRUPTED
+      retCode = 1;  // INTERRUPTED
     }
+
     // Serial.println("5");
 
     // Keep emptying the tray if necessary
@@ -420,10 +543,12 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
       // Serial.println("7");
       // Serial.println(shouldStop);
 
-      if (millisAtEndOfLastFeed) updateaverageMsBetweenFeeds(millis() - millisAtEndOfLastFeed);  
+      if (millisAtEndOfLastFeed) updateaverageMsBetweenFeeds(millis() - millisAtEndOfLastFeed);
       millisAtEndOfLastFeed = millis();
 
       closeLineIn();
+      senseTrayWaterLevel(1);
+      senseSoilMoisture(1);
 
       // Serial.print("MS: "); Serial.println(millis());
 
@@ -478,7 +603,7 @@ void emptyTrayIfNecessary() {
       break;
 
     case PUMPING:
-      if (millis() - pumpOutStartMillis >= config.maxPumpOutTime || trayState <= Conditions::TRAY_EMPTY) {
+      if (millis() - pumpOutStartMillis >= config.maxPumpOutTime || trayState <= Conditions::TRAY_LITTLE) {
         closePumpOut();
         pumpState = COMPLETED;
       }
@@ -500,7 +625,7 @@ void emptyTrayIfNecessary() {
 
 
 void lcdPrintTime(unsigned long milliseconds) {
-  
+
   // Calculate the total number of seconds, minutes, and hours
   unsigned long totalSeconds = milliseconds / 1000;
   unsigned long seconds = totalSeconds % 60;
@@ -606,18 +731,18 @@ void showLogType1() {
   lcdPrintNumber(currentLogEntry.soilMoistureAfter);
   lcdPrint(MSG_PERCENT);
   lcdPrint(MSG_SPACE);
-  
+
   lcdPrint(MSG_W_COLUMN);
   lcdPrintNumber(currentLogEntry.trayWaterLevelBefore);
   lcdPrint(MSG_PERCENT);
   lcdPrint(MSG_DASH);
   lcdPrintNumber(currentLogEntry.trayWaterLevelAfter);
   lcdPrint(MSG_PERCENT);
-  
+
   lcd.setCursor(0, 3);
   if (currentLogEntry.outcome == 0) lcdPrint(MSG_LOG_OUTCOME_0);
   if (currentLogEntry.outcome == 1) lcdPrint(MSG_LOG_OUTCOME_1);
-  
+
   // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureBefore);
   // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureAfter);
 }
@@ -660,28 +785,77 @@ void viewLogs() {
     * displayInfo() is run in the main program's loop()
     ***********************************************************************
 */
+
+/*
 void displayInfo(uint8_t screen) {
   switch (screen) {
     case 0:
+     displayInfo4(screen);
+      break;
     case 1:
-      displayInfo1(screen);
+    displayInfo4(screen);
       break;
     case 2:
+     displayInfo4(screen);
+      break;
     case 3:
-      // displayInfo3(screen);
-      displayInfo1(screen);
+     displayInfo4(screen);
       break;
     case 4:  
+      displayInfo4(screen);
+      break;
     case 5:
-      displayInfo1(screen);
+      //displayInfo3(screen);
+      displayInfo4(screen);
       break;
     case 6:
+         displayInfo4(screen);
     case 7:
       displayInfo1(screen);
-      //displayInfo2(screen);
+      // displayInfo2(screen);
     break;
   }
 }
+
+*/
+
+void displayInfo(uint8_t screen) {
+  if (screenSaverMode) {
+    uint8_t x = random(0, 20); // Random column (0-15)
+    uint8_t y = random(0, 4);  // Random row (0-3)
+  
+    // Set the cursor to the random position and print the star character
+    lcd.clear();
+    lcd.setCursor(x, y);
+    // lcd.setCursor(1, 1);
+    
+    lcd.write('*');
+
+    return;
+  }
+
+  switch (screen) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+      displayInfo1(screen);
+      break;
+    case 5:
+      displayInfo2(screen);
+      // displayInfo1(screen);
+      break;
+    case 6:
+      displayInfo3(screen);
+      break;
+    case 7:
+      // displayInfo1(screen);
+      displayInfo1(screen);
+      break;
+  }
+}
+
 
 void displayInfo1(uint8_t screen) {
   uint16_t soilMoisture;
@@ -692,9 +866,9 @@ void displayInfo1(uint8_t screen) {
   bool trayIsFull;
 
   printSoilAndWaterTrayStatus();
-  
+
   lcdPrint(MSG_LAST_FEED, 2);
-  if (!millisAtEndOfLastFeed) lcdPrint(MSG_NOT_YET); 
+  if (!millisAtEndOfLastFeed) lcdPrint(MSG_NOT_YET);
   else lcdPrintTimeSince(millisAtEndOfLastFeed);
   // lcdPrintNumber(actionPreviousMillis);
 
@@ -705,6 +879,28 @@ void displayInfo1(uint8_t screen) {
 }
 
 
+void displayInfo4(uint8_t screen) {
+  // uint16_t soilMoisture = senseSoilMoisture();
+  // uint16_t trayWaterLevel = senseTrayWaterLevel(2);
+
+  lcdClear();
+
+  digitalWrite(TRAY_WATER_LEVEL_SENSOR_POWER, HIGH);
+
+  printSoilAndWaterTrayStatus();
+  pinMode(A2, INPUT);
+  lcdPrint(MSG_SOIL_NOW, 2);
+  lcdPrint(MSG_SPACE);
+  // lcdPrintNumber(soilMoisture);
+  lcdPrint(MSG_SPACE);
+  lcd.print(analogRead(SOIL_MOISTURE_SENSOR));
+
+  lcdPrint(MSG_TRAY_NOW, 3);
+  lcdPrint(MSG_SPACE);
+  // lcdPrintNumber(trayWaterLevel);
+  lcdPrint(MSG_SPACE);
+  lcd.print(analogRead(TRAY_WATER_LEVEL_SENSOR));
+}
 
 
 void displayInfo3(uint8_t screen) {
@@ -712,23 +908,23 @@ void displayInfo3(uint8_t screen) {
   lcdPrint(MSG_NEXT_FEED, 1);
 
 
-  uint32_t  millisSinceLastFeed = millis() - millisAtEndOfLastFeed;
+  uint32_t millisSinceLastFeed = millis() - millisAtEndOfLastFeed;
   if (millisAtEndOfLastFeed && millisSinceLastFeed < config.minFeedInterval) {
     lcdPrintTime(config.minFeedInterval - millisSinceLastFeed);
-    lcdPrint(MSG_AT_THE_EARLIEST, 2);  
+    lcdPrint(MSG_AT_THE_EARLIEST, 2);
   } else {
-    lcdPrint(MSG_WHEN_CONDITIONS_ALLOW, 2); 
+    lcdPrint(MSG_WHEN_CONDITIONS_ALLOW, 2);
   }
 }
 
 char *trayConditionToEnglish(uint8_t condition) {
   if (condition == Conditions::TRAY_DRY) return MSG_TRAY_DRY;
-  else if (condition == Conditions::TRAY_EMPTY) return MSG_TRAY_EMPTY;
+  else if (condition == Conditions::TRAY_LITTLE) return MSG_TRAY_LITTLE;
   else if (condition == Conditions::TRAY_SOME) return MSG_TRAY_SOME;
   else if (condition == Conditions::TRAY_PLENTY) return MSG_TRAY_PLENTY;
   else if (condition == Conditions::TRAY_FULL) return MSG_TRAY_FULL;
-  
-  else return MSG_EMPTY;
+
+  else return MSG_LITTLE;
 }
 
 
@@ -737,7 +933,7 @@ char *soilConditionToEnglish(uint8_t condition) {
   else if (condition == Conditions::SOIL_LITTLE_MOIST) return MSG_SOIL_LITTLE_MOIST;
   else if (condition == Conditions::SOIL_MOIST) return MSG_SOIL_MOIST;
   else if (condition == Conditions::SOIL_VERY_MOIST) return MSG_SOIL_VERY_MOIST;
-  else return MSG_EMPTY;
+  else return MSG_LITTLE;
 }
 
 void displayTriggerConditions(Conditions conditions) {
@@ -798,8 +994,4 @@ void displayInfo2(uint8_t screen) {
     lcd.setCursor(0, 3);
     displayTriggerConditions(config.actions[active].stopConditions);
   }
-}
-
-void displayInfo4(uint8_t screen) {
-  lcdClear();
 }

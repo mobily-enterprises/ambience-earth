@@ -27,7 +27,7 @@ enum FeedLine : int8_t {
 };
 
 typedef struct {
-  enum : int8_t { TRAY_IGNORED, TRAY_DRY, TRAY_EMPTY, TRAY_SOME, TRAY_PLENTY, TRAY_FULL } tray;
+  enum : int8_t { TRAY_IGNORED, TRAY_DRY, TRAY_LITTLE, TRAY_SOME, TRAY_PLENTY, TRAY_FULL } tray;
   enum : int8_t { SOIL_IGNORED, SOIL_DRY, SOIL_LITTLE_MOIST, SOIL_MOIST, SOIL_VERY_MOIST } soil;
   enum : int8_t { NO_LOGIC, TRAY_OR_SOIL, TRAY_AND_SOIL } logic;
 } Conditions;
@@ -58,9 +58,9 @@ typedef struct {
     
 
     // Less than these will make it qualify
-    int16_t trayWaterLevelSensorCalibrationEmpty;
+    int16_t trayWaterLevelSensorCalibrationQuarter;
     int16_t trayWaterLevelSensorCalibrationHalf;
-    int16_t trayWaterLevelSensorCalibrationFull;
+    int16_t trayWaterLevelSensorCalibrationThreeQuarters;
 
     uint32_t minFeedInterval;
     uint32_t maxFeedTime;

@@ -102,7 +102,7 @@ Conditions inputConditions(Conditions *initialConditions, char verb, int8_t choi
   setChoices(
     MSG_TRAY_SOIL_IGNORE, Conditions::TRAY_IGNORED,
     MSG_TRAY_DRY, Conditions::TRAY_DRY,
-    MSG_TRAY_EMPTY, Conditions::TRAY_EMPTY,
+    MSG_TRAY_LITTLE, Conditions::TRAY_LITTLE,
     MSG_TRAY_SOME, Conditions::TRAY_SOME,
     MSG_TRAY_PLENTY, Conditions::TRAY_PLENTY,
     MSG_TRAY_FULL, Conditions::TRAY_FULL
@@ -235,16 +235,16 @@ void settingsSafetyLimits() {
   uint32_t pumpOutRestTime;
   int8_t goAhead;
 
-  minFeedInterval = inputNumber(MSG_MINUTES, config.minFeedInterval/1000/60, 30, 0, 600, MSG_EMPTY, MSG_MIN_FEED_INTERVAL);
+  minFeedInterval = inputNumber(MSG_MINUTES, config.minFeedInterval/1000/60, 30, 0, 600, MSG_LITTLE, MSG_MIN_FEED_INTERVAL);
   if (minFeedInterval == -1) return;
 
-  maxFeedTime = inputNumber(MSG_SECONDS, config.maxFeedTime/1000, 10, 0, 600, MSG_EMPTY, MSG_MAX_FEED_TIME);
+  maxFeedTime = inputNumber(MSG_SECONDS, config.maxFeedTime/1000, 10, 0, 600, MSG_LITTLE, MSG_MAX_FEED_TIME);
   if (maxFeedTime == -1) return;
 
-  maxPumpOutTime = inputNumber(MSG_SECONDS, config.maxPumpOutTime/1000, 10, 0, 600, MSG_EMPTY, MSG_MAX_PUMP_OUT_TIME);
+  maxPumpOutTime = inputNumber(MSG_SECONDS, config.maxPumpOutTime/1000, 10, 0, 600, MSG_LITTLE, MSG_MAX_PUMP_OUT_TIME);
   if (maxPumpOutTime == -1) return;
 
-  pumpOutRestTime = inputNumber(MSG_SECONDS, config.pumpOutRestTime/1000, 5, 0, 600, MSG_EMPTY, MSG_PUMP_OUT_REST_TIME);
+  pumpOutRestTime = inputNumber(MSG_SECONDS, config.pumpOutRestTime/1000, 5, 0, 600, MSG_LITTLE, MSG_PUMP_OUT_REST_TIME);
   if (pumpOutRestTime == -1) return;
   
   // Normalise to ms
@@ -373,34 +373,41 @@ int calibrateTrayWaterLevelSensors() {
 
   int8_t goAhead;
 
-  int16_t empty;
+  int16_t quarter;
   int16_t half;
-  int16_t full;
+  int16_t threeQuarters;
   bool trayFull;
 
-  lcdFlashMessage(MSG_SENSOR_2_MM_WATER, MSG_EMPTY, 2000);
+  // Switch mode to 2, immediate reads
+  senseTrayWaterLevel(2);
 
-
-  goAhead = giveOk(MSG_WATER_TRAY_SENSOR, MSG_YES_2_MM, MSG_EMPTY, MSG_HOLD_IT_STILL);
-  if (goAhead == -1) return false;
-
+  goAhead = giveOk(MSG_WATER_TRAY_SENSOR, MSG_YES_QUARTER_FULL, MSG_NOW_QUARTER_FULL, MSG_HOLD_IT_STILL);
+  if (goAhead == -1) {
+    senseTrayWaterLevel(1);
+    return false;
+  }
+ 
   lcdClear();
-  lcdPrint(MSG_EMPTY_COLUMN, 1);
+
+  lcdPrint(MSG_25_PERCENT_COLUMN, 1);
   for (int i = 0; i < 8; i++) {
-    empty = senseTrayWaterLevel();
+    quarter = senseTrayWaterLevel();
     // lcdClear();
-    lcdPrintNumber(empty);
+    lcdPrintNumber(quarter);
     lcdPrint(MSG_SPACE);
     delay(900);
   }
 
   delay(2000);
 
-  goAhead = giveOk(MSG_WATER_TRAY_SENSOR, MSG_YES_HALF_WAY, MSG_NOW_HALF_WAY, MSG_HOLD_IT_STILL);
-  if (goAhead == -1) return false;
+  goAhead = giveOk(MSG_WATER_TRAY_SENSOR, MSG_YES_HALF_FULL, MSG_NOW_HALF_FULL, MSG_HOLD_IT_STILL);
+  if (goAhead == -1) {
+    senseTrayWaterLevel(1);
+    return false;
+  }
 
   lcdClear();
-  lcdPrint(MSG_HALF_COLUMN, 1);
+  lcdPrint(MSG_50_PERCENT_COLUMN, 1);
   for (int i = 0; i < 8; i++) {
     half = senseTrayWaterLevel();
     // lcdClear();
@@ -409,18 +416,24 @@ int calibrateTrayWaterLevelSensors() {
     delay(900);
   }
 
-  goAhead = giveOk(MSG_WATER_TRAY_SENSOR, MSG_YES_FULL_IN, MSG_NOW_FULL_IN, MSG_DO_NOT_SUBMERGE);
-  if (goAhead == -1) return false;
+  goAhead = giveOk(MSG_WATER_TRAY_SENSOR, MSG_YES_THREE_QUARTERS_FULL, MSG_NOW_THREE_QUARTERS_FULL, MSG_HOLD_IT_STILL);
+  if (goAhead == -1) {
+    senseTrayWaterLevel(1);
+    return false;
+  }
 
   lcdClear();
-  lcdPrint(MSG_FULL_COLUMN, 1);
+  lcdPrint(MSG_75_PERCENT_COLUMN, 1);
   for (int i = 0; i < 8; i++) {
-    full = senseTrayWaterLevel();
+    threeQuarters = senseTrayWaterLevel();
     // lcdClear();
-    lcdPrintNumber(full);
+    lcdPrintNumber(threeQuarters);
     lcdPrint(MSG_SPACE);
     delay(900);
   }
+
+  // Switch mode back to 1, one read every 30 seconds
+  senseTrayWaterLevel(1);
 
   lcdFlashMessage(MSG_ATTACH_WHITE_SENSOR, MSG_WHERE_LED_TURNS_ON, 2000);
 
@@ -439,16 +452,12 @@ int calibrateTrayWaterLevelSensors() {
   goAhead = yesOrNo(MSG_SAVE_QUESTION, 1);
   if (goAhead == -1  || !goAhead) return false;
 
-  config.trayWaterLevelSensorCalibrationEmpty = empty;
+  config.trayWaterLevelSensorCalibrationQuarter = quarter;
   config.trayWaterLevelSensorCalibrationHalf = half;
-  config.trayWaterLevelSensorCalibrationFull = full;
+  config.trayWaterLevelSensorCalibrationThreeQuarters = threeQuarters;
   return true;
 }
 
-
-
-int readSensor(int sensor) {
-}
 
 int calibrateSoilMoistureSensor() {
   int8_t goAhead;
@@ -461,7 +470,7 @@ int calibrateSoilMoistureSensor() {
   lcdClear();
   lcdPrint(MSG_DRY_COLUMN, 1);
   for (int i = 0; i < 4; i++) {
-    dry = senseSoilMoisture();
+    dry = senseSoilMoisture(2);
     // lcdClear();
     lcdPrintNumber(dry);
     lcdPrint(MSG_SPACE);
@@ -476,7 +485,7 @@ int calibrateSoilMoistureSensor() {
   lcdClear();
   lcdPrint(MSG_SOAKED_COLUMN, 1);
   for (int i = 0; i < 4; i++) {
-    soaked = senseSoilMoisture();
+    soaked = senseSoilMoisture(2);
     // lcdClear();
     lcdPrintNumber(soaked);
     lcdPrint(MSG_SPACE);
@@ -515,7 +524,7 @@ void resetData() {
 
 void setAutoDrain() {
   if (config.feedFrom != FeedFrom::FEED_FROM_TOP) {
-    lcdFlashMessage(MSG_ONLY_TOP_FEEDING, MSG_EMPTY, 2000);
+    lcdFlashMessage(MSG_ONLY_TOP_FEEDING, MSG_LITTLE, 2000);
     return;
   }
   int8_t trayNeedsEmptying = yesOrNo(MSG_AUTO_DRAIN, config.trayNeedsEmptying);

@@ -29,11 +29,11 @@ char userInputString[LABEL_LENGTH + 1];
 
 
 // ACTUAL keypad
-Button upButton = Button(35, &upClick);
-Button leftButton = Button(2, &leftClick);
-Button downButton = Button(91, &downClick);
-Button rightButton = Button(170, &rightClick);
-Button okButton = Button(352, &okClick);
+Button upButton = Button(34, &upClick);
+Button leftButton = Button(0, &leftClick);
+Button downButton = Button(96, &downClick);
+Button rightButton = Button(182, &rightClick);
+Button okButton = Button(386, &okClick);
 
 /*
 // Tony's keypad
@@ -160,7 +160,7 @@ void initLcdAndButtons() {
   resetChoicesAndHeader();
 }
 
-void setChoices(const char *label0=MSG_EMPTY,int value0=0,const char *label1=MSG_EMPTY,int value1=0,const char *label2=MSG_EMPTY,int value2=0,const char *label3=MSG_EMPTY,int value3=0,const char *label4=MSG_EMPTY,int value4=0,const char *label5=MSG_EMPTY,int value5=0) {
+void setChoices(const char *label0=MSG_LITTLE,int value0=0,const char *label1=MSG_LITTLE,int value1=0,const char *label2=MSG_LITTLE,int value2=0,const char *label3=MSG_LITTLE,int value3=0,const char *label4=MSG_LITTLE,int value4=0,const char *label5=MSG_LITTLE,int value5=0) {
   labelcpy(choices[0].label, label0);
   labelcpy(choices[1].label, label1);
   labelcpy(choices[2].label, label2);
@@ -175,7 +175,7 @@ void setChoices(const char *label0=MSG_EMPTY,int value0=0,const char *label1=MSG
   choices[5].value = value5;
 }
 
-void setChoicesHeader(const char *header=MSG_EMPTY) {
+void setChoicesHeader(const char *header=MSG_LITTLE) {
   labelcpy(choicesHeader, header);
 }
 
@@ -212,7 +212,7 @@ int isCharacterAllowed(char character) {
 /* ***************************************** */
 
 
-long int inputNumber(char *prompt, long int initialUserInput, int stepSize = 1, long int min = 0, long int max = 100, char * postFix = MSG_EMPTY, char * optionalHeader = MSG_EMPTY) {
+long int inputNumber(char *prompt, long int initialUserInput, int stepSize = 1, long int min = 0, long int max = 100, char * postFix = MSG_LITTLE, char * optionalHeader = MSG_LITTLE) {
   long int userInput;
   bool displayChanged = true;
 #define HEADER_Y 0
@@ -377,7 +377,7 @@ int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = 
   }
 }
 
-void lcdFlashMessage(char *message, char *message2=MSG_EMPTY, uint16_t time = 1000) {
+void lcdFlashMessage(char *message, char *message2=MSG_LITTLE, uint16_t time = 1000) {
   lcdClear();
   lcdSetCursor(0,1);
   lcdPrint(message);
@@ -388,7 +388,7 @@ void lcdFlashMessage(char *message, char *message2=MSG_EMPTY, uint16_t time = 10
 }
 
 
-bool alert(char *warning = MSG_EMPTY) {
+bool alert(char *warning = MSG_LITTLE) {
   setChoices(MSG_OK, 1);
   setChoicesHeader(warning);
 
@@ -409,7 +409,7 @@ int8_t yesOrNo(char* question, bool initialUserInput = true) {
 }
 
 
-int8_t giveOk(char* top, const char *promptText=MSG_EMPTY, const char *line2=MSG_EMPTY, const char *line3=MSG_EMPTY) {
+int8_t giveOk(char* top, const char *promptText=MSG_LITTLE, const char *line2=MSG_LITTLE, const char *line3=MSG_LITTLE) {
   setChoices(promptText, 1);
   setChoicesHeader(top);
   lcdPrint(line2, 2);
@@ -423,7 +423,7 @@ int8_t giveOk(char* top, const char *promptText=MSG_EMPTY, const char *line2=MSG
   return 1;
 }
 
-void inputString(char *prompt, char *initialUserInput, char *optionalHeader = MSG_EMPTY, bool asEdit = false) {
+void inputString(char *prompt, char *initialUserInput, char *optionalHeader = MSG_LITTLE, bool asEdit = false) {
   uint8_t cursorPosition = 0;
   bool displayChanged = true;
   bool cursorVisible = true;

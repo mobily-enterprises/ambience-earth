@@ -10,7 +10,7 @@ const char PROGMEM MSG_YES[] = "Yes";
 const char PROGMEM MSG_NO[] = "No";
 const char PROGMEM MSG_OK[] = "OK";
 
-const char PROGMEM MSG_EMPTY[] = "";
+const char PROGMEM MSG_LITTLE[] = "";
 const char PROGMEM MSG_AUTO_DRAIN[] = "Auto drain?";
 const char PROGMEM MSG_SPACES[] = "                    ";
 
@@ -20,7 +20,7 @@ const char PROGMEM MSG_STAR[] = "*";
 const char PROGMEM MSG_TRAY_SOIL_IGNORE[] = "Ignore";
 
 const char PROGMEM MSG_TRAY_DRY[] = "dry";
-const char PROGMEM MSG_TRAY_EMPTY[] = "empty";
+const char PROGMEM MSG_TRAY_LITTLE[] = "little";
 const char PROGMEM MSG_TRAY_SOME[] = "some";
 const char PROGMEM MSG_TRAY_PLENTY[] = "lots";
 const char PROGMEM MSG_TRAY_FULL[] = "full";
@@ -45,7 +45,7 @@ const char PROGMEM MSG_SURE_QUESTION[] = "Sure?";
 const char PROGMEM MSG_DONE[] = "Done!";
 
 
-const char PROGMEM MSG_EMPTY_SLOT[] = "(Empty)";
+const char PROGMEM MSG_LITTLE_SLOT[] = "(Empty)";
 
 
 const char PROGMEM MSG_MOISTURE_SENSOR[] = "Moisture sensor";
@@ -100,8 +100,18 @@ const char PROGMEM MSG_HALF_TRAY[] = "HALF tray";
 const char PROGMEM MSG_FULL_TRAY[] = "FULL tray";
 
 const char PROGMEM MSG_WATER_TRAY_SENSOR[] = "Water tray sensor";
-const char PROGMEM MSG_YES_2_MM[] = "Yes, 2mm of water!";
 const char PROGMEM MSG_HOLD_IT_STILL[] = "Hold it still";
+
+const char PROGMEM MSG_NOW_QUARTER_FULL[] = "Quarter full";
+const char PROGMEM MSG_YES_QUARTER_FULL[] = "Yes, it's 1/4 full!";
+const char PROGMEM MSG_NOW_HALF_FULL[] = "Half full";
+const char PROGMEM MSG_YES_HALF_FULL[] = "Yes, it's 1/2 full!";
+const char PROGMEM MSG_NOW_THREE_QUARTERS_FULL[] = "Three quarter full";
+const char PROGMEM MSG_YES_THREE_QUARTERS_FULL[] = "Yes, it's 3/4 full!";
+
+
+
+
 const char PROGMEM MSG_YES_HALF_WAY[] = "Yes, it's half in!";
 const char PROGMEM MSG_NOW_HALF_WAY[] = "Now half in water";
 const char PROGMEM MSG_YES_FULL_IN[] = "Yes, it's fully in!";
@@ -138,9 +148,9 @@ const char PROGMEM MSG_WHERE_LED_TURNS_ON[] = "where LED turns on";
 
 const char PROGMEM MSG_OVER[] = "Over ";
 
-const char PROGMEM MSG_EMPTY_COLUMN[] = "Empty: ";
-const char PROGMEM MSG_HALF_COLUMN[] = "Half: ";
-const char PROGMEM MSG_FULL_COLUMN[] = "Full: ";
+const char PROGMEM MSG_25_PERCENT_COLUMN[] = "25%: ";
+const char PROGMEM MSG_50_PERCENT_COLUMN[] = "50%: ";
+const char PROGMEM MSG_75_PERCENT_COLUMN[] = "75%: ";
 
 const char PROGMEM MSG_DRY_COLUMN[] = "Dry: ";
 const char PROGMEM MSG_SOAKED_COLUMN[] = "Soaked: ";
