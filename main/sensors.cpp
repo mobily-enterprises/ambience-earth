@@ -297,6 +297,20 @@ uint8_t soilMoistureAsPercentage(uint16_t soilMoisture) {
   return percentage;
 }
 
+bool senseTrayWaterLevelLow() {
+ return !digitalRead(TRAY_SENSOR_LOW);
+}
+
+bool senseTrayWaterLevelMid() {
+ // Sensor not there yet
+ return !digitalRead(TRAY_SENSOR_MID);
+}
+
+bool senseTrayWaterLevelHigh() {
+return !digitalRead(TRAY_SENSOR_HIGH);
+}
+
+
 uint8_t soilMoistureAsState(uint8_t soilMoistureAsPercentage) {
   uint8_t v = soilMoistureAsPercentage;
 
@@ -340,28 +354,18 @@ uint8_t trayWaterLevelAsPercentage(uint16_t waterLevel) {
 }
 
 
-uint8_t trayWaterLevelAsState(uint8_t percentage, bool isFull) {
-  uint8_t v = percentage;
-
-  // The "isFull" sensor will force a "plenty" state
-  if (isFull) return (uint8_t) Conditions::TRAY_FULL;;
-
-  if (v > 50) return (uint8_t) Conditions::TRAY_PLENTY;
-  else if(v > 2) return (uint8_t) Conditions::TRAY_SOME;
-  else if(v > 0) return (uint8_t) Conditions::TRAY_LITTLE;
-  else return (uint8_t) Conditions::TRAY_DRY;
+uint8_t trayWaterLevelAsState(bool low, bool mid, bool high) {
+  if (high) return Conditions::TRAY_FULL;
+  else if (mid) return Conditions::TRAY_SOME;
+  else if (low) return Conditions::TRAY_LITTLE;
+  else return Conditions::TRAY_DRY;
 }
 
+char* trayWaterLevelInEnglish(uint8_t trayState) { 
 
-char* trayWaterLevelInEnglish(uint8_t trayState, bool trayIsFull) { 
-
-  /*if (trayIsFull) {
-    if (trayState != Conditions::TRAY_PLENTY) return MSG_ERROR_1;
-    return MSG_FULL;
-  }*/
-
+ // MERCMERC
+ 
   if (trayState == Conditions::TRAY_FULL) return MSG_TRAY_FULL;
-  if (trayState == Conditions::TRAY_PLENTY) return MSG_TRAY_PLENTY;
   else if (trayState == Conditions::TRAY_SOME) return MSG_TRAY_SOME;
   else if (trayState == Conditions::TRAY_LITTLE) return MSG_TRAY_LITTLE;
   else if (trayState == Conditions::TRAY_DRY) return MSG_TRAY_DRY;

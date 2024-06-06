@@ -380,7 +380,7 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
   Conditions *c;
   c = start ? &action->triggerConditions : &action->stopConditions;
 
-  uint8_t trayState = trayWaterLevelAsState(trayWaterLevelAsPercentage(senseTrayWaterLevel()), senseTrayIsFull());
+  uint8_t trayState = trayWaterLevelAsState(senseTrayWaterLevelLow(), senseTrayWaterLevelMid(), senseTrayWaterLevelHigh());
   uint8_t soilState = soilMoistureAsState(soilMoistureAsPercentage(senseSoilMoisture()));
 
   /*
@@ -437,11 +437,9 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
 void printSoilAndWaterTrayStatus() {
   uint16_t soilMoisture = senseSoilMoisture();
   uint16_t soilMoisturePercent = soilMoistureAsPercentage(soilMoisture);
-  uint16_t trayWaterLevel = senseTrayWaterLevel();
-  uint16_t trayWaterLevelPercent = trayWaterLevelAsPercentage(trayWaterLevel);
-
-  bool trayIsFull = senseTrayIsFull();
-
+  uint16_t twlLow = senseTrayWaterLevelLow();
+  uint16_t twlMid = senseTrayWaterLevelMid();
+  uint16_t twlHigh = senseTrayWaterLevelHigh();
 
   lcdPrint(MSG_SOIL_NOW, 0);
   lcdPrint(MSG_SPACE);
@@ -453,10 +451,7 @@ void printSoilAndWaterTrayStatus() {
 
   lcdPrint(MSG_TRAY_NOW, 1);
   lcdPrint(MSG_SPACE);
-  lcdPrintNumber(trayWaterLevelPercent);
-  lcdPrint(MSG_PERCENT);
-  lcdPrint(MSG_SPACE);
-  lcdPrint(trayWaterLevelInEnglish(trayWaterLevelAsState(trayWaterLevelPercent, trayIsFull), trayIsFull));
+  lcdPrint(trayWaterLevelInEnglish(trayWaterLevelAsState(twlLow, twlMid, twlHigh)));
 }
 
 
@@ -591,7 +586,7 @@ void emptyTrayIfNecessary() {
   // No need
   if (config.trayNeedsEmptying) return;
 
-  const uint8_t trayState = trayWaterLevelAsState(trayWaterLevelAsPercentage(senseTrayWaterLevel()), senseTrayIsFull());
+  const uint8_t trayState = trayWaterLevelAsState(senseTrayWaterLevelLow(), senseTrayWaterLevelMid(), senseTrayWaterLevelHigh());
   switch (pumpState) {
     case IDLE:
       if (millis() - lastPumpOutExecutionTime >= config.pumpOutRestTime && trayState >= Conditions::TRAY_SOME) {
@@ -921,7 +916,6 @@ char *trayConditionToEnglish(uint8_t condition) {
   if (condition == Conditions::TRAY_DRY) return MSG_TRAY_DRY;
   else if (condition == Conditions::TRAY_LITTLE) return MSG_TRAY_LITTLE;
   else if (condition == Conditions::TRAY_SOME) return MSG_TRAY_SOME;
-  else if (condition == Conditions::TRAY_PLENTY) return MSG_TRAY_PLENTY;
   else if (condition == Conditions::TRAY_FULL) return MSG_TRAY_FULL;
 
   else return MSG_LITTLE;

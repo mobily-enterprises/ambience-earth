@@ -22,7 +22,6 @@ const char PROGMEM MSG_TRAY_SOIL_IGNORE[] = "Ignore";
 const char PROGMEM MSG_TRAY_DRY[] = "dry";
 const char PROGMEM MSG_TRAY_LITTLE[] = "little";
 const char PROGMEM MSG_TRAY_SOME[] = "some";
-const char PROGMEM MSG_TRAY_PLENTY[] = "lots";
 const char PROGMEM MSG_TRAY_FULL[] = "full";
 
 

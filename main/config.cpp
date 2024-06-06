@@ -90,7 +90,7 @@ void restoreDefaultConfig() {
   config.actions[0] = Action {
     "BOTTOM FEED",
     { Conditions::TRAY_DRY, Conditions::SOIL_DRY, Conditions::TRAY_OR_SOIL },
-    { Conditions::TRAY_PLENTY, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
+    { Conditions::TRAY_FULL, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
     FeedFrom::FEED_FROM_TRAY,
   };
   config.actions[1] = Action {
