@@ -1,10 +1,11 @@
+
 #include <string.h>
 #include <EEPROM.h>
 #include "config.h"
 
 Config config;
 
-void saveConfig() {  
+void saveConfig() {
   setConfigChecksum();
   EEPROM.put(CONFIG_ADDRESS, config);
 }
@@ -47,7 +48,7 @@ uint8_t calculateConfigChecksum() {
 bool verifyConfigChecksum() {
   // Calculate checksum using helper function
   uint8_t checksum = calculateConfigChecksum();
-  
+
   // Compare the calculated checksum with the checksum stored in the Config struct
   return checksum == config.checksum;
 }
@@ -62,15 +63,11 @@ void restoreDefaultConfig() {
   config.checksum = 0;
   config.feedFrom = FeedFrom::FEED_FROM_TOP;
   config.feedLine = FeedLine::PUMP_IN;
-  
+
   config.mustRunInitialSetup = true;
-  
-  config.soilLittleMoistPercentage = 20;
-  config.soilMoistPercentage = 60;
-  config.soilVeryMoistPercentage = 80;
 
   config.trayNeedsEmptying = false;
- 
+
   config.moistSensorCalibrationSoaked = 400;
   config.moistSensorCalibrationDry = 780;
 
@@ -79,6 +76,8 @@ void restoreDefaultConfig() {
   config.trayWaterLevelSensorCalibrationThreeQuarters;
 
   config.minFeedInterval = 1000L * 60 * 30;
+  //config.minFeedIntervalMoistOverride = 65;
+
 
   config.maxFeedTime = 1000L * 60 * 3;
   config.maxPumpOutTime = 1000L * 60 * 3;
@@ -87,37 +86,36 @@ void restoreDefaultConfig() {
   // Set default checksum
   config.checksum = calculateConfigChecksum();
 
-  config.actions[0] = Action {
+  config.actions[0] = Action{
     "BOTTOM FEED",
-    { Conditions::TRAY_DRY, Conditions::SOIL_DRY, Conditions::TRAY_OR_SOIL },
-    { Conditions::TRAY_FULL, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
+    { Conditions::TRAY_DRY, 65, Conditions::TRAY_OR_SOIL },
+    { Conditions::TRAY_FULL, 0, Conditions::NO_LOGIC },
     FeedFrom::FEED_FROM_TRAY,
   };
-  config.actions[1] = Action {
+  config.actions[1] = Action{
     "TOP FEED ROFF",
-    { Conditions::TRAY_IGNORED, Conditions::SOIL_LITTLE_MOIST, Conditions::NO_LOGIC },
-    { Conditions::TRAY_SOME, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
+    { Conditions::TRAY_IGNORED, 70, Conditions::NO_LOGIC },
+    { Conditions::TRAY_MIDDLE, 0, Conditions::NO_LOGIC },
     FeedFrom::FEED_FROM_TOP,
   };
-  config.actions[2] = Action {
+  config.actions[2] = Action{
     "STACK FEED",
-    { Conditions::TRAY_IGNORED, Conditions::SOIL_LITTLE_MOIST, Conditions::NO_LOGIC },
-    { Conditions::TRAY_LITTLE, Conditions::SOIL_LITTLE_MOIST, Conditions::TRAY_OR_SOIL },
+    { Conditions::TRAY_IGNORED, 70, Conditions::NO_LOGIC },
+    { Conditions::TRAY_LITTLE, 0, Conditions::TRAY_OR_SOIL },
     FeedFrom::FEED_FROM_TOP,
   };
-  config.actions[3] = Action {
+  config.actions[3] = Action{
     "STACK W/ROFF",
-    { Conditions::TRAY_IGNORED, Conditions::SOIL_LITTLE_MOIST, Conditions::NO_LOGIC },
-    { Conditions::TRAY_SOME, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
+    { Conditions::TRAY_IGNORED, 70, Conditions::NO_LOGIC },
+    { Conditions::TRAY_MIDDLE, 0, Conditions::NO_LOGIC },
     FeedFrom::FEED_FROM_TOP,
   };
-  config.actions[4] = Action {
+  config.actions[4] = Action{
     "FEED RECIRC",
-    { Conditions::TRAY_IGNORED, Conditions::SOIL_LITTLE_MOIST, Conditions::NO_LOGIC },
-    { Conditions::TRAY_IGNORED, Conditions::SOIL_IGNORED, Conditions::NO_LOGIC },
+    { Conditions::TRAY_IGNORED, 70, Conditions::NO_LOGIC },
+    { Conditions::TRAY_IGNORED, 0, Conditions::NO_LOGIC },
     FeedFrom::FEED_FROM_TOP,
   };
   config.activeActionsIndex0 = -1;
   config.activeActionsIndex1 = -1;
 }
-

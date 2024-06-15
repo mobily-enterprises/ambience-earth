@@ -24,7 +24,7 @@ int8_t yesOrNo(char* question, bool initialUserInput = true);
 bool alert(char *question=MSG_LITTLE);
 int8_t giveOk(char* top, const char *promptText=MSG_LITTLE, const char *line2=MSG_LITTLE, const char *line3=MSG_LITTLE);
 int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = false);
-void setChoices(const char *label0=MSG_LITTLE,int value0=0,const char *label1=MSG_LITTLE,int value1=0,const char *label2=MSG_LITTLE,int value2=0,const char *label3=MSG_LITTLE,int value3=0,const char *label4=MSG_LITTLE,int value4=0,const char *label5=MSG_LITTLE,int value5=0);
+void setChoices(const char *label0=MSG_LITTLE,int value0=0,const char *label1=MSG_LITTLE,int value1=0,const char *label2=MSG_LITTLE,int value2=0,const char *label3=MSG_LITTLE,int value3=0,const char *label4=MSG_LITTLE,int value4=0,const char *label5=MSG_LITTLE,int value5=0,const char *label6=MSG_LITTLE,int value6=0,const char *label7=MSG_LITTLE,int value7=0,const char *label8=MSG_LITTLE,int value8=0,const char *label9=MSG_LITTLE,int value9=0);
 void setChoicesHeader(const char *header=MSG_LITTLE);
 
 

@@ -18,10 +18,11 @@ char getPreviousCharacter(char currentChar);
 
 LiquidCrystal_I2C lcd = LiquidCrystal_I2C(0x27, 16, 4);
 
+
 AnalogButtons analogButtons = AnalogButtons(BUTTONS_PIN, BUTTONS_PIN_MODE, BUTTONS_DEBOUNCE_MULTIPLIER, BUTTONS_ANALOG_MARGIN);
 
 Button* pressedButton;
-Choice choices[6];
+Choice choices[10];
 
 char choicesHeader[LABEL_LENGTH + 1];
 
@@ -29,10 +30,10 @@ char userInputString[LABEL_LENGTH + 1];
 
 
 // ACTUAL keypad
-Button upButton = Button(34, &upClick);
-Button leftButton = Button(0, &leftClick);
-Button downButton = Button(96, &downClick);
-Button rightButton = Button(182, &rightClick);
+Button upButton = Button(96, &upClick);
+Button leftButton = Button(182, &leftClick);
+Button downButton = Button(34, &downClick);
+Button rightButton = Button(0, &rightClick);
 Button okButton = Button(386, &okClick);
 
 /*
@@ -140,8 +141,9 @@ void labelcpyFromString(char* destination, const char* source) {
 }
 
 void initLcdAndButtons() {
+
+  delay(1000);
   lcd.init();
-  // delay(1000);
   lcd.backlight(); 
   // delay(1000);
 
@@ -160,19 +162,28 @@ void initLcdAndButtons() {
   resetChoicesAndHeader();
 }
 
-void setChoices(const char *label0=MSG_LITTLE,int value0=0,const char *label1=MSG_LITTLE,int value1=0,const char *label2=MSG_LITTLE,int value2=0,const char *label3=MSG_LITTLE,int value3=0,const char *label4=MSG_LITTLE,int value4=0,const char *label5=MSG_LITTLE,int value5=0) {
+void setChoices(const char *label0=MSG_LITTLE,int value0=0,const char *label1=MSG_LITTLE,int value1=0,const char *label2=MSG_LITTLE,int value2=0,const char *label3=MSG_LITTLE,int value3=0,const char *label4=MSG_LITTLE,int value4=0,const char *label5=MSG_LITTLE,int value5=0,const char *label6=MSG_LITTLE,int value6=0,const char *label7=MSG_LITTLE,int value7=0,const char *label8=MSG_LITTLE,int value8=0,const char *label9=MSG_LITTLE,int value9=0) {
   labelcpy(choices[0].label, label0);
   labelcpy(choices[1].label, label1);
   labelcpy(choices[2].label, label2);
   labelcpy(choices[3].label, label3);
   labelcpy(choices[4].label, label4);
   labelcpy(choices[5].label, label5);
+  labelcpy(choices[6].label, label6);
+  labelcpy(choices[7].label, label7);
+  labelcpy(choices[8].label, label8);
+  labelcpy(choices[9].label, label9);
+
   choices[0].value = value0;
   choices[1].value = value1;
   choices[2].value = value2;
   choices[3].value = value3;
   choices[4].value = value4;
   choices[5].value = value5;
+  choices[6].value = value6;
+  choices[7].value = value7;
+  choices[8].value = value8;
+  choices[9].value = value9;
 }
 
 void setChoicesHeader(const char *header=MSG_LITTLE) {

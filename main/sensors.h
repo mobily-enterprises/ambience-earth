@@ -12,25 +12,24 @@
 
 
 #define TRAY_SENSOR_HIGH 12
-#define TRAY_SENSOR_MID 12 // CHANGE IT TO PIN WHEN SENSOR IS THERE. TILL THEN, SAME AS HIGH
+#define TRAY_SENSOR_MID 12  // CHANGE IT TO PIN WHEN SENSOR IS THERE. TILL THEN, SAME AS HIGH
 #define TRAY_SENSOR_LOW 7
 
 #define SOLENOID_IN_DEVICE 10
-#define PUMP_IN_DEVICE 8 // Was 7
+#define PUMP_IN_DEVICE 8  // Was 7
 #define PUMP_OUT_DEVICE 2
 
 #define SENSOR_READ_INTERVAL 30000
 #define SENSOR_STABILIZATION_TIME 300
 
-const unsigned long readInterval = 5000; // 30 seconds interval between reads in idle mode
-  const unsigned long sensorStabilizationTime = 300; // 30
+const unsigned long readInterval = 5000;            // 30 seconds interval between reads in idle mode
+const unsigned long sensorStabilizationTime = 300;  // 30
 
 
 void initSensors();
 uint16_t senseSoilMoisture(uint8_t mode = 0);
 uint8_t soilMoistureAsPercentage(uint16_t soilMosture);
 uint8_t trayWaterLevelAsPercentage(uint16_t trayWaterLevel);
-char* soilMoistureInEnglish(uint8_t soilMostureAsPercentage);
 
 bool senseTrayWaterLevelLow();
 bool senseTrayWaterLevelMid();

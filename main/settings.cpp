@@ -19,25 +19,24 @@ extern LogEntry newLogEntry;
 
 extern double averageMsBetweenFeeds;
 extern unsigned long int millisAtEndOfLastFeed;
+extern Button *pressedButton;
 
 void settings() {
   int8_t choice = 0;
 
+  lcdClear();
   while (choice != -1) {
-    lcdClear();
     setChoices(
       MSG_EDIT_ACTIONS, 1,
       MSG_FEEDING_FROM, 2,
       MSG_AUTO_DRAIN, 3,
-      MSG_MOISTURE_LEVELS, 4,
       MSG_CALIBRATE, 5,
       MSG_MAINTENANCE, 10);
-    choice = selectChoice(6, 1);
+    choice = selectChoice(5, 1);
 
     if (choice == 1) settingsEditActions();
     else if (choice == 2) setFeedFrom();
     else if (choice == 3) setAutoDrain();
-    else if (choice == 4) settingsDefaultMoistLevels();
     else if (choice == 5) settingsCalibrate();
     else if (choice == 10) maintenance();
   }
@@ -50,18 +49,82 @@ void maintenance() {
     setChoices(
       MSG_SAFETY_LIMITS, 1,
       MSG_TEST_PUMPS, 2,
-      MSG_RESET_ONLY_LOGS, 3,
-      MSG_RESET_DATA, 4
+      MSG_TEST_SENSORS, 3,
+      MSG_RESET_ONLY_LOGS, 4,
+      MSG_RESET_DATA, 5
 
     );
-    choice = selectChoice(4, 1);
+    choice = selectChoice(5, 1);
 
     if (choice == 1) settingsSafetyLimits();
     else if (choice == 2) activatePumps();
-    else if (choice == 3) resetOnlyLogs();
-    else if (choice == 4) resetData();
+    else if (choice == 3) testSensors();
+    else if (choice == 4) resetOnlyLogs();
+    else if (choice == 5) resetData();
   }
 }
+
+void testSensors() {
+  static const unsigned long interval = 10;  // interval at which to run (milliseconds)
+  static unsigned long previousMillis = 0;   // will store last time the loop ran
+  static int soilMoisturePercentage = 0;
+  static bool trayWaterLevelLow = false;
+  static bool trayWaterLevelMid = false;
+  static bool trayWaterLevelHigh = false;
+  static int soilMoistureReading;
+
+
+  lcdClear();
+
+  lcdSetCursor(0, 0);
+  lcdPrint(MSG_TRAY_LOW_COLUMN);
+  lcdSetCursor(0, 1);
+  lcdPrint(MSG_TRAY_MID_COLUMN);
+  lcdSetCursor(0, 2);
+  lcdPrint(MSG_TRAY_HIGH_COLUMN);
+  lcdSetCursor(0, 3);
+  lcdPrint(MSG_SOIL_MOISTURE_COLUNN);
+
+  while (1) {
+    unsigned long currentMillis = millis();
+
+    if (currentMillis - previousMillis >= interval) {
+      previousMillis = currentMillis;
+
+     soilMoistureReading = senseSoilMoisture(2);
+      
+      soilMoisturePercentage = soilMoistureAsPercentage(soilMoistureReading);
+      trayWaterLevelLow = senseTrayWaterLevelLow();
+      trayWaterLevelMid = senseTrayWaterLevelMid();
+      trayWaterLevelHigh = senseTrayWaterLevelHigh();
+
+      analogButtonsCheck();
+      
+
+      if (pressedButton != nullptr) break;
+
+      lcdSetCursor(11, 0);
+      lcdPrintNumber(trayWaterLevelLow);
+      lcdPrint(MSG_SPACE);
+      lcdSetCursor(11, 1);
+      lcdPrintNumber(trayWaterLevelMid);
+      lcdPrint(MSG_SPACE);
+      lcdSetCursor(11, 2);
+      lcdPrintNumber(trayWaterLevelHigh);
+
+      lcdSetCursor(10, 3);
+      lcdPrintNumber(soilMoisturePercentage);
+      lcdPrint(MSG_PERCENT);
+      lcdPrint(MSG_SPACE);
+      lcdPrintNumber(soilMoistureReading);
+
+      lcdPrint(MSG_SPACE);
+      lcdPrint(MSG_SPACE);
+    }
+  }
+  senseSoilMoisture(1);
+}
+
 
 
 void wipeLogsAndResetVars() {
@@ -103,7 +166,7 @@ Conditions inputConditions(Conditions *initialConditions, char verb, int8_t choi
     MSG_TRAY_SOIL_IGNORE, Conditions::TRAY_IGNORED,
     MSG_TRAY_DRY, Conditions::TRAY_DRY,
     MSG_TRAY_LITTLE, Conditions::TRAY_LITTLE,
-    MSG_TRAY_SOME, Conditions::TRAY_SOME,
+    MSG_TRAY_MIDDLE, Conditions::TRAY_MIDDLE,
     MSG_TRAY_FULL, Conditions::TRAY_FULL
   );
   if (verb == 'F') {
@@ -115,12 +178,20 @@ Conditions inputConditions(Conditions *initialConditions, char verb, int8_t choi
   initialConditions->tray = tray;
   if (tray == -1) return;
 
+  
   setChoices(
-    MSG_TRAY_SOIL_IGNORE, Conditions::SOIL_IGNORED,
-    MSG_SOIL_DRY, Conditions::SOIL_DRY,
-    MSG_SOIL_LITTLE_MOIST, Conditions::SOIL_LITTLE_MOIST,
-    MSG_SOIL_MOIST, Conditions::SOIL_MOIST,
-    MSG_SOIL_VERY_MOIST, Conditions::SOIL_VERY_MOIST);
+    MSG_TRAY_SOIL_IGNORE, 0,
+    MSG_60_PERCENT, 60,
+    MSG_65_PERCENT, 65,
+    MSG_70_PERCENT, 60,
+    MSG_75_PERCENT, 75,
+    MSG_80_PERCENT, 80,
+    MSG_85_PERCENT, 85,
+    MSG_90_PERCENT, 60,
+    MSG_95_PERCENT, 95,
+    MSG_100_PERCENT, 100
+  );
+
 
   if (verb == 'F') {
     setChoicesHeader(MSG_START_SOIL);
@@ -128,13 +199,13 @@ Conditions inputConditions(Conditions *initialConditions, char verb, int8_t choi
     setChoicesHeader(MSG_STOP_SOIL);
   }
 
-  int8_t soil = (int8_t)selectChoice(5, (int8_t)initialConditions->soil);
+  int8_t soil = (int8_t)selectChoice(10, (int8_t)initialConditions->soil);
   initialConditions->soil = soil;
   if (soil == -1) return;
 
   int8_t logic;
 
-  if (tray != Conditions::TRAY_IGNORED && soil != Conditions::SOIL_IGNORED) {
+  if (tray && soil) {
     setChoices(
       MSG_BOTH, Conditions::TRAY_AND_SOIL,
       MSG_EITHER, Conditions::TRAY_AND_SOIL);
@@ -269,56 +340,6 @@ void settingsSafetyLimits() {
 
 
 
-void settingsDefaultMoistLevels() {
-  int8_t soilLittleMoistPercentage;
-  int8_t soilMoistPercentage;
-  int8_t soilVeryMoistPercentage;
-  int8_t goAhead;
-
-  soilVeryMoistPercentage = inputNumber(MSG_OVER, config.soilVeryMoistPercentage, 5, 0, 95, MSG_PERCENT, MSG_SOIL_WHEN_VERY_MOIST);
-  if (soilVeryMoistPercentage == -1) return;
-
-  soilMoistPercentage = inputNumber(MSG_OVER, config.soilMoistPercentage, 5, 0, config.soilMoistPercentage - 5, MSG_PERCENT, MSG_SOIL_WHEN_MOIST);
-  if (soilVeryMoistPercentage == -1) return;
-
-  soilLittleMoistPercentage = inputNumber(MSG_OVER, config.soilLittleMoistPercentage, 5, 0, config.soilMoistPercentage - 5, MSG_PERCENT, MSG_SOIL_WHEN_LITTLE_MOIST);
-  if (soilVeryMoistPercentage == -1) return;
-
-  lcdClear();
-
-  lcdPrint(MSG_ZERO_PERCENT_DASH);
-  lcdPrintNumber(soilLittleMoistPercentage - 1);
-  lcdPrint(MSG_PERCENT_DRY);
-
-  lcdPrintNumber(soilLittleMoistPercentage, 1);
-  lcdPrint(MSG_PERCENT_DASH);
-  lcdPrintNumber(soilMoistPercentage - 1);
-  lcdPrint(MSG_PERCENT_SPACE);
-  lcdPrint(MSG_SOIL_LITTLE_MOIST);
-
-  lcdPrintNumber(soilMoistPercentage, 2);
-  lcdPrint(MSG_PERCENT_DASH);
-  lcdPrintNumber(soilVeryMoistPercentage - 1);
-  lcdPrint(MSG_PERCENT_SPACE);
-  lcdPrint(MSG_SOIL_MOIST);
-
-  lcdPrintNumber(soilVeryMoistPercentage, 3);
-  lcdPrint(MSG_PERCENT_DASH_ONEHUNDRED_PERCENT_SPACE);
-  lcdPrint(MSG_SOIL_VERY_MOIST);
-
-  delay(5000);
-  
-  goAhead = yesOrNo(MSG_SAVE_QUESTION);
-  if (goAhead == -1) return;
-
-  if (goAhead) {
-    config.soilLittleMoistPercentage = soilLittleMoistPercentage;
-    config.soilMoistPercentage = soilMoistPercentage;
-    config.soilVeryMoistPercentage = soilVeryMoistPercentage;
-
-    saveConfig();
-  }
-}
 
 void settingsCalibrate() {
   bool calibrated;
@@ -326,11 +347,10 @@ void settingsCalibrate() {
   while (true) {
     setChoices(MSG_MOISTURE_SENSOR, 0, MSG_WATER_LEVELS, 1);
     setChoicesHeader(MSG_CALIBRATE);
-    int8_t choice = selectChoice(2, 0);
+    int8_t choice = selectChoice(1, 0);
 
     if (choice == -1) return;
     if (choice == 0) calibrated = calibrateSoilMoistureSensor();
-    if (choice == 1) calibrated = calibrateTrayWaterLevelSensors();
 
     // If "calibrated" is set, the functions above will have
     // changed "config" which will need saving
@@ -356,7 +376,6 @@ int runInitialSetup() {
     config.trayNeedsEmptying = false;
   }
   if (!calibrateSoilMoistureSensor()) return 0;
-  if (!calibrateTrayWaterLevelSensors()) return 0;
 
   // Save config
   config.mustRunInitialSetup = false;
@@ -366,95 +385,6 @@ int runInitialSetup() {
   lcdPrint(MSG_DONE);
 
   return 1;
-}
-
-int calibrateTrayWaterLevelSensors() {
-
-  int8_t goAhead;
-
-  int16_t quarter;
-  int16_t half;
-  int16_t threeQuarters;
-  bool trayFull;
-
-  // Switch mode to 2, immediate reads
-  senseTrayWaterLevel(2);
-
-  goAhead = giveOk(MSG_WATER_TRAY_SENSOR, MSG_YES_QUARTER_FULL, MSG_NOW_QUARTER_FULL, MSG_HOLD_IT_STILL);
-  if (goAhead == -1) {
-    senseTrayWaterLevel(1);
-    return false;
-  }
- 
-  lcdClear();
-
-  lcdPrint(MSG_25_PERCENT_COLUMN, 1);
-  for (int i = 0; i < 8; i++) {
-    quarter = senseTrayWaterLevel();
-    // lcdClear();
-    lcdPrintNumber(quarter);
-    lcdPrint(MSG_SPACE);
-    delay(900);
-  }
-
-  delay(2000);
-
-  goAhead = giveOk(MSG_WATER_TRAY_SENSOR, MSG_YES_HALF_FULL, MSG_NOW_HALF_FULL, MSG_HOLD_IT_STILL);
-  if (goAhead == -1) {
-    senseTrayWaterLevel(1);
-    return false;
-  }
-
-  lcdClear();
-  lcdPrint(MSG_50_PERCENT_COLUMN, 1);
-  for (int i = 0; i < 8; i++) {
-    half = senseTrayWaterLevel();
-    // lcdClear();
-    lcdPrintNumber(half);
-    lcdPrint(MSG_SPACE);
-    delay(900);
-  }
-
-  goAhead = giveOk(MSG_WATER_TRAY_SENSOR, MSG_YES_THREE_QUARTERS_FULL, MSG_NOW_THREE_QUARTERS_FULL, MSG_HOLD_IT_STILL);
-  if (goAhead == -1) {
-    senseTrayWaterLevel(1);
-    return false;
-  }
-
-  lcdClear();
-  lcdPrint(MSG_75_PERCENT_COLUMN, 1);
-  for (int i = 0; i < 8; i++) {
-    threeQuarters = senseTrayWaterLevel();
-    // lcdClear();
-    lcdPrintNumber(threeQuarters);
-    lcdPrint(MSG_SPACE);
-    delay(900);
-  }
-
-  // Switch mode back to 1, one read every 30 seconds
-  senseTrayWaterLevel(1);
-
-  lcdFlashMessage(MSG_ATTACH_WHITE_SENSOR, MSG_WHERE_LED_TURNS_ON, 2000);
-
-  while (true) {
-    goAhead = yesOrNo(MSG_SENSOR_ATTACHED, 1);
-    if (goAhead == -1 || !goAhead) return false;
-
-    trayFull = senseTrayIsFull();
-    if (!trayFull) {
-      lcdFlashMessage(MSG_SENSOR_NOT_SENSING_WATER_1, MSG_SENSOR_NOT_SENSING_WATER_2);
-    } else {
-      break;
-    }
-  }
-
-  goAhead = yesOrNo(MSG_SAVE_QUESTION, 1);
-  if (goAhead == -1  || !goAhead) return false;
-
-  config.trayWaterLevelSensorCalibrationQuarter = quarter;
-  config.trayWaterLevelSensorCalibrationHalf = half;
-  config.trayWaterLevelSensorCalibrationThreeQuarters = threeQuarters;
-  return true;
 }
 
 

@@ -27,8 +27,8 @@ enum FeedLine : int8_t {
 };
 
 typedef struct {
-  enum : int8_t { TRAY_IGNORED, TRAY_DRY, TRAY_LITTLE, TRAY_SOME, TRAY_FULL } tray;
-  enum : int8_t { SOIL_IGNORED, SOIL_DRY, SOIL_LITTLE_MOIST, SOIL_MOIST, SOIL_VERY_MOIST } soil;
+  enum : int8_t { TRAY_IGNORED, TRAY_DRY, TRAY_LITTLE, TRAY_MIDDLE, TRAY_FULL } tray;
+  int8_t soil;
   enum : int8_t { NO_LOGIC, TRAY_OR_SOIL, TRAY_AND_SOIL } logic;
 } Conditions;
 
@@ -45,11 +45,6 @@ typedef struct {
     FeedLine feedLine;
     bool mustRunInitialSetup;
     char deviceName[10];
-
-    // Less than these will make it qualify
-    int8_t soilLittleMoistPercentage;
-    int8_t soilMoistPercentage;
-    int8_t soilVeryMoistPercentage;
 
     bool trayNeedsEmptying;
 

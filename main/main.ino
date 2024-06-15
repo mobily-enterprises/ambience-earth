@@ -37,6 +37,7 @@ bool screenSaverMode = false;
 void setup() {
   Serial.begin(9600);  // Initialize serial communication at 9600 baud rate
 
+  Serial.println("Ahahahah");
   initLcdAndButtons();
 
   extern LiquidCrystal_I2C lcd;
@@ -82,53 +83,6 @@ void setup() {
   // Serial.println("GOING TO LATEST SLOT FOR DEBUGGING REASONS:");
   goToLatestSlot();
 }
-
-/*
-void TEMP() {
-  lcd.init();
-  // delay(1000);
-  lcd.backlight(); 
-
-  // Set up the LCD's number of columns and rows
-  lcd.setCursor(0, 0);
-
-  // Print a message to the LCD
-  lcd.print("A0 M: ");
-  lcd.setCursor(0, 2);
-  lcd.print("A2 W: ");
-
-  pinMode(4, OUTPUT);
-  digitalWrite(4,  HIGH); // Ensure the sensor is on
-
-  pinMode(A2, INPUT);
-  pinMode(A0, INPUT);
-  while(true) {
-    int sensorA0 = analogRead(A0);
-    delay(100);
-    analogRead(A2);
-    int sensorA2 = analogRead(A2);
-
-    // pinMode(A0, OUTPUT);
-    // digitalWrite(A0, LOW);
-    // pinMode(A2, OUTPUT);
-    // // digitalWrite(A2, LOW);
-
-
-    // Display the readings on the LCD
-    lcd.setCursor(6, 0);
-    lcd.print(sensorA0);
-    lcd.print("   ");  // Clear any trailing characters
-    lcd.setCursor(6, 2);
-    lcd.print(sensorA2);
-    lcd.print("   ");  // Clear any trailing characters
-
-    // Wait for 50 milliseconds
-    delay(200);
-  }  
-
-}
-
-*/
 
 
 void createBootLogEntry() {
@@ -307,13 +261,13 @@ void setActiveActions() {
 
   while (true) {
     if (config.activeActionsIndex0 == -1) {
-      setChoice(0, MSG_LITTLE_SLOT, 0);
+      setChoice(0, MSG_EMPTY_SLOT, 0);
     } else {
       setChoiceFromString(0, config.actions[config.activeActionsIndex0].name, 0);
     }
 
     if (config.activeActionsIndex1 == -1) {
-      setChoice(1, MSG_LITTLE_SLOT, 1);
+      setChoice(1, MSG_EMPTY_SLOT, 1);
     } else {
       setChoiceFromString(1, config.actions[config.activeActionsIndex1].name, 1);
     }
@@ -322,7 +276,7 @@ void setActiveActions() {
     slot = selectChoice(2, 0);
     if (slot == -1) return;
 
-    setChoice(0, MSG_LITTLE_SLOT, 127);
+    setChoice(0, MSG_EMPTY_SLOT, 127);
     uint8_t i = 1, c = 1;
     for (i = 0; i < ACTIONS_ARRAY_SIZE; i++) {
       if (config.feedFrom == config.actions[i].feedFrom) {
@@ -381,7 +335,7 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
   c = start ? &action->triggerConditions : &action->stopConditions;
 
   uint8_t trayState = trayWaterLevelAsState(senseTrayWaterLevelLow(), senseTrayWaterLevelMid(), senseTrayWaterLevelHigh());
-  uint8_t soilState = soilMoistureAsState(soilMoistureAsPercentage(senseSoilMoisture()));
+  uint8_t soilPercentage = soilMoistureAsPercentage(senseSoilMoisture());
 
   /*
   Serial.println("B");
@@ -390,7 +344,7 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
   */
 
   uint8_t actionTrayState = c->tray;
-  uint8_t actionSoilState = c->soil;
+  uint8_t actionSoilPercentage = c->soil;
   uint8_t actionLogic = c->logic;
 
   /*
@@ -406,10 +360,10 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
   bool soilSatisfied;
   if (start) {
     traySatisfied = trayState <= actionTrayState;
-    soilSatisfied = soilState <= actionSoilState;
+    soilSatisfied = soilPercentage <= actionSoilPercentage;
   } else {
     traySatisfied = trayState >= actionTrayState;
-    soilSatisfied = soilState >= actionSoilState;
+    soilSatisfied = soilPercentage >= actionSoilPercentage;
   }
 
   /*
@@ -419,9 +373,9 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
   */
 
   bool r;
-  if (!actionTrayState && !actionSoilState) r = false;
-  else if (!actionTrayState && actionSoilState) r = soilSatisfied;
-  else if (actionTrayState && !actionSoilState) r = traySatisfied;
+  if (!actionTrayState && actionSoilPercentage) r = false;
+  else if (!actionTrayState && actionSoilPercentage) r = soilSatisfied;
+  else if (actionTrayState && !actionSoilPercentage) r = traySatisfied;
   else if (actionLogic == Conditions::TRAY_OR_SOIL) r = soilSatisfied || traySatisfied;
   else /* if (actionLogic == Conditions::TRAY_AND_SOIL)*/ r = soilSatisfied && traySatisfied;
 
@@ -445,10 +399,7 @@ void printSoilAndWaterTrayStatus() {
   lcdPrint(MSG_SPACE);
   lcdPrintNumber(soilMoisturePercent);
   lcdPrint(MSG_PERCENT);
-  lcdPrint(MSG_SPACE);
-  lcdPrint(soilMoistureInEnglish(soilMoistureAsState(soilMoisturePercent)));
-  lcdPrint(MSG_SPACE);
-
+ 
   lcdPrint(MSG_TRAY_NOW, 1);
   lcdPrint(MSG_SPACE);
   lcdPrint(trayWaterLevelInEnglish(trayWaterLevelAsState(twlLow, twlMid, twlHigh)));
@@ -589,7 +540,7 @@ void emptyTrayIfNecessary() {
   const uint8_t trayState = trayWaterLevelAsState(senseTrayWaterLevelLow(), senseTrayWaterLevelMid(), senseTrayWaterLevelHigh());
   switch (pumpState) {
     case IDLE:
-      if (millis() - lastPumpOutExecutionTime >= config.pumpOutRestTime && trayState >= Conditions::TRAY_SOME) {
+      if (millis() - lastPumpOutExecutionTime >= config.pumpOutRestTime && trayState >= Conditions::TRAY_MIDDLE) {
         lastPumpOutExecutionTime = millis();
         openPumpOut();
         pumpOutStartMillis = millis();
@@ -664,8 +615,8 @@ void lcdPrintTimeSince(unsigned long milliseconds) {
     lcd.print('m');
   }
 
-  lcd.print(seconds);
-  lcd.print('s');
+  /* lcd.print(seconds);
+  lcd.print('s');*/
 }
 
 void lcdPrintTimeDuration(unsigned long start, unsigned long finish) {
@@ -833,14 +784,14 @@ void displayInfo(uint8_t screen) {
     case 0:
     case 1:
     case 2:
-    case 3:
-    case 4:
       displayInfo1(screen);
       break;
+    case 3:
+    case 4:
     case 5:
       displayInfo2(screen);
-      // displayInfo1(screen);
       break;
+      // displayInfo1(screen);
     case 6:
       displayInfo3(screen);
       break;
@@ -889,12 +840,6 @@ void displayInfo4(uint8_t screen) {
   // lcdPrintNumber(soilMoisture);
   lcdPrint(MSG_SPACE);
   lcd.print(analogRead(SOIL_MOISTURE_SENSOR));
-
-  lcdPrint(MSG_TRAY_NOW, 3);
-  lcdPrint(MSG_SPACE);
-  // lcdPrintNumber(trayWaterLevel);
-  lcdPrint(MSG_SPACE);
-  lcd.print(analogRead(TRAY_WATER_LEVEL_SENSOR));
 }
 
 
@@ -915,26 +860,31 @@ void displayInfo3(uint8_t screen) {
 char *trayConditionToEnglish(uint8_t condition) {
   if (condition == Conditions::TRAY_DRY) return MSG_TRAY_DRY;
   else if (condition == Conditions::TRAY_LITTLE) return MSG_TRAY_LITTLE;
-  else if (condition == Conditions::TRAY_SOME) return MSG_TRAY_SOME;
+  else if (condition == Conditions::TRAY_MIDDLE) return MSG_TRAY_MIDDLE;
   else if (condition == Conditions::TRAY_FULL) return MSG_TRAY_FULL;
 
   else return MSG_LITTLE;
 }
 
+char *trayConditionToEnglishShort(uint8_t condition) {
+  if (condition == Conditions::TRAY_DRY) return MSG_TRAY_DRY_SHORT;
+  else if (condition == Conditions::TRAY_LITTLE) return MSG_TRAY_LITTLE_SHORT;
+  else if (condition == Conditions::TRAY_MIDDLE) return MSG_TRAY_MIDDLE_SHORT;
+  else if (condition == Conditions::TRAY_FULL) return MSG_TRAY_FULL_SHORT;
 
-char *soilConditionToEnglish(uint8_t condition) {
-  if (condition == Conditions::SOIL_DRY) return MSG_SOIL_DRY;
-  else if (condition == Conditions::SOIL_LITTLE_MOIST) return MSG_SOIL_LITTLE_MOIST;
-  else if (condition == Conditions::SOIL_MOIST) return MSG_SOIL_MOIST;
-  else if (condition == Conditions::SOIL_VERY_MOIST) return MSG_SOIL_VERY_MOIST;
   else return MSG_LITTLE;
 }
 
-void displayTriggerConditions(Conditions conditions) {
+
+void displayTriggerConditions(Conditions conditions, bool shortString = false) {
   if (conditions.tray != Conditions::TRAY_IGNORED) {
-    lcdPrint(MSG_TRAY);
+    lcdPrint(MSG_TRAY_SHORT);
     lcdPrint(MSG_SPACE);
-    lcdPrint(trayConditionToEnglish(conditions.tray));
+    if (shortString) {
+      lcdPrint(trayConditionToEnglishShort(conditions.tray));
+    } else {
+      lcdPrint(trayConditionToEnglish(conditions.tray));
+    }
   }
 
   if (conditions.logic != Conditions::NO_LOGIC) {
@@ -944,10 +894,11 @@ void displayTriggerConditions(Conditions conditions) {
       lcdPrint(MSG_AND);
     }
   }
-  if (conditions.soil != Conditions::SOIL_IGNORED) {
-    lcdPrint(MSG_SOIL);
+  if (conditions.soil) {
+    lcdPrint(MSG_SOIL_SHORT);
     lcdPrint(MSG_SPACE);
-    lcdPrint(soilConditionToEnglish(conditions.soil));
+    lcdPrintNumber(conditions.soil);
+    lcdPrint(MSG_PERCENT);
   }
 }
 
@@ -981,11 +932,11 @@ void displayInfo2(uint8_t screen) {
     lcdPrint(MSG_BR_CLOSED);
     lcd.setCursor(0, 1);
 
-    displayTriggerConditions(config.actions[active].triggerConditions);
+    displayTriggerConditions(config.actions[active].triggerConditions, true);
 
     lcd.setCursor(0, 2);
     lcdPrint(MSG_OFF_WHEN);
     lcd.setCursor(0, 3);
-    displayTriggerConditions(config.actions[active].stopConditions);
+    displayTriggerConditions(config.actions[active].stopConditions, true);
   }
 }

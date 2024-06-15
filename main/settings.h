@@ -10,7 +10,6 @@ void settingsEditActions();
 void settingsDefaultMoistLevels();
 void settingsCalibrate();
 int runInitialSetup();
-int calibrateTrayWaterLevelSensors();
 int readSensor(int sensor);
 int calibrateSoilMoistureSensor();
 void setFeedFrom();
@@ -19,4 +18,5 @@ void resetData();
 void activatePumps();
 void createBootLogEntry();
 void settingsSafetyLimits();
+void testSensors();
 #endif UI_H

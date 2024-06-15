@@ -3,7 +3,6 @@
 
 const char PROGMEM MSG_EDIT_ACTIONS[] = "Edit actions";
 const char PROGMEM MSG_FEEDING_FROM[] = "Feeding from";
-const char PROGMEM MSG_MOISTURE_LEVELS[] = "Moist levls";
 const char PROGMEM MSG_CALIBRATE[] = "Calibrate";
 const char PROGMEM MSG_MAINTENANCE[] = "Maintenance";
 const char PROGMEM MSG_YES[] = "Yes";
@@ -19,16 +18,16 @@ const char PROGMEM MSG_STAR[] = "*";
 
 const char PROGMEM MSG_TRAY_SOIL_IGNORE[] = "Ignore";
 
+
+const char PROGMEM MSG_TRAY_DRY_SHORT[] = "dry";
+const char PROGMEM MSG_TRAY_LITTLE_SHORT[] = "lttl";
+const char PROGMEM MSG_TRAY_MIDDLE_SHORT[] = "midl";
+const char PROGMEM MSG_TRAY_FULL_SHORT[] = "full";
+
 const char PROGMEM MSG_TRAY_DRY[] = "dry";
 const char PROGMEM MSG_TRAY_LITTLE[] = "little";
-const char PROGMEM MSG_TRAY_SOME[] = "some";
+const char PROGMEM MSG_TRAY_MIDDLE[] = "middle";
 const char PROGMEM MSG_TRAY_FULL[] = "full";
-
-
-const char PROGMEM MSG_SOIL_DRY[] = "dry";
-const char PROGMEM MSG_SOIL_LITTLE_MOIST[] = "damp";
-const char PROGMEM MSG_SOIL_MOIST[] = "mid";
-const char PROGMEM MSG_SOIL_VERY_MOIST[] = "wet";
 
 const char PROGMEM MSG_SOIL_WHEN_DRY[] = "Dry means";
 const char PROGMEM MSG_SOIL_WHEN_LITTLE_MOIST[] = "Damp means";
@@ -44,7 +43,7 @@ const char PROGMEM MSG_SURE_QUESTION[] = "Sure?";
 const char PROGMEM MSG_DONE[] = "Done!";
 
 
-const char PROGMEM MSG_LITTLE_SLOT[] = "(Empty)";
+const char PROGMEM MSG_EMPTY_SLOT[] = "(Empty)";
 
 
 const char PROGMEM MSG_MOISTURE_SENSOR[] = "Moisture sensor";
@@ -53,15 +52,18 @@ const char PROGMEM MSG_WATER_LEVELS[] = "Tray water lvs";
 const char PROGMEM MSG_ABORTED[] = "Aborted!";
 
 const char PROGMEM MSG_SOIL[] = "Soil";
+const char PROGMEM MSG_SOIL_SHORT[] = "Soil";
+
 const char PROGMEM MSG_SOIL_NOW[] = "Soil now:";
 const char PROGMEM MSG_TRAY[] = "Tray";
+const char PROGMEM MSG_TRAY_SHORT[] = "Tr";
 const char PROGMEM MSG_TRAY_NOW[] = "Tray now:";
 const char PROGMEM MSG_PERCENT[] = "%";
 const char PROGMEM MSG_ON_WHEN[] = "On:";
 const char PROGMEM MSG_OFF_WHEN[] = "Off:";
 const char PROGMEM MSG_IS[] = "is";
-const char PROGMEM MSG_AND[] = "/";
-const char PROGMEM MSG_OR[] = "+";
+const char PROGMEM MSG_AND[] = " AND ";
+const char PROGMEM MSG_OR[] = " OR ";
 const char PROGMEM MSG_BR_OPEN[] = "(";
 const char PROGMEM MSG_BR_CLOSED[] = ")";
 
@@ -206,6 +208,25 @@ const char PROGMEM MSG_MAX_PUMP_OUT_TIME[] = "Max pump out time";
 const char PROGMEM MSG_PUMP_OUT_REST_TIME[] = "Pump out rest time";
 const char PROGMEM MSG_DEVICE_WILL_BLINK[] = "Device will blink";
 const char PROGMEM MSG_THREE_TIMES[] = "three times...";
+
+const char PROGMEM MSG_60_PERCENT[] = "60%";
+const char PROGMEM MSG_65_PERCENT[] = "65%";
+const char PROGMEM MSG_70_PERCENT[] = "70%";
+const char PROGMEM MSG_75_PERCENT[] = "75%";
+const char PROGMEM MSG_80_PERCENT[] = "80%";
+const char PROGMEM MSG_85_PERCENT[] = "85%";
+const char PROGMEM MSG_90_PERCENT[] = "90%";
+const char PROGMEM MSG_95_PERCENT[] = "95%";
+const char PROGMEM MSG_100_PERCENT[] = "100%";
+
+const char PROGMEM MSG_TEST_SENSORS[] = "Test sensors";
+
+const char PROGMEM MSG_TRAY_HIGH_COLUMN[] = "Tray high:";
+const char PROGMEM MSG_TRAY_MID_COLUMN[] =  "Tray mid :";
+const char PROGMEM MSG_TRAY_LOW_COLUMN[] =  "Tray low :";
+const char PROGMEM MSG_SOIL_MOISTURE_COLUNN[] =  "Soil mst:";
+
+
 
 
 const char PROGMEM MSG_SAFETY_LIMITS[] = "Safety limits";
