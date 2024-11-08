@@ -19,11 +19,8 @@
 #define PUMP_IN_DEVICE 8  // Was 7
 #define PUMP_OUT_DEVICE 2
 
-#define SENSOR_READ_INTERVAL 30000
+#define SENSOR_READ_INTERVAL 5000
 #define SENSOR_STABILIZATION_TIME 300
-
-const unsigned long readInterval = 5000;            // 30 seconds interval between reads in idle mode
-const unsigned long sensorStabilizationTime = 300;  // 30
 
 
 void initSensors();
@@ -35,7 +32,6 @@ bool senseTrayWaterLevelLow();
 bool senseTrayWaterLevelMid();
 bool senseTrayWaterLevelHigh();
 
-uint16_t senseTrayWaterLevel(uint8_t mode = 0);
 bool senseTrayIsFull();
 char* trayWaterLevelInEnglish(uint8_t trayState);
 uint8_t soilMoistureAsState(uint8_t soilMoistureAsPercentage);
