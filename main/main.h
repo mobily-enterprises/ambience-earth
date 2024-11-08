@@ -20,7 +20,7 @@ typedef struct {
 
 enum PumpState { IDLE, PUMPING, COMPLETED };
 
-#define SCREENSAVER_TRIGGER_TIME 15000
+#define SCREENSAVER_TRIGGER_TIME 60000
 
 void runAction(Action *action, uint8_t index, bool force = 0);
 void mainMenu();
