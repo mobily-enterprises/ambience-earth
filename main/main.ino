@@ -36,14 +36,11 @@ bool screenSaverMode = false;
 
 void setup() {
   Serial.begin(9600);  // Initialize serial communication at 9600 baud rate
-
-  Serial.println("Ahahahah");
   initLcdAndButtons();
 
   extern LiquidCrystal_I2C lcd;
 
   initSensors();
-
 
   // 0: TRAY WATER LEVEL
   pinMode(A1, OUTPUT);
@@ -56,6 +53,7 @@ void setup() {
   digitalWrite(A6, LOW);
   pinMode(A7, OUTPUT);
   digitalWrite(A7, LOW);
+
 
 
   // TEMP();
@@ -87,11 +85,9 @@ void setup() {
 
 void createBootLogEntry() {
   senseSoilMoisture(1);
-  senseTrayWaterLevel(1);
   delay(500);
 
   uint8_t soilMoistureBefore = soilMoistureAsPercentage(senseSoilMoisture(2));
-  uint8_t trayWaterLevelBefore = trayWaterLevelAsPercentage(senseTrayWaterLevel(2));
 
   clearLogEntry((void *)&newLogEntry);
   newLogEntry.millisStart = 0;
@@ -99,7 +95,6 @@ void createBootLogEntry() {
   newLogEntry.entryType = 0;  // BOOTED UP
   newLogEntry.actionId = 7;   // NOT RELEVANT
   newLogEntry.soilMoistureBefore = soilMoistureBefore;
-  newLogEntry.trayWaterLevelBefore = trayWaterLevelBefore;
   newLogEntry.soilMoistureAfter = 0;
   newLogEntry.trayWaterLevelAfter = 0;
   newLogEntry.topFeed = 0;
@@ -108,7 +103,7 @@ void createBootLogEntry() {
   // Serial.println("Writing initial boot entry...");
   writeLogEntry((void *)&newLogEntry);
 
-  senseTrayWaterLevel(1);
+  senseSoilMoisture(1);
 }
 
 
@@ -162,22 +157,6 @@ void updateaverageMsBetweenFeeds(unsigned long durationMillis) {
 void loop() {
 
   unsigned long currentMillis = millis();
-
-
-  /*
-  pinMode(A7, INPUT_PULLUP);
-  while(true) {
-    // Read the value from analog pin A7
-    int sensorValue = analogRead(A7);
-    // Print the value to the Serial Monitor
-    Serial.println("STOCAZZO");
-    Serial.println(sensorValue);
-    // Wait for 500 milliseconds (0.5 seconds)
-    delay(1500);
-  }
-  */
-
-
   if (millis() - lastButtonPressTime > SCREENSAVER_TRIGGER_TIME) screenSaverModeOn();
 
   if (currentMillis - actionPreviousMillis >= actionInterval) {
@@ -186,6 +165,8 @@ void loop() {
     maybeRunActions();
     emptyTrayIfNecessary();
     displayInfo(screenCounter);
+    // int pinValue = digitalRead(12);
+    // Serial.print(digitalRead(12));
   }
 
 // delay(3000);
@@ -208,6 +189,7 @@ while(1) {
   // Exit the main "action" loop, and go to the system's menu,
   // if a button is pressed
   analogButtonsCheck();
+  
   if (pressedButton != nullptr) {
     lastButtonPressTime = millis();
 
@@ -439,16 +421,14 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
   // Let water in
   openLineIn();
 
-  senseTrayWaterLevel(2);
+  // Serial.println("Hereeeeeeeeeeeeeeeee");
   senseSoilMoisture(2);
   
-
   unsigned long feedStartMillis = millis();
   // Serial.print("feedStartMillis: "); Serial.println(feedStartMillis);
 
 
   uint8_t soilMoistureBefore = soilMoistureAsPercentage(senseSoilMoisture());
-  uint8_t trayWaterLevelBefore = trayWaterLevelAsPercentage(senseTrayWaterLevel());
 
   uint8_t shouldStop = 0;
   uint8_t retCode = 0;
@@ -493,7 +473,6 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
       millisAtEndOfLastFeed = millis();
 
       closeLineIn();
-      senseTrayWaterLevel(1);
       senseSoilMoisture(1);
 
       // Serial.print("MS: "); Serial.println(millis());
@@ -504,9 +483,7 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
       newLogEntry.millisEnd = millis();
       newLogEntry.actionId = index;
       newLogEntry.soilMoistureBefore = soilMoistureBefore;
-      newLogEntry.trayWaterLevelBefore = trayWaterLevelBefore;
       newLogEntry.soilMoistureAfter = soilMoistureAsPercentage(senseSoilMoisture());
-      newLogEntry.trayWaterLevelAfter = trayWaterLevelAsPercentage(senseTrayWaterLevel());
       newLogEntry.topFeed = action->feedFrom == FeedFrom::FEED_FROM_TOP;
       newLogEntry.outcome = retCode;
 
@@ -725,45 +702,6 @@ void viewLogs() {
   }
 }
 
-/*  
-    **********************************************************************
-    * RUNNING SCREEN CODE
-    * displayInfo() is run in the main program's loop()
-    ***********************************************************************
-*/
-
-/*
-void displayInfo(uint8_t screen) {
-  switch (screen) {
-    case 0:
-     displayInfo4(screen);
-      break;
-    case 1:
-    displayInfo4(screen);
-      break;
-    case 2:
-     displayInfo4(screen);
-      break;
-    case 3:
-     displayInfo4(screen);
-      break;
-    case 4:  
-      displayInfo4(screen);
-      break;
-    case 5:
-      //displayInfo3(screen);
-      displayInfo4(screen);
-      break;
-    case 6:
-         displayInfo4(screen);
-    case 7:
-      displayInfo1(screen);
-      // displayInfo2(screen);
-    break;
-  }
-}
-
-*/
 
 void displayInfo(uint8_t screen) {
   if (screenSaverMode) {
@@ -780,6 +718,9 @@ void displayInfo(uint8_t screen) {
     return;
   }
 
+  // Serial.println(digitalRead(TRAY_SENSOR_LOW));
+  // Serial.println(digitalRead(TRAY_SENSOR_MID));
+  
   switch (screen) {
     case 0:
     case 1:
@@ -827,7 +768,6 @@ void displayInfo1(uint8_t screen) {
 
 void displayInfo4(uint8_t screen) {
   // uint16_t soilMoisture = senseSoilMoisture();
-  // uint16_t trayWaterLevel = senseTrayWaterLevel(2);
 
   lcdClear();
 
