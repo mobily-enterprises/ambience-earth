@@ -1,0 +1,20 @@
+
+// Water sensor type
+const int TRAY_WATER_SENSORS_PNP = 1;
+const int TRAY_WATER_SENSORS_NPN = 2;
+
+const int TRAY_WATER_SENSORS_TYPE = TRAY_WATER_SENSORS_NPN;
+
+
+// Keypad type
+const int KEYPAD_ALIBABA_TONY = 1;
+const int KEYPAD_ALIBABA_MICHAEL = 2;
+
+const int KEYPAD_TYPE =  KEYPAD_ALIBABA_TONY;
+
+
+// Switch type
+const int SWITCH_NORMALLY_OPEN_MICHAEL = 1;
+const int SWITCH_NORMALLY_CLOSED_TONY = 2;
+
+const int SWITCH_TYPE = SWITCH_NORMALLY_CLOSED_TONY;

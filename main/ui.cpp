@@ -2,7 +2,7 @@
 #include <AnalogButtons.h>
 #include "ui.h"
 #include "messages.h"
-
+#include "hardwareConf.h"
 
 // Private functions (not declared in ui.h)
 void labelcpyFromString(char *destination, const char *source);
@@ -28,12 +28,12 @@ char choicesHeader[LABEL_LENGTH + 1];
 
 char userInputString[LABEL_LENGTH + 1];
 
-// ACTUAL keypad
-Button upButton = Button(96, &upClick);
-Button leftButton = Button(182, &leftClick);
-Button downButton = Button(34, &downClick);
-Button rightButton = Button(0, &rightClick);
-Button okButton = Button(386, &okClick);
+Button upButton(0, nullptr);
+Button leftButton(0, nullptr);
+Button downButton(0, nullptr);
+Button rightButton(0, nullptr);
+Button okButton(0, nullptr);
+
 
 /*
 // Tony's keypad
@@ -43,6 +43,23 @@ Button downButton = Button(682, &downClick);
 Button rightButton = Button(170, &rightClick);
 Button okButton = Button(853, &okClick);
 */
+
+void initializeButtons() {
+  if (SWITCH_TYPE == SWITCH_NORMALLY_OPEN_MICHAEL) {
+    // Keypad (bought later at Alibaba)
+    upButton = Button(318, &upClick);
+    leftButton = Button(516, &leftClick);
+    downButton = Button(150, &downClick);
+    rightButton = Button(0, &rightClick);
+    okButton = Button(820, &okClick);
+  } else if (SWITCH_TYPE == SWITCH_NORMALLY_CLOSED_TONY) {
+    upButton = Button(96, &upClick);
+    leftButton = Button(182, &leftClick);
+    downButton = Button(34, &downClick);
+    rightButton = Button(0, &rightClick);
+    okButton = Button(370, &okClick);
+  }
+}
 
 
 void upClick() {
@@ -157,6 +174,8 @@ void initLcdAndButtons() {
 
 
   pinMode(BUTTONS_PIN, INPUT_PULLUP);
+
+  initializeButtons(); // Call to initialize the buttons
 
   analogButtons.add(upButton);
   analogButtons.add(leftButton);

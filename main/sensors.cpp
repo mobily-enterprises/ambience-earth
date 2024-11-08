@@ -1,5 +1,7 @@
 
 #include "config.h"
+
+#include "hardwareConf.h"
 #include "sensors.h"
 
 #include <Arduino.h>
@@ -11,46 +13,61 @@ void initSensors() {
   pinMode(SOIL_MOISTURE_SENSOR_POWER, OUTPUT);
 
   pinMode(SOIL_MOISTURE_SENSOR, INPUT);
+  // pinMode(SOIL_MOISTURE_SENSOR, INPUT);
+
   pinMode(TRAY_WATER_LEVEL_SENSOR, INPUT);
-
-  pinMode(TRAY_SENSOR_HIGH, INPUT);
-  pinMode(TRAY_SENSOR_MID, INPUT);
-  pinMode(TRAY_SENSOR_LOW, INPUT);
-
 
   digitalWrite(TRAY_WATER_LEVEL_SENSOR_POWER, HIGH);
   digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH);
 
   pinMode(TRAY_FULL_SENSOR, INPUT_PULLUP);
 
-  pinMode(TRAY_SENSOR_HIGH, INPUT_PULLUP);
-  pinMode(TRAY_SENSOR_MID, INPUT_PULLUP);
-  pinMode(TRAY_SENSOR_LOW, INPUT_PULLUP);
+  if (TRAY_WATER_SENSORS_TYPE == TRAY_WATER_SENSORS_NPN) {
+    // Tony's original/NPM: Internal pullups
+    pinMode(TRAY_SENSOR_HIGH, INPUT_PULLUP);
+    pinMode(TRAY_SENSOR_MID, INPUT_PULLUP);
+    pinMode(TRAY_SENSOR_LOW, INPUT_PULLUP);
+  } else {
+    // Michael/PNP: NO pullups (will need pulldown)
+    pinMode(TRAY_SENSOR_HIGH, INPUT);
+    pinMode(TRAY_SENSOR_MID, INPUT);
+    pinMode(TRAY_SENSOR_LOW, INPUT);
+
+  }
+
 
 
   pinMode(PUMP_IN_DEVICE, OUTPUT);
   digitalWrite(PUMP_IN_DEVICE, HIGH);
-
   pinMode(SOLENOID_IN_DEVICE, OUTPUT);
-  digitalWrite(SOLENOID_IN_DEVICE, HIGH);
+
+  if (TRAY_WATER_SENSORS_TYPE == TRAY_WATER_SENSORS_NPN) {
+    // Tony/original 
+    digitalWrite(SOLENOID_IN_DEVICE, HIGH);
+  } else {
+    // MICHAEL/PNP
+    digitalWrite(SOLENOID_IN_DEVICE, LOW);
+  }
 
   pinMode(PUMP_OUT_DEVICE, OUTPUT);
   digitalWrite(PUMP_OUT_DEVICE, HIGH);
 }
 
 void openLineIn() {
+  int whatToWrite = SWITCH_TYPE == SWITCH_NORMALLY_CLOSED_TONY ? LOW : HIGH;
   if (config.feedLine == FeedLine::PUMP_IN) {
-    digitalWrite(PUMP_IN_DEVICE, LOW);
+    digitalWrite(PUMP_IN_DEVICE, whatToWrite);
   } else {
-    digitalWrite(SOLENOID_IN_DEVICE, LOW);
+    digitalWrite(SOLENOID_IN_DEVICE, whatToWrite);
   }
 }
 
 void closeLineIn() {
+  int whatToWrite = SWITCH_TYPE == SWITCH_NORMALLY_CLOSED_TONY ? LOW : HIGH;
   if (config.feedLine == FeedLine::PUMP_IN) {
-    digitalWrite(PUMP_IN_DEVICE, HIGH);
+    digitalWrite(PUMP_IN_DEVICE, whatToWrite);
   } else {
-    digitalWrite(SOLENOID_IN_DEVICE, HIGH);
+    digitalWrite(SOLENOID_IN_DEVICE, whatToWrite);
   }
 }
 
@@ -61,29 +78,6 @@ void openPumpOut() {
 void closePumpOut() {
   digitalWrite(PUMP_OUT_DEVICE, LOW);
 }
-
-/*
-uint16_t senseSoilMoisture(bool immediate = false) {
-    const uint8_t NUM_READINGS = 5;    // Number of readings to average
-    static uint32_t total = 0;         // Sum of the readings
-    static uint16_t average = 0;       // Average of the readings
-
-    if (immediate) return analogRead(SOIL_MOISTURE_SENSOR);
-
-    // Subtract the oldest reading from the total
-    total -= total / NUM_READINGS;
-
-    // Read a new value
-    // analogRead(SOIL_MOISTURE_SENSOR);
-    // delay(100);
-    total += analogRead(SOIL_MOISTURE_SENSOR);
-
-    // Calculate the average
-    average = total / NUM_READINGS;
-
-    return average;
-}
-*/
 
 uint16_t senseSoilMoisture(uint8_t mode = 0) {
   static uint8_t state = 0;                 // Initial state
@@ -115,8 +109,9 @@ uint16_t senseSoilMoisture(uint8_t mode = 0) {
       case 0:  // Idle state
         if (firstRun || millis() - lastReadTime >= readInterval) {
 
-          // Serial.println("Outside the interval! Turning it on...");
-          // Serial.println(firstRun);
+          Serial.println("Outside the interval! Turning it on...");
+          Serial.print("Firstrun was...");
+          Serial.println(firstRun);
 
           digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH);  // Turn on the sensor
           stateEntryTime = millis();                       // Record the entry time
@@ -127,22 +122,27 @@ uint16_t senseSoilMoisture(uint8_t mode = 0) {
         }
         break;
       case 1:  // Wait for stabilization
-        // Serial.println("Stabilising...");
+        Serial.println("Stabilising...");
 
         if (millis() - stateEntryTime >= sensorStabilizationTime) {
           // analogRead(TRAY_WATER_LEVEL_SENSOR);
           // delay(100);
 
-          // Serial.println("Making an ACTIAL read, since it's stable!");
+          Serial.println("Making an ACTIAL read, since it's stable!");
 
           lastSensorValue = analogRead(SOIL_MOISTURE_SENSOR);  // Read the sensor value
+          Serial.print("Reading is: ");
+          Serial.println(lastSensorValue);
+
           stateEntryTime = millis();                           // Record the entry time
           state = 2;                                           // Move to the next state
+        } else {
+          Serial.println("Not yet stable...");
         }
         break;
       case 2:  // Turn off the sensor
         if (millis() - stateEntryTime >= sensorStabilizationTime) {
-          // Serial.println("Turning it off...");
+          Serial.println("Turning it off...");
 
           digitalWrite(SOIL_MOISTURE_SENSOR_POWER, LOW);  // Turn off the sensor
           lastReadTime = millis();                        // Update the last read time
@@ -153,7 +153,7 @@ uint16_t senseSoilMoisture(uint8_t mode = 0) {
         // Serial.println("WTF...");
     }
   } else if (mode == 2) {  // Feeding mode
-    // Serial.println("MODE 2 READ");
+    Serial.println("MODE 2 READ");
     switch (state) {
       case 0:                                            // Initial state
         digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH);  // Ensure the sensor is on
@@ -167,93 +167,6 @@ uint16_t senseSoilMoisture(uint8_t mode = 0) {
 
   return lastSensorValue;
 }
-
-
-
-
-uint16_t senseTrayWaterLevel(uint8_t mode = 0) {
-  static uint8_t state = 0;                 // Initial state
-  static unsigned long lastReadTime = 0;    // Last time the sensor was read
-  static uint16_t lastSensorValue = 0;      // Last read sensor value
-  static unsigned long stateEntryTime = 0;  // Time when the state was entered
-  static uint8_t previousMode = 1;          // Default to idle mode if no mode is specified
-  static bool firstRun = true;              // Flag to check if this is the first run
-
-  const unsigned long readInterval = SENSOR_READ_INTERVAL;                  // 30 seconds interval between reads in idle mode
-  const unsigned long sensorStabilizationTime = SENSOR_STABILIZATION_TIME;  // 300 ms stabilization time
-
-
-  // If no mode is specified, use the previous mode
-  if (mode == 0) {
-    mode = previousMode;
-  } else if (mode != previousMode) {
-    // Reset the state machine if the mode has changed
-    state = 0;
-    previousMode = mode;
-    // firstRun = true; // Ensure the first run flag is set if the mode changes
-  }
-
-  if (mode == 1) {  // Idle mode
-    Serial.print("MODE 1 TRAY WATER SENSOR READ with state ");
-    Serial.println(state);
-
-    switch (state) {
-      case 0:  // Idle state
-        if (firstRun || millis() - lastReadTime >= readInterval) {
-
-          // Serial.println("Outside the interval! Turning it on...");
-          // Serial.println(firstRun);
-
-          digitalWrite(TRAY_WATER_LEVEL_SENSOR_POWER, HIGH);  // Turn on the sensor
-          stateEntryTime = millis();                          // Record the entry time
-          state = 1;                                          // Move to the next state
-          firstRun = false;                                   // Clear the first run flag
-        } else {
-          digitalWrite(TRAY_WATER_LEVEL_SENSOR_POWER, LOW);
-        }
-        break;
-      case 1:  // Wait for stabilization
-        // Serial.println("Stabilising...");
-
-        if (millis() - stateEntryTime >= sensorStabilizationTime) {
-          // analogRead(TRAY_WATER_LEVEL_SENSOR);
-          // delay(100);
-
-          // Serial.println("Making an ACTIAL read, since it's stable!");
-
-          lastSensorValue = analogRead(TRAY_WATER_LEVEL_SENSOR);  // Read the sensor value
-          stateEntryTime = millis();                              // Record the entry time
-          state = 2;                                              // Move to the next state
-        }
-        break;
-      case 2:  // Turn off the sensor
-        if (millis() - stateEntryTime >= sensorStabilizationTime) {
-          // Serial.println("Turning it off...");
-
-          digitalWrite(TRAY_WATER_LEVEL_SENSOR_POWER, LOW);  // Turn off the sensor
-          lastReadTime = millis();                           // Update the last read time
-          state = 0;                                         // Move back to idle state
-        }
-        break;
-        // default:
-        // Serial.println("WTF...");
-    }
-  } else if (mode == 2) {  // Feeding mode
-    // Serial.println("MODE 2 READ");
-    switch (state) {
-      case 0:                                               // Initial state
-        digitalWrite(TRAY_WATER_LEVEL_SENSOR_POWER, HIGH);  // Ensure the sensor is on
-        state = 1;                                          // Move to the reading state
-        break;
-      case 1:                                                   // Continuously read the sensor value
-        lastSensorValue = analogRead(TRAY_WATER_LEVEL_SENSOR);  // Read the sensor value
-        break;
-    }
-  }
-
-  return lastSensorValue;
-}
-
 
 bool senseTrayIsFull() {
   return !digitalRead(TRAY_FULL_SENSOR);
@@ -305,16 +218,31 @@ uint8_t soilMoistureAsPercentage(uint16_t soilMoisture) {
 }
 
 bool senseTrayWaterLevelLow() {
-  return !digitalRead(TRAY_SENSOR_LOW);
+  // MICHAEL: added a "!", HE HAS NPN
+  if (SWITCH_TYPE == SWITCH_NORMALLY_CLOSED_TONY) {
+    return !digitalRead(TRAY_SENSOR_LOW);
+  } else {
+    return !digitalRead(TRAY_SENSOR_LOW);
+  }
 }
 
 bool senseTrayWaterLevelMid() {
   // Sensor not there yet
-  return !digitalRead(TRAY_SENSOR_MID);
+  // MICHAEL: added a "!", HE HAS NPN
+  if (SWITCH_TYPE == SWITCH_NORMALLY_CLOSED_TONY) {
+    return !digitalRead(TRAY_SENSOR_MID);
+  } else {
+    return !digitalRead(TRAY_SENSOR_MID);
+  }
 }
 
 bool senseTrayWaterLevelHigh() {
-  return !digitalRead(TRAY_SENSOR_HIGH);
+  // MICHAEL: added a "!", HE HAS NPN
+  if (SWITCH_TYPE == SWITCH_NORMALLY_CLOSED_TONY) {
+    return !digitalRead(TRAY_SENSOR_HIGH);
+  } else {
+    return !digitalRead(TRAY_SENSOR_HIGH);
+  }
 }
 
 uint8_t trayWaterLevelAsPercentage(uint16_t waterLevel) {
