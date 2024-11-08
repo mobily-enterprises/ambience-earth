@@ -65,7 +65,7 @@ void maintenance() {
 }
 
 void testSensors() {
-  static const unsigned long interval = 10;  // interval at which to run (milliseconds)
+  static const unsigned long interval = 300;  // interval at which to run (milliseconds)
   static unsigned long previousMillis = 0;   // will store last time the loop ran
   static int soilMoisturePercentage = 0;
   static bool trayWaterLevelLow = false;
@@ -91,18 +91,19 @@ void testSensors() {
     if (currentMillis - previousMillis >= interval) {
       previousMillis = currentMillis;
 
-     soilMoistureReading = senseSoilMoisture(2);
+      soilMoistureReading = senseSoilMoisture(2);
       
       soilMoisturePercentage = soilMoistureAsPercentage(soilMoistureReading);
       trayWaterLevelLow = senseTrayWaterLevelLow();
       trayWaterLevelMid = senseTrayWaterLevelMid();
       trayWaterLevelHigh = senseTrayWaterLevelHigh();
 
-      analogButtonsCheck();
       
-
+      analogButtonsCheck();
+ 
       if (pressedButton != nullptr) break;
 
+      // Serial.print("AH"); Serial.println(digitalRead(TRAY_SENSOR_LOW)); 
       lcdSetCursor(11, 0);
       lcdPrintNumber(trayWaterLevelLow);
       lcdPrint(MSG_SPACE);
