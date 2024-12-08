@@ -32,7 +32,6 @@ void initSensors() {
     pinMode(TRAY_SENSOR_HIGH, INPUT);
     pinMode(TRAY_SENSOR_MID, INPUT);
     pinMode(TRAY_SENSOR_LOW, INPUT);
-
   }
 
 
@@ -42,7 +41,7 @@ void initSensors() {
   pinMode(SOLENOID_IN_DEVICE, OUTPUT);
 
   if (TRAY_WATER_SENSORS_TYPE == TRAY_WATER_SENSORS_NPN) {
-    // Tony/original 
+    // Tony/original
     digitalWrite(SOLENOID_IN_DEVICE, HIGH);
   } else {
     // MICHAEL/PNP
@@ -63,7 +62,7 @@ void openLineIn() {
 }
 
 void closeLineIn() {
-  int whatToWrite = SWITCH_TYPE == SWITCH_NORMALLY_CLOSED_TONY ? LOW : HIGH;
+  int whatToWrite = SWITCH_TYPE == SWITCH_NORMALLY_CLOSED_TONY ? HIGH : LOW;
   if (config.feedLine == FeedLine::PUMP_IN) {
     digitalWrite(PUMP_IN_DEVICE, whatToWrite);
   } else {
@@ -134,8 +133,8 @@ uint16_t senseSoilMoisture(uint8_t mode = 0) {
           Serial.print("Reading is: ");
           Serial.println(lastSensorValue);
 
-          stateEntryTime = millis();                           // Record the entry time
-          state = 2;                                           // Move to the next state
+          stateEntryTime = millis();  // Record the entry time
+          state = 2;                  // Move to the next state
         } else {
           Serial.println("Not yet stable...");
         }
