@@ -28,7 +28,7 @@ bool senseTrayWaterLevelHigh() {
 
 uint8_t trayWaterLevelAsState() {
   bool low = senseTrayWaterLevelLow();
-  bool mid = senseTrayWaterLevelMid;
+  bool mid = senseTrayWaterLevelMid();
   bool high = senseTrayWaterLevelHigh();
 
   if (high) return Conditions::TRAY_FULL;

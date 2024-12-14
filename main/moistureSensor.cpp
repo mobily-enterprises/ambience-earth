@@ -86,7 +86,6 @@ uint16_t soilSensorOp(uint8_t op) {
     }
 
     case 3: { // Set real-time mode
-      Serial.println("Set sensor to realtime");
       readMode = 1; // Switch to real-time mode
       digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH); // Power on the sensor
       delay(stabilizationTime); // Stabilize the sensor
@@ -108,15 +107,11 @@ uint8_t soilMoistureAsPercentage(uint16_t soilMoisture) {
 
   unsigned int shifted = config.moistSensorCalibrationDry - soilMoisture;
 
-  //   Serial.println(shifted);
   if (shifted == 0 || shifted > 60000) shifted = 1;
   else if (shifted > delta) shifted = delta;
 
   percentage = (shifted * 100) / delta;
-  // Serial.println(shifted);
-  // Serial.println(percentage);
-
-
+  
   return percentage;
 }
 

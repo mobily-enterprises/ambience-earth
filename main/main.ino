@@ -129,10 +129,10 @@ void maybeLogValues() {
       uint8_t soilMoisture = soilMoistureAsPercentage(getSoilMoisture());
       uint8_t trayState = trayWaterLevelAsState();
 
-      Serial.println("VALUES:");
-      Serial.println(soilMoisture);
-      Serial.println(trayState);
-      Serial.println("");
+      // Serial.println("VALUES:");
+      // Serial.println(soilMoisture);
+      // Serial.println(trayState);
+      // Serial.println("");
 
       clearLogEntry((void *)&newLogEntry);
       newLogEntry.entryType = 2;  // VALUES
