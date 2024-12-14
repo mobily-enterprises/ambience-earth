@@ -45,14 +45,14 @@ Button okButton = Button(853, &okClick);
 */
 
 void initializeButtons() {
-  if (SWITCH_TYPE == SWITCH_NORMALLY_OPEN_MICHAEL) {
+  if (KEYPAD_TYPE ==  KEYPAD_ALIBABA_TONY) {
     // Keypad (bought later at Alibaba)
     upButton = Button(318, &upClick);
     leftButton = Button(516, &leftClick);
     downButton = Button(150, &downClick);
     rightButton = Button(0, &rightClick);
     okButton = Button(820, &okClick);
-  } else if (SWITCH_TYPE == SWITCH_NORMALLY_CLOSED_TONY) {
+  } else {
     upButton = Button(96, &upClick);
     leftButton = Button(182, &leftClick);
     downButton = Button(34, &downClick);
@@ -60,7 +60,6 @@ void initializeButtons() {
     okButton = Button(370, &okClick);
   }
 }
-
 
 void upClick() {
   pressedButton = &upButton;

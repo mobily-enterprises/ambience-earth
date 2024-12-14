@@ -2,10 +2,11 @@
 #include <Arduino.h>
 #include "main.h"
 #include "ui.h"
-#include "sensors.h"
 #include "config.h"
 #include "messages.h"
-#include "sensors.h"
+#include "traySensors.h"
+#include "pumps.h"
+#include "moistureSensor.h"
 #include "logs.h"
 #include "settings.h"
 #include "main.h"
@@ -365,11 +366,6 @@ int runInitialSetup() {
   config.feedFrom = selectChoice(2, FeedFrom::FEED_FROM_TOP);
   if (config.feedFrom == -1) return false;
 
-  setChoices(MSG_PUMP_IN, FeedLine::PUMP_IN, MSG_SOLENOID_IN, FeedLine::SOLENOID_IN);
-  setChoicesHeader(MSG_LINE_IN);
-  config.feedLine = selectChoice(2, config.feedLine);
-  if (config.feedLine == -1) return false;
-
   if (config.feedFrom == FeedFrom::FEED_FROM_TOP) {
     config.trayNeedsEmptying = yesOrNo(MSG_AUTO_DRAIN, false);
     if (config.trayNeedsEmptying == -1) return 0;
@@ -478,13 +474,7 @@ void setFeedFrom() {
   int8_t feedFrom = selectChoice(2, config.feedFrom);
   if (feedFrom == -1) return false;
 
-  setChoices(MSG_PUMP_IN, FeedLine::PUMP_IN, MSG_SOLENOID_IN, FeedLine::SOLENOID_IN);
-  setChoicesHeader(MSG_LINE_IN);
-  int8_t feedLine = selectChoice(2, config.feedLine);
-  if (feedLine == -1) return false;
-
-
-  if (feedFrom == config.feedFrom && feedLine == config.feedLine) return false;
+  if (feedFrom == config.feedFrom) return false;
 
   goAhead = yesOrNo(MSG_SAVE_QUESTION);
   if (goAhead == -1) return false;
@@ -493,7 +483,6 @@ void setFeedFrom() {
 
     // Only overwritten once saving
     config.feedFrom = feedFrom;
-    config.feedLine = feedLine;
 
     // Zap autofeed for anything but TOP feeding
     if (config.feedFrom != FeedFrom::FEED_FROM_TOP) {
@@ -514,38 +503,19 @@ void activatePumps() {
   while (true) {
     setChoices(
       MSG_PUMP_IN, PUMP_IN_DEVICE,
-      MSG_PUMP_OUT, PUMP_OUT_DEVICE,
-      MSG_SOLENOID_IN, SOLENOID_IN_DEVICE);
-    choice = selectChoice(3, 0);
+      MSG_PUMP_OUT, PUMP_OUT_DEVICE
+    );
+    choice = selectChoice(2, 0);
     if (choice == -1) return;
 
   lcdFlashMessage(MSG_DEVICE_WILL_BLINK, MSG_THREE_TIMES, 100);
  
    // pinMode(choice, OUTPUT);
     for(int i = 0; i <= 3; i++) {
-      digitalWrite(choice, HIGH);
-      delay(1000);
       digitalWrite(choice, LOW);
       delay(1000);
+      digitalWrite(choice, HIGH);
+      delay(1000);
     }
   }
 }
-
-
-
-/*
-int8_t pickAction() {
-  uint8_t i = 0, c = 0;
-  for (i = 0; i <= ACTIONS_ARRAY_SIZE; i++) {
-    if (config.feedFrom == config.actions[i].feedFrom) {
-      setChoiceFromString(c, config.actions[i].name, i);
-      c++;
-    }
-  }
-
-  int8_t choice = selectChoice(c, 0);
-
-  return choice;
-}
-
-*/

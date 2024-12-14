@@ -21,11 +21,6 @@ enum FeedFrom : int8_t {
   FEED_FROM_TRAY
 };
 
-enum FeedLine : int8_t {
-  PUMP_IN,
-  SOLENOID_IN
-};
-
 typedef struct {
   enum : int8_t { TRAY_IGNORED, TRAY_DRY, TRAY_LITTLE, TRAY_MIDDLE, TRAY_FULL } tray;
   int8_t soil;
@@ -42,7 +37,6 @@ typedef struct {
 typedef struct {
     uint8_t checksum;
     FeedFrom feedFrom;
-    FeedLine feedLine;
     bool mustRunInitialSetup;
     char deviceName[10];
 

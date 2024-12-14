@@ -2,10 +2,11 @@
 #include <Arduino.h>
 #include "main.h"
 #include "ui.h"
-#include "sensors.h"
 #include "config.h"
 #include "messages.h"
-#include "sensors.h"
+#include "traySensors.h"
+#include "pumps.h"
+#include "moistureSensor.h"
 #include "settings.h"
 #include "logs.h"
 #include <LiquidCrystal_I2C.h>
@@ -40,23 +41,38 @@ void setup() {
 
   extern LiquidCrystal_I2C lcd;
 
-  initSensors();
+  // Initial set for all pins
+  // This is a blanket-set, it will be overridden by
+  // sensor functions as needed.
+  //pinMode(0, OUTPUT); digitalWrite(0, LOW); // D0 (RX) left alone, serial comms
+  //pinMode(1, OUTPUT); digitalWrite(1, LOW); // D1 (TX) left alone, serial comms
+  pinMode(2, OUTPUT); digitalWrite(2, LOW); 
+  pinMode(3, OUTPUT); digitalWrite(3, LOW); 
+  pinMode(4, OUTPUT); digitalWrite(4, LOW);
+  pinMode(5, OUTPUT); digitalWrite(5, LOW);
+  pinMode(6, OUTPUT); digitalWrite(6, LOW);
+  pinMode(7, OUTPUT); digitalWrite(7, LOW);
+  pinMode(8, OUTPUT); digitalWrite(8, LOW);
+  pinMode(9, OUTPUT); digitalWrite(9, LOW);
+  pinMode(10, OUTPUT); digitalWrite(10, LOW);
+  pinMode(11, OUTPUT); digitalWrite(11, LOW);
+  pinMode(12, OUTPUT); digitalWrite(12, LOW);
+  pinMode(13, OUTPUT); digitalWrite(13, LOW);
 
-  // 0: TRAY WATER LEVEL
-  pinMode(A1, OUTPUT);
-  digitalWrite(A1, LOW);
-  // 2: MOISTURE SENSOR
-  // pinMode(A3, OUTPUT); digitalWrite(A3, LOW);
-  // 4: I2C
-  // 5: I2C
-  pinMode(A6, OUTPUT);
-  digitalWrite(A6, LOW);
-  pinMode(A7, OUTPUT);
-  digitalWrite(A7, LOW);
+  // Set analog pins (A0 to A5) as OUTPUT and drive LOW
+  pinMode(A0, OUTPUT); digitalWrite(A0, LOW);
+  pinMode(A1, OUTPUT); digitalWrite(A1, LOW);
+  pinMode(A2, OUTPUT); digitalWrite(A2, LOW);
+  pinMode(A3, OUTPUT); digitalWrite(A3, LOW);
+  pinMode(A4, OUTPUT); digitalWrite(A4, LOW);
+  pinMode(A5, OUTPUT); digitalWrite(A5, LOW);
 
+  pinMode(A6, INPUT_PULLUP); // Input onlu, set as pullup
+  pinMode(A7, INPUT_PULLUP); // Input onlu, set as pullup
 
-
-  // TEMP();
+  initTraySensors();
+  initPumps();
+  initMoistureSensor();
 
   // Init logs memory
   initLogs(&currentLogEntry, 1024, 256, 768, sizeof(currentLogEntry));
@@ -86,7 +102,6 @@ void setup() {
 void createBootLogEntry() {
   senseSoilMoisture(1);
   delay(500);
-
   uint8_t soilMoistureBefore = soilMoistureAsPercentage(senseSoilMoisture(2));
 
   clearLogEntry((void *)&newLogEntry);
@@ -115,7 +130,6 @@ void initialaverageMsBetweenFeeds() {
   unsigned long int found = 0;
 
   while (true) {
-
     // currentLogEntry
     // Serial.print("Seq: ");// Serial.print(currentLogEntry.seq);
     // Serial.print(" Type: ");// Serial.print(currentLogEntry.entryType);
@@ -159,9 +173,26 @@ void loop() {
   unsigned long currentMillis = millis();
   if (millis() - lastButtonPressTime > SCREENSAVER_TRIGGER_TIME) screenSaverModeOn();
 
+  analogButtonsCheck();
+  
+  if (pressedButton != nullptr) {
+    if (pressedButton == &upButton) screenCounter = (screenCounter - 1 + 4) % 4;
+    if (pressedButton == &downButton) screenCounter = (screenCounter + 1) % 4;
+    displayInfo(screenCounter);
+  }
+
+  if (pressedButton != nullptr) {
+    lastButtonPressTime = millis();
+
+    if (pressedButton == &okButton) mainMenu();
+
+    else screenSaverModeOff();
+    // pressedButton = nullptr;
+  }
+
+
   if (currentMillis - actionPreviousMillis >= actionInterval) {
     actionPreviousMillis = currentMillis;
-    screenCounter = (screenCounter + 1) % 8;
     maybeRunActions();
     emptyTrayIfNecessary();
     displayInfo(screenCounter);
@@ -169,34 +200,6 @@ void loop() {
     // Serial.print(digitalRead(12));
   }
 
-// delay(3000);
-
-
-/*
-while(1) {
-    openLineIn();
-    delay(20);
-    closeLineIn();
-    delay(20);
-  }
-*/
-
-
-  // To change the state (esp. turning it off after reading) if necessary
-  // senseTrayWaterLevel(1);
-
-  
-  // Exit the main "action" loop, and go to the system's menu,
-  // if a button is pressed
-  analogButtonsCheck();
-  
-  if (pressedButton != nullptr) {
-    lastButtonPressTime = millis();
-
-    if (pressedButton == &okButton) mainMenu();
-    else screenSaverModeOff();
-    // pressedButton = nullptr;
-  }
 }
 
 void screenSaverModeOff() {
@@ -317,7 +320,7 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
   c = start ? &action->triggerConditions : &action->stopConditions;
 
   uint8_t trayState = trayWaterLevelAsState(senseTrayWaterLevelLow(), senseTrayWaterLevelMid(), senseTrayWaterLevelHigh());
-  uint8_t soilPercentage = soilMoistureAsPercentage(senseSoilMoisture());
+  uint8_t soilPercentage = soilMoistureAsPercentage(senseSoilMoisture(2));
 
   /*
   Serial.println("B");
@@ -371,7 +374,7 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
 
 
 void printSoilAndWaterTrayStatus() {
-  uint16_t soilMoisture = senseSoilMoisture();
+  uint16_t soilMoisture = senseSoilMoisture(1);
   uint16_t soilMoisturePercent = soilMoistureAsPercentage(soilMoisture);
   uint16_t twlLow = senseTrayWaterLevelLow();
   uint16_t twlMid = senseTrayWaterLevelMid();
@@ -402,9 +405,6 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
     if (millisAtEndOfLastFeed && millis() - millisAtEndOfLastFeed < config.minFeedInterval) return;
     if (!actionShouldStartOrStop(action, 1)) return;
   }
-
-
-  bool trayIsFull = senseTrayIsFull();
 
   lcdPrint(MSG_SOIL_NOW, 0);
   lcdPrint(MSG_SPACE);
@@ -519,7 +519,7 @@ void emptyTrayIfNecessary() {
     case IDLE:
       if (millis() - lastPumpOutExecutionTime >= config.pumpOutRestTime && trayState >= Conditions::TRAY_MIDDLE) {
         lastPumpOutExecutionTime = millis();
-        openPumpOut();
+        openLineOut();
         pumpOutStartMillis = millis();
         pumpState = PUMPING;
       }
@@ -527,7 +527,7 @@ void emptyTrayIfNecessary() {
 
     case PUMPING:
       if (millis() - pumpOutStartMillis >= config.maxPumpOutTime || trayState <= Conditions::TRAY_LITTLE) {
-        closePumpOut();
+        closeLineOut();
         pumpState = COMPLETED;
       }
       break;
@@ -718,33 +718,17 @@ void displayInfo(uint8_t screen) {
     return;
   }
 
-  // Serial.println(digitalRead(TRAY_SENSOR_LOW));
-  // Serial.println(digitalRead(TRAY_SENSOR_MID));
-  
+  lcd.clear();
   switch (screen) {
-    case 0:
-    case 1:
-    case 2:
-      displayInfo1(screen);
-      break;
-    case 3:
-    case 4:
-    case 5:
-      displayInfo2(screen);
-      break;
-      // displayInfo1(screen);
-    case 6:
-      displayInfo3(screen);
-      break;
-    case 7:
-      // displayInfo1(screen);
-      displayInfo1(screen);
-      break;
+    case 0: displayInfo1(); break;
+    case 1: displayInfo2(0); break;
+    case 2: displayInfo3(); break;
+    case 3: displayInfo4(); break;
   }
 }
 
 
-void displayInfo1(uint8_t screen) {
+void displayInfo1() {
   uint16_t soilMoisture;
   uint8_t soilMoisturePercent;
   uint8_t trayWaterLevelPercent;
@@ -766,12 +750,9 @@ void displayInfo1(uint8_t screen) {
 }
 
 
-void displayInfo4(uint8_t screen) {
-  // uint16_t soilMoisture = senseSoilMoisture();
-
+void displayInfo4() {
+ 
   lcdClear();
-
-  digitalWrite(TRAY_WATER_LEVEL_SENSOR_POWER, HIGH);
 
   printSoilAndWaterTrayStatus();
   pinMode(A2, INPUT);
@@ -783,7 +764,7 @@ void displayInfo4(uint8_t screen) {
 }
 
 
-void displayInfo3(uint8_t screen) {
+void displayInfo3() {
   lcdClear();
   lcdPrint(MSG_NEXT_FEED, 1);
 
@@ -842,41 +823,18 @@ void displayTriggerConditions(Conditions conditions, bool shortString = false) {
   }
 }
 
-void displayInfo2(uint8_t screen) {
-  lcdClear();
-  int8_t active;
+void displayInfo2(uint8_t active) {
+  lcdPrint(MSG_ON_WHEN);
+  lcdPrint(MSG_SPACE);
+  lcdPrint(MSG_BR_OPEN);
+  lcd.print(config.actions[active].name);
+  lcdPrint(MSG_BR_CLOSED);
+  lcd.setCursor(0, 1);
 
-  if (config.activeActionsIndex0 == -1 && config.activeActionsIndex1 == -1) {
-    active = -1;
-  } else {
-    if (config.activeActionsIndex0 == -1) {
-      active = config.activeActionsIndex1;
-    } else if (config.activeActionsIndex1 == -1) {
-      active = config.activeActionsIndex0;
-    } else {
-      if (screen % 2 == 0) {
-        active = config.activeActionsIndex0;
-      } else {
-        active = config.activeActionsIndex1;
-      }
-    }
-  }
+  displayTriggerConditions(config.actions[active].triggerConditions, true);
 
-  if (active == -1) {
-    lcdPrint(MSG_INACTIVE);
-  } else {
-    lcdPrint(MSG_ON_WHEN);
-    lcdPrint(MSG_SPACE);
-    lcdPrint(MSG_BR_OPEN);
-    lcd.print(config.actions[active].name);
-    lcdPrint(MSG_BR_CLOSED);
-    lcd.setCursor(0, 1);
-
-    displayTriggerConditions(config.actions[active].triggerConditions, true);
-
-    lcd.setCursor(0, 2);
-    lcdPrint(MSG_OFF_WHEN);
-    lcd.setCursor(0, 3);
+  lcd.setCursor(0, 2);
+  lcdPrint(MSG_OFF_WHEN);
+  lcd.setCursor(0, 3);
     displayTriggerConditions(config.actions[active].stopConditions, true);
-  }
 }

@@ -62,7 +62,6 @@ void setConfigChecksum() {
 void restoreDefaultConfig() {
   config.checksum = 0;
   config.feedFrom = FeedFrom::FEED_FROM_TOP;
-  config.feedLine = FeedLine::PUMP_IN;
 
   config.mustRunInitialSetup = true;
 

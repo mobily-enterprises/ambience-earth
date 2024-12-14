@@ -76,7 +76,6 @@ const char PROGMEM MSG_FEED_LINE[] = "Feed line";
 
 const char PROGMEM MSG_PUMP_IN[] = "Pump IN";
 const char PROGMEM MSG_PUMP_OUT[] = "Pump OUT";
-const char PROGMEM MSG_SOLENOID_IN[] = "Solenoid";
 
 const char PROGMEM MSG_ONLY_TOP_FEEDING[] = "Only top feeding";
 
