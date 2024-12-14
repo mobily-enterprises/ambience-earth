@@ -97,6 +97,7 @@ void testSensors() {
       soilMoistureReading = getSoilMoisture();
       
       soilMoisturePercentage = soilMoistureAsPercentage(soilMoistureReading);
+      
       trayWaterLevelLow = senseTrayWaterLevelLow();
       trayWaterLevelMid = senseTrayWaterLevelMid();
       trayWaterLevelHigh = senseTrayWaterLevelHigh();

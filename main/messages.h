@@ -25,13 +25,13 @@ const char PROGMEM MSG_TRAY_DRY_SHORT[] = "dry";
 const char PROGMEM MSG_TRAY_LITTLE_SHORT[] = "lttl";
 const char PROGMEM MSG_TRAY_MIDDLE_SHORT[] = "midl";
 const char PROGMEM MSG_TRAY_FULL_SHORT[] = "full";
-const char PROGMEM MSG_TRAY_UNSTATED_SHORT[] = "unstated";
+const char PROGMEM MSG_TRAY_UNSTATED_SHORT[] = "?";
 
 const char PROGMEM MSG_TRAY_DRY[] = "dry";
 const char PROGMEM MSG_TRAY_LITTLE[] = "little";
 const char PROGMEM MSG_TRAY_MIDDLE[] = "middle";
 const char PROGMEM MSG_TRAY_FULL[] = "full";
-const char PROGMEM MSG_TRAY_UNSTATED[] = "?";
+const char PROGMEM MSG_TRAY_UNSTATED[] = "unstated";
 
 
 const char PROGMEM MSG_SOIL_WHEN_DRY[] = "Dry means";

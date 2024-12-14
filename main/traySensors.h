@@ -14,5 +14,6 @@ bool senseTrayWaterLevelMid();
 bool senseTrayWaterLevelHigh();
 
 char* trayWaterLevelInEnglish(uint8_t trayState);
-uint8_t trayWaterLevelAsState(bool low, bool mid, bool high);
+char* trayWaterLevelInEnglishShort(uint8_t trayState);
+uint8_t trayWaterLevelAsState();
 #endif TRAY_SENSORS_H
