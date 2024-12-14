@@ -60,7 +60,6 @@ void setup() {
   loadConfig();
 
   if (!configChecksumCorrect()) {
-    // Serial.println("CHECKSUM INCORRECT?!?");
     restoreDefaultConfig();
     saveConfig();
     wipeLogs();
@@ -72,7 +71,6 @@ void setup() {
 
   initialaverageMsBetweenFeeds();
 
-  // Serial.println("GOING TO LATEST SLOT FOR DEBUGGING REASONS:");
   createBootLogEntry();
   goToLatestSlot();
 
