@@ -38,4 +38,5 @@ char* trayWaterLevelInEnglish(uint8_t trayState) {
   else if (trayState == Conditions::TRAY_MIDDLE) return MSG_TRAY_MIDDLE;
   else if (trayState == Conditions::TRAY_LITTLE) return MSG_TRAY_LITTLE;
   else if (trayState == Conditions::TRAY_DRY) return MSG_TRAY_DRY;
+  else return MSG_TRAY_UNSTATED;
 }

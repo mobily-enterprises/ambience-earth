@@ -14,6 +14,7 @@
 /* YOU ARE HERE
   Adjust logging of tray and moisture, BOTH in the hourly one AND in the feed log
   Check why soil jumps to 100% after feeding and when turining it on
+  Check if logs go properly 100%, cycle around,
 */
 
 
@@ -125,12 +126,20 @@ void maybeLogValues() {
     if (currentMillis - lastRunTime >= LOG_VALUES_INTERVAL) {  
       lastRunTime = currentMillis; // Update the last run time
 
+      uint8_t soilMoisture = soilMoistureAsPercentage(getSoilMoisture());
+      uint8_t trayState = trayWaterLevelAsState(senseTrayWaterLevelLow(), senseTrayWaterLevelMid(), senseTrayWaterLevelHigh());
+
+      Serial.println("VALUES:");
+      Serial.println(soilMoisture);
+      Serial.println(trayState);
+      Serial.println("");
+
       clearLogEntry((void *)&newLogEntry);
       newLogEntry.entryType = 2;  // VALUES
       newLogEntry.millisStart = millis();
       newLogEntry.actionId = 0;
-      newLogEntry.soilMoistureAfter = soilMoistureAsPercentage(getSoilMoisture());
-      newLogEntry.trayWaterLevelAfter = trayWaterLevelAsState(senseTrayWaterLevelLow(), senseTrayWaterLevelMid(), senseTrayWaterLevelHigh());
+      newLogEntry.soilMoistureBefore = soilMoisture;
+      newLogEntry.trayWaterLevelBefore = trayState;
       newLogEntry.topFeed = 0;
       newLogEntry.outcome = 0;
       writeLogEntry((void *)&newLogEntry);
@@ -335,9 +344,7 @@ void forceAction() {
   setChoicesHeader(MSG_PICK_ACTION);
   index = selectChoice(i, 0);
   if (index == -1) return;
-  // Serial.println("INDEX:");
-
-  // Serial.println(index);
+  
   runAction(&config.actions[index], index, true);
 }
 
@@ -352,24 +359,11 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
   c = start ? &action->triggerConditions : &action->stopConditions;
 
   uint8_t trayState = trayWaterLevelAsState(senseTrayWaterLevelLow(), senseTrayWaterLevelMid(), senseTrayWaterLevelHigh());
-  uint8_t soilPercentage = soilMoistureAsPercentage(getSoilMoisture());
-
-  /*
-  Serial.println("B");
-  Serial.println(trayState);
-  Serial.println(soilState);
-  */
+  uint8_t soilPercentage = soilMoistureAsPercentage(getSoilMoisture());  
 
   uint8_t actionTrayState = c->tray;
   uint8_t actionSoilPercentage = c->soil;
   uint8_t actionLogic = c->logic;
-
-  /*
-  Serial.println("C");
-  Serial.println(actionTrayState);
-  Serial.println(actionSoilState);
-  Serial.println(actionLogic);
-  */
 
   bool satisfied = false;
 
@@ -383,12 +377,7 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
     soilSatisfied = soilPercentage >= actionSoilPercentage;
   }
 
-  /*
-  Serial.println("D");
-  Serial.println(traySatisfied);
-  Serial.println(soilSatisfied);
-  */
-
+  
   bool r;
   if (!actionTrayState && actionSoilPercentage) r = false;
   else if (!actionTrayState && actionSoilPercentage) r = soilSatisfied;
@@ -396,10 +385,6 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
   else if (actionLogic == Conditions::TRAY_OR_SOIL) r = soilSatisfied || traySatisfied;
   else /* if (actionLogic == Conditions::TRAY_AND_SOIL)*/ r = soilSatisfied && traySatisfied;
 
-  /*
-  Serial.println("E");
-  Serial.println(r);
-  */
 
   return r;
 }
@@ -426,10 +411,6 @@ void printSoilAndWaterTrayStatus() {
 
 void runAction(Action *action, uint8_t index, bool force = 0) {
 
-  // Serial.println("INDEX:");
-  // Serial.println(index);
-
-
   // Quit if not enough time has lapsed OR if the conditions
   // are not satisfied
   if (!force) {
@@ -441,14 +422,9 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
   lcdPrint(MSG_SOIL_NOW, 0);
   lcdPrint(MSG_SPACE);
 
-
-
   lcdClear();
 
   lcdPrint(MSG_FEEDING, 2);
-
-
-  // Serial.println("3");
 
   setSoilSensorRealTime();
 
@@ -456,15 +432,12 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
   openLineIn();
 
   unsigned long feedStartMillis = millis();
-  // Serial.print("feedStartMillis: "); Serial.println(feedStartMillis);
 
 
   uint8_t soilMoistureBefore = soilMoistureAsPercentage(getSoilMoisture());
 
   uint8_t shouldStop = 0;
   uint8_t retCode = 0;
-
-  // Serial.print("millisAtEndOfLastFeed: "); Serial.println(millisAtEndOfLastFeed);
 
   unsigned long lastUpdateMillis = 0;        // Store the time when we last updated the status
   const unsigned long updateInterval = 500;  // Update interval in milliseconds (500 ms = 0.5 second)
@@ -490,23 +463,17 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
       retCode = 1;  // INTERRUPTED
     }
 
-    // Serial.println("5");
 
     // Keep emptying the tray if necessary
     emptyTrayIfNecessary();
-    // Serial.println("6");
 
     if (shouldStop) {
-      // Serial.println("7");
-      // Serial.println(shouldStop);
 
       if (millisAtEndOfLastFeed) updateaverageMsBetweenFeeds(millis() - millisAtEndOfLastFeed);
       millisAtEndOfLastFeed = millis();
 
       closeLineIn();
       
-      // Serial.print("MS: "); Serial.println(millis());
-
       clearLogEntry((void *)&newLogEntry);
       newLogEntry.entryType = 1;  // FEED
       newLogEntry.millisStart = feedStartMillis;
@@ -719,11 +686,9 @@ void showLogType1() {
   lcdPrint(MSG_SPACE);
 
   lcdPrint(MSG_W_COLUMN);
-  lcdPrintNumber(currentLogEntry.trayWaterLevelBefore);
-  lcdPrint(MSG_PERCENT);
+  lcdPrint(trayWaterLevelInEnglish(currentLogEntry.trayWaterLevelBefore));
   lcdPrint(MSG_DASH);
-  lcdPrintNumber(currentLogEntry.trayWaterLevelAfter);
-  lcdPrint(MSG_PERCENT);
+  lcdPrint(trayWaterLevelInEnglish(currentLogEntry.trayWaterLevelAfter));
 
   lcd.setCursor(0, 3);
   if (currentLogEntry.outcome == 0) lcdPrint(MSG_LOG_OUTCOME_0);
@@ -746,14 +711,14 @@ void showLogType2() {
 
   lcd.setCursor(0, 2);
   lcdPrint(MSG_SOIL_MOISTURE_COLUMN);
-  lcdPrintNumber(soilMoistureAsPercentage(currentLogEntry.soilMoistureBefore));
-  // lcdPrint(MSG_PERCENT);
+  // lcdPrintNumber(soilMoistureAsPercentage(currentLogEntry.soilMoistureBefore));
+  lcdPrintNumber(currentLogEntry.soilMoistureBefore);
+  lcdPrint(MSG_PERCENT);
 
   lcd.setCursor(0, 3);
   lcdPrint(MSG_TRAY);
   lcdPrint(MSG_COLUMN_SPACE);
-  lcdPrintNumber(currentLogEntry.trayWaterLevelBefore);
-  lcdPrint(MSG_PERCENT);
+  lcdPrint(trayWaterLevelInEnglish(currentLogEntry.trayWaterLevelBefore));
   
   // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureBefore);
   // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureAfter);

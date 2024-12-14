@@ -71,7 +71,7 @@ uint16_t soilSensorOp(uint8_t op) {
 
     case 1: { // Immediate read
       if (readMode == 1) {
-        uint16_t realTimeValue = analogRead(SOIL_MOISTURE_SENSOR); // Read the sensor value
+        uint16_t realTimeValue = lazyValue = analogRead(SOIL_MOISTURE_SENSOR); // Read the sensor value
         return realTimeValue; // Return the real-time value
       } else {
         return lazyValue; // Default to lazy value if in lazy mode
@@ -81,12 +81,12 @@ uint16_t soilSensorOp(uint8_t op) {
     case 2: { // Set lazy mode
       digitalWrite(SOIL_MOISTURE_SENSOR_POWER, LOW); // Power off the sensor
       readMode = 0; // Switch to lazy mode
-      lazyValue = 0; // Reset lazy value to avoid stale data
       state = 0; // Reset to idle state
       break;
     }
 
     case 3: { // Set real-time mode
+      Serial.println("Set sensor to realtime");
       readMode = 1; // Switch to real-time mode
       digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH); // Power on the sensor
       delay(stabilizationTime); // Stabilize the sensor
@@ -96,7 +96,7 @@ uint16_t soilSensorOp(uint8_t op) {
     default: // Handle invalid operation codes
       return 0xFFFF; // Return a special value for invalid operations
   }
-
+  
   return 0; // Default return for non-reading operations
 }
 
