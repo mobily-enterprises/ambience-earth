@@ -45,7 +45,7 @@ Button okButton = Button(853, &okClick);
 */
 
 void initializeButtons() {
-  if (KEYPAD_TYPE ==  KEYPAD_ALIBABA_TONY) {
+  if (KEYPAD_TYPE !=  KEYPAD_ALIBABA_TONY) {
     // Keypad (bought later at Alibaba)
     upButton = Button(318, &upClick);
     leftButton = Button(516, &leftClick);
@@ -170,7 +170,6 @@ void initLcdAndButtons() {
   lcd.init();
   delay(1000);
   lcd.backlight();
-
 
   pinMode(BUTTONS_PIN, INPUT_PULLUP);
 
@@ -359,8 +358,7 @@ int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = 
   }
 
   while (true) {
-    Serial.println(analogRead(A7));
-
+    
     if (displayChanged) {
       for (int i = 0; i < MAX_VISIBLE_CHOICES; i++) {
         int choiceIndex = firstVisibleIndex + i;

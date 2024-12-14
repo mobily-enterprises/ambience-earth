@@ -4,6 +4,21 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 
+typedef struct {
+  unsigned int seq : 8;
+  unsigned long millisStart;
+  unsigned long millisEnd;
+  unsigned int entryType : 3;
+  unsigned int actionId : 3;
+  unsigned int trayWaterLevelBefore : 7;
+  unsigned int soilMoistureBefore : 7;
+  bool topFeed : 1;
+  unsigned int outcome : 4;
+  unsigned int trayWaterLevelAfter : 7;
+  unsigned int soilMoistureAfter : 7;
+  unsigned int padding1 : 11;
+} LogEntry;
+
 void readLogEntry(int16_t slot = -1);
 void writeLogEntry(void* buffer);
 bool noLogs();

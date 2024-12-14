@@ -11,6 +11,12 @@
 #include "logs.h"
 #include <LiquidCrystal_I2C.h>
 
+/* YOU ARE HERE
+  Adjust logging of tray and moisture, BOTH in the hourly one AND in the feed log
+  Check why soil jumps to 100% after feeding and when turining it on
+*/
+
+
 extern LiquidCrystal_I2C lcd;
 uint8_t screenCounter = 0;
 
@@ -36,7 +42,7 @@ unsigned long lastButtonPressTime = 0;
 bool screenSaverMode = false;
 
 void setup() {
-  Serial.begin(9600);  // Initialize serial communication at 9600 baud rate
+  Serial.begin(115200);  // Initialize serial communication at 9600 baud rate
   initLcdAndButtons();
 
   extern LiquidCrystal_I2C lcd;
@@ -98,6 +104,8 @@ void loop() {
   // lazy reads work
   runSoilSensorLazyReadings();
 
+  maybeLogValues();
+
   if (currentMillis - actionPreviousMillis >= actionInterval) {
     actionPreviousMillis = currentMillis;
     maybeRunActions();
@@ -109,12 +117,33 @@ void loop() {
   delay(50); // Let the CPU breathe
 }
 
+void maybeLogValues() {
+    static unsigned long lastRunTime = 0; // Stores the last time the function was executed
+    unsigned long currentMillis = millis(); // Get the current time in milliseconds
+
+    // Check if LOG_VALUES_INTERVAL has passed since the last run
+    if (currentMillis - lastRunTime >= LOG_VALUES_INTERVAL) {  
+      lastRunTime = currentMillis; // Update the last run time
+
+      clearLogEntry((void *)&newLogEntry);
+      newLogEntry.entryType = 2;  // VALUES
+      newLogEntry.millisStart = millis();
+      newLogEntry.actionId = 0;
+      newLogEntry.soilMoistureAfter = soilMoistureAsPercentage(getSoilMoisture());
+      newLogEntry.trayWaterLevelAfter = trayWaterLevelAsState(senseTrayWaterLevelLow(), senseTrayWaterLevelMid(), senseTrayWaterLevelHigh());
+      newLogEntry.topFeed = 0;
+      newLogEntry.outcome = 0;
+      writeLogEntry((void *)&newLogEntry);
+  }
+}
+
 void initialPinSetup() {
   // Initial set for all pins
   // This is a blanket-set, it will be overridden by
   // sensor functions as needed.
   //pinMode(0, OUTPUT); digitalWrite(0, LOW); // D0 (RX) left alone, serial comms
   //pinMode(1, OUTPUT); digitalWrite(1, LOW); // D1 (TX) left alone, serial comms
+  
   pinMode(2, OUTPUT); digitalWrite(2, LOW); 
   pinMode(3, OUTPUT); digitalWrite(3, LOW); 
   pinMode(4, OUTPUT); digitalWrite(4, LOW);
@@ -136,8 +165,8 @@ void initialPinSetup() {
   pinMode(A4, OUTPUT); digitalWrite(A4, LOW);
   pinMode(A5, OUTPUT); digitalWrite(A5, LOW);
 
-  pinMode(A6, INPUT_PULLUP); // Input onlu, set as pullup
-  pinMode(A7, INPUT_PULLUP); // Input onlu, set as pullup
+  pinMode(A6, INPUT_PULLUP); // Input only, set as pullup
+  pinMode(A7, INPUT_PULLUP); // Input only, set as pullup
 }
 
 void createBootLogEntry() {
@@ -475,8 +504,7 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
       millisAtEndOfLastFeed = millis();
 
       closeLineIn();
-      getSoilMoisture();
-
+      
       // Serial.print("MS: "); Serial.println(millis());
 
       clearLogEntry((void *)&newLogEntry);
@@ -600,6 +628,33 @@ void lcdPrintTimeSince(unsigned long milliseconds) {
   lcd.print('s');*/
 }
 
+
+void lcdPrintTimePretty(unsigned long milliseconds) {
+  // Calculate elapsed time in milliseconds
+  unsigned long elapsedMillis = milliseconds;
+
+  // Calculate the total number of seconds, minutes, and hours
+  unsigned long totalSeconds = elapsedMillis / 1000;
+  unsigned long seconds = totalSeconds % 60;
+  unsigned long totalMinutes = totalSeconds / 60;
+  unsigned long minutes = totalMinutes % 60;
+  unsigned long hours = totalMinutes / 60;
+
+  if (hours) {
+    lcd.print(hours);
+    lcd.print('h');
+  }
+
+  if (minutes) {
+    lcd.print(minutes);
+    lcd.print('m');
+  }
+
+  lcd.print(seconds);
+  lcd.print('s');
+}
+
+
 void lcdPrintTimeDuration(unsigned long start, unsigned long finish) {
   // Calculate elapsed time in milliseconds
   unsigned long elapsedMillis = finish - start;
@@ -625,23 +680,27 @@ void lcdPrintTimeDuration(unsigned long start, unsigned long finish) {
   lcd.print('s');
 }
 
-
 void showLogType0() {
   lcdClear();
-  lcdPrint(MSG_LOG_TYPE_0, 0);
+  lcdPrintNumber(currentLogEntry.seq, 0);
   lcdPrint(MSG_SPACE);
-  lcdPrintTimeSince(currentLogEntry.millisStart);
-  lcdPrint(MSG_SPACE);
-  lcdPrint(MSG_AGO);
+  lcdPrint(MSG_LOG_TYPE_0);
+  // lcdPrint(MSG_SPACE);
+  // lcdPrintNumber(currentLogEntry.millisStart);
+  // lcdPrint(MSG_SPACE);
+  // lcdPrint(MSG_AGO);
 }
 
 void showLogType1() {
   lcdClear();
-  lcdPrint(MSG_LOG_TYPE_1, 0);
+  lcdClear();
+  lcdPrintNumber(currentLogEntry.seq, 0);
   lcdPrint(MSG_SPACE);
-  lcdPrintTimeSince(currentLogEntry.millisStart);
+  lcdPrint(MSG_LOG_TYPE_1);
   lcdPrint(MSG_SPACE);
-  lcdPrint(MSG_AGO);
+  lcdPrintTimePretty(currentLogEntry.millisStart);
+  lcdPrint(MSG_SPACE);
+  lcdPrint(MSG_LATER);
   lcdPrint(MSG_SPACE);
 
   lcd.setCursor(0, 1);
@@ -674,6 +733,33 @@ void showLogType1() {
   // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureAfter);
 }
 
+void showLogType2() {
+  lcdClear();
+  lcdPrintNumber(currentLogEntry.seq, 0);
+  lcdPrint(MSG_SPACE);
+  lcdPrint(MSG_LOG_TYPE_2);
+  lcdPrint(MSG_SPACE);
+  lcdPrintTimePretty(currentLogEntry.millisStart);
+  lcdPrint(MSG_SPACE);
+  lcdPrint(MSG_LATER);
+  lcdPrint(MSG_SPACE);
+
+  lcd.setCursor(0, 2);
+  lcdPrint(MSG_SOIL_MOISTURE_COLUMN);
+  lcdPrintNumber(soilMoistureAsPercentage(currentLogEntry.soilMoistureBefore));
+  // lcdPrint(MSG_PERCENT);
+
+  lcd.setCursor(0, 3);
+  lcdPrint(MSG_TRAY);
+  lcdPrint(MSG_COLUMN_SPACE);
+  lcdPrintNumber(currentLogEntry.trayWaterLevelBefore);
+  lcdPrint(MSG_PERCENT);
+  
+  // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureBefore);
+  // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureAfter);
+}
+
+
 void viewLogs() {
   lcdClear();
 
@@ -688,17 +774,18 @@ void viewLogs() {
 
       if (currentLogEntry.entryType == 0) showLogType0();
       if (currentLogEntry.entryType == 1) showLogType1();
+      if (currentLogEntry.entryType == 2) showLogType2();
       dataChanged = false;
     }
 
     analogButtonsCheck();
     if (pressedButton == &leftButton) {
       break;
-    } else if (pressedButton == &downButton && currentLogEntry.entryType != 0) {
+    } else if (pressedButton == &upButton) { // && currentLogEntry.entryType != 0) {
       if (goToPreviousLogSlot()) {
         dataChanged = true;
       }
-    } else if (pressedButton == &upButton) {
+    } else if (pressedButton == &downButton) {
       if (goToNextLogSlot()) {
         dataChanged = true;
       }
@@ -764,7 +851,7 @@ void displayInfo4() {
   lcdPrint(MSG_SPACE);
   // lcdPrintNumber(soilMoisture);
   lcdPrint(MSG_SPACE);
-  lcd.print(analogRead(SOIL_MOISTURE_SENSOR));
+  lcd.print(getSoilMoisture());
 }
 
 

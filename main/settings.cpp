@@ -84,7 +84,7 @@ void testSensors() {
   lcdSetCursor(0, 2);
   lcdPrint(MSG_TRAY_HIGH_COLUMN);
   lcdSetCursor(0, 3);
-  lcdPrint(MSG_SOIL_MOISTURE_COLUNN);
+  lcdPrint(MSG_SOIL_MOISTURE_COLUMN);
 
   setSoilSensorRealTime();
 

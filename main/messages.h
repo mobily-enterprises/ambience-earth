@@ -8,6 +8,8 @@ const char PROGMEM MSG_MAINTENANCE[] = "Maintenance";
 const char PROGMEM MSG_YES[] = "Yes";
 const char PROGMEM MSG_NO[] = "No";
 const char PROGMEM MSG_OK[] = "OK";
+const char PROGMEM MSG_COLUMN_SPACE[] = ": ";
+
 
 const char PROGMEM MSG_LITTLE[] = "";
 const char PROGMEM MSG_AUTO_DRAIN[] = "Auto drain?";
@@ -109,9 +111,6 @@ const char PROGMEM MSG_YES_HALF_FULL[] = "Yes, it's 1/2 full!";
 const char PROGMEM MSG_NOW_THREE_QUARTERS_FULL[] = "Three quarter full";
 const char PROGMEM MSG_YES_THREE_QUARTERS_FULL[] = "Yes, it's 3/4 full!";
 
-
-
-
 const char PROGMEM MSG_YES_HALF_WAY[] = "Yes, it's half in!";
 const char PROGMEM MSG_NOW_HALF_WAY[] = "Now half in water";
 const char PROGMEM MSG_YES_FULL_IN[] = "Yes, it's fully in!";
@@ -179,6 +178,7 @@ const char PROGMEM MSG_PRESS_OK_TO_STOP[] = "Press OK to stop...";
 
 const char PROGMEM MSG_LOG_TYPE_0[] = "BootUp";
 const char PROGMEM MSG_LOG_TYPE_1[] = "Feed";
+const char PROGMEM MSG_LOG_TYPE_2[] = "Values";
 
 const char PROGMEM MSG_LOG_OUTCOME_0[] = "Success";
 const char PROGMEM MSG_LOG_OUTCOME_1[] = "Interrupted";
@@ -191,6 +191,7 @@ const char PROGMEM MSG_WHEN_CONDITIONS_ALLOW[] = "w/conditions allow";
 
 
 const char PROGMEM MSG_AGO[] = "ago";
+const char PROGMEM MSG_LATER[] = "ltr";
 
 const char PROGMEM MSG_S_COLUMN[] = "S:";
 const char PROGMEM MSG_W_COLUMN[] = "W:";
@@ -223,7 +224,7 @@ const char PROGMEM MSG_TEST_SENSORS[] = "Test sensors";
 const char PROGMEM MSG_TRAY_HIGH_COLUMN[] = "Tray high:";
 const char PROGMEM MSG_TRAY_MID_COLUMN[] =  "Tray mid :";
 const char PROGMEM MSG_TRAY_LOW_COLUMN[] =  "Tray low :";
-const char PROGMEM MSG_SOIL_MOISTURE_COLUNN[] =  "Soil mst:";
+const char PROGMEM MSG_SOIL_MOISTURE_COLUMN[] =  "Soil mst:";
 
 
 

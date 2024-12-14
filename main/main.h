@@ -3,24 +3,14 @@
 
 #include "config.h"
 
-typedef struct {
-  unsigned int seq : 8;
-  unsigned long millisStart;
-  unsigned long millisEnd;
-  unsigned int entryType : 3;
-  unsigned int actionId : 3;
-  unsigned int trayWaterLevelBefore : 7;
-  unsigned int soilMoistureBefore : 7;
-  bool topFeed : 1;
-  unsigned int outcome : 4;
-  unsigned int trayWaterLevelAfter : 7;
-  unsigned int soilMoistureAfter : 7;
-  unsigned int padding1 : 11;
-} LogEntry;
-
 enum PumpState { IDLE, PUMPING, COMPLETED };
 
 #define SCREENSAVER_TRIGGER_TIME 60000
+#define LOG_VALUES_INTERVAL 3600000
+// #define LOG_VALUES_INTERVAL 10000
+
+
+void maybeLogValues();
 
 void runAction(Action *action, uint8_t index, bool force = 0);
 void initialPinSetup();
