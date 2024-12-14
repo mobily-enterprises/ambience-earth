@@ -86,13 +86,15 @@ void testSensors() {
   lcdSetCursor(0, 3);
   lcdPrint(MSG_SOIL_MOISTURE_COLUNN);
 
+  setSoilSensorRealTime();
+
   while (1) {
     unsigned long currentMillis = millis();
 
     if (currentMillis - previousMillis >= interval) {
       previousMillis = currentMillis;
 
-      soilMoistureReading = senseSoilMoisture(2);
+      soilMoistureReading = getSoilMoisture();
       
       soilMoisturePercentage = soilMoistureAsPercentage(soilMoistureReading);
       trayWaterLevelLow = senseTrayWaterLevelLow();
@@ -102,7 +104,10 @@ void testSensors() {
       
       analogButtonsCheck();
  
-      if (pressedButton != nullptr) break;
+      if (pressedButton != nullptr) {
+        setSoilSensorLazy();
+        break;
+      }
 
       // Serial.print("AH"); Serial.println(digitalRead(TRAY_SENSOR_LOW)); 
       lcdSetCursor(11, 0);
@@ -124,7 +129,6 @@ void testSensors() {
       lcdPrint(MSG_SPACE);
     }
   }
-  senseSoilMoisture(1);
 }
 
 
@@ -393,10 +397,12 @@ int calibrateSoilMoistureSensor() {
   goAhead = giveOk(MSG_MOIST_SENSOR, MSG_YES_ITS_DRY, MSG_ENSURE_SENSOR_IS, MSG_VERY_DRY);
   if (goAhead == -1) return false;
 
+  setSoilSensorRealTime();
+
   lcdClear();
   lcdPrint(MSG_DRY_COLUMN, 1);
   for (int i = 0; i < 4; i++) {
-    dry = senseSoilMoisture(2);
+    dry = getSoilMoisture();
     // lcdClear();
     lcdPrintNumber(dry);
     lcdPrint(MSG_SPACE);
@@ -406,17 +412,22 @@ int calibrateSoilMoistureSensor() {
   delay(2000);
 
   goAhead = giveOk(MSG_MOIST_SENSOR, MSG_YES_ITS_SOAKED, MSG_ENSURE_SENSOR_IS, MSG_VERY_SOAKED);
-  if (goAhead == -1) return false;
+  if (goAhead == -1) {
+    setSoilSensorLazy();
+    return false;
+  }
 
   lcdClear();
   lcdPrint(MSG_SOAKED_COLUMN, 1);
   for (int i = 0; i < 4; i++) {
-    soaked = senseSoilMoisture(2);
+    soaked = getSoilMoisture();
     // lcdClear();
     lcdPrintNumber(soaked);
     lcdPrint(MSG_SPACE);
     delay(900);
   }
+
+  setSoilSensorLazy();
 
   goAhead = yesOrNo(MSG_SAVE_QUESTION);
   if (goAhead == -1) return;

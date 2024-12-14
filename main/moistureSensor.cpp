@@ -12,103 +12,92 @@ void initMoistureSensor() {
   pinMode(SOIL_MOISTURE_SENSOR_POWER, OUTPUT);
 
   pinMode(SOIL_MOISTURE_SENSOR, INPUT);
-  digitalWrite(SOIL_MOISTURE_SENSOR_POWER, LOW);
+
+  digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH); // Power on the sensor
+  delay(SENSOR_STABILIZATION_TIME); // Stabilize the sensor    
 }
 
-uint16_t senseSoilMoisture(uint8_t mode = 0) {
-  digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH);  // Ensure the sensor is on
-  delay(200);
-  analogRead(SOIL_MOISTURE_SENSOR);  // Read the sensor value
-  delay(200);
-  uint16_t res = analogRead(SOIL_MOISTURE_SENSOR);  // Read the sensor value
-  digitalWrite(SOIL_MOISTURE_SENSOR_POWER, LOW);  // Ensure the sensor is on
-  return res;
+uint16_t runSoilSensorLazyReadings() {
+  return soilSensorOp(0);
 }
 
-uint16_t senseSoilMoistureLazy(uint8_t mode = 0) {
-  static uint8_t state = 0;                 // Initial state
-  static unsigned long lastReadTime = 0;    // Last time the sensor was read
-  static uint16_t lastSensorValue = 0;      // Last read sensor value
-  static unsigned long stateEntryTime = 0;  // Time when the state was entered
-  static uint8_t previousMode = 1;          // Default to idle mode if no mode is specified
-  static bool firstRun = true;              // Flag to check if this is the first run
+uint16_t getSoilMoisture() {
+  return soilSensorOp(1);
+}
 
-  const unsigned long readInterval = SENSOR_READ_INTERVAL;                  // 30 seconds interval between reads in idle mode
-  const unsigned long sensorStabilizationTime = SENSOR_STABILIZATION_TIME;  // 300 ms stabilization time
+void setSoilSensorLazy() {
+  soilSensorOp(2);
+}
 
-  // If no mode is specified, use the previous mode
-  if (mode == 0) {
-    mode = previousMode;
-  } else if (mode != previousMode) {
-    // Reset the state machine if the mode has changed
-    state = 0;
-    previousMode = mode;
-    // firstRun = true; // Ensure the first run flag is set if the mode changes
+void setSoilSensorRealTime() {
+  soilSensorOp(3);
+}
+
+uint16_t soilSensorOp(uint8_t op) {
+  static uint16_t lazyValue = 0;
+  static uint8_t readMode = 1; // Real time mode by default
+  static uint8_t state = 0;    // Initial state: everything is off
+
+  static unsigned long lastReadTime = 0;    // Last lazy read time
+  static unsigned long sensorOnTime = 0;   // Time when the sensor was powered on
+
+  const unsigned long readInterval = SENSOR_READ_INTERVAL;
+  const unsigned long stabilizationTime = SENSOR_STABILIZATION_TIME;
+
+  switch (op) {
+    case 0: { // Update laze value after stabilising
+      if (readMode == 0) {
+        switch (state) {
+          case 0: // Idle, check if it's time to read
+            if (millis() - lastReadTime >= readInterval) {
+              digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH); // Power on the sensor
+              sensorOnTime = millis(); // Record when the sensor was turned on
+              state = 1;
+            }
+            break;
+
+          case 1: // Stabilizing and reading
+            if (millis() - sensorOnTime >= stabilizationTime) {
+              lazyValue = analogRead(SOIL_MOISTURE_SENSOR); // Read the sensor value
+              lastReadTime = millis(); // Update the last read time
+              digitalWrite(SOIL_MOISTURE_SENSOR_POWER, LOW); // Power off the sensor
+              state = 0; // Return to idle state
+            }
+            break;
+        }
+      }
+      return lazyValue; // Always return the last lazy value
+    }
+
+    case 1: { // Immediate read
+      if (readMode == 1) {
+        uint16_t realTimeValue = analogRead(SOIL_MOISTURE_SENSOR); // Read the sensor value
+        return realTimeValue; // Return the real-time value
+      } else {
+        return lazyValue; // Default to lazy value if in lazy mode
+      }
+    }
+
+    case 2: { // Set lazy mode
+      digitalWrite(SOIL_MOISTURE_SENSOR_POWER, LOW); // Power off the sensor
+      readMode = 0; // Switch to lazy mode
+      lazyValue = 0; // Reset lazy value to avoid stale data
+      state = 0; // Reset to idle state
+      break;
+    }
+
+    case 3: { // Set real-time mode
+      readMode = 1; // Switch to real-time mode
+      digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH); // Power on the sensor
+      delay(stabilizationTime); // Stabilize the sensor
+      break;
+    }
+
+    default: // Handle invalid operation codes
+      return 0xFFFF; // Return a special value for invalid operations
   }
 
-  if (mode == 1) {  // Idle mode
-    Serial.print("MODE 1 SOIL MOISTURE READ with state ");
-    Serial.println(state);
-
-    switch (state) {
-      case 0:  // Idle state
-        if (firstRun || millis() - lastReadTime >= readInterval) {
-
-          Serial.println("Outside the interval! Turning it on...");
-          Serial.print("Firstrun was...");
-          Serial.println(firstRun);
-
-          digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH);  // Turn on the sensor
-          stateEntryTime = millis();                       // Record the entry time
-          state = 1;                                       // Move to the next state
-          firstRun = false;                                // Clear the first run flag
-        } else {
-          digitalWrite(SOIL_MOISTURE_SENSOR_POWER, LOW);
-        }
-        break;
-      case 1:  // Wait for stabilization
-        Serial.println("Stabilising...");
-
-        if (millis() - stateEntryTime >= sensorStabilizationTime) {
-         
-          Serial.println("Making an ACTIAL read, since it's stable!");
-
-          lastSensorValue = analogRead(SOIL_MOISTURE_SENSOR);  // Read the sensor value
-          Serial.print("Reading is: ");
-          Serial.println(lastSensorValue);
-
-          stateEntryTime = millis();  // Record the entry time
-          state = 2;                  // Move to the next state
-        } else {
-          Serial.println("Not yet stable...");
-        }
-        break;
-      case 2:  // Turn off the sensor
-        if (millis() - stateEntryTime >= sensorStabilizationTime) {
-          Serial.println("Turning it off...");
-
-          digitalWrite(SOIL_MOISTURE_SENSOR_POWER, LOW);  // Turn off the sensor
-          lastReadTime = millis();                        // Update the last read time
-          state = 0;                                      // Move back to idle state
-        }
-        break;
-        // default:
-        // Serial.println("WTF...");
-    }
-  } else if (mode == 2) {  // Feeding mode
-    Serial.println("MODE 2 READ");
-    switch (state) {
-      case 0:                                            // Initial state
-        digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH);  // Ensure the sensor is on
-        state = 1;                                       // Move to the reading state
-        break;
-      case 1:                                                // Continuously read the sensor value
-        lastSensorValue = analogRead(SOIL_MOISTURE_SENSOR);  // Read the sensor value
-        break;
-    }
-  }
-
-  return lastSensorValue;
+  return 0; // Default return for non-reading operations
 }
 
 uint8_t soilMoistureAsPercentage(uint16_t soilMoisture) {

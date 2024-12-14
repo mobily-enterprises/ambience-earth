@@ -41,6 +41,75 @@ void setup() {
 
   extern LiquidCrystal_I2C lcd;
 
+  initialPinSetup();
+ 
+  initTraySensors();
+  initPumps();
+  initMoistureSensor();
+
+  // Init logs memory
+  initLogs(&currentLogEntry, 1024, 256, 768, sizeof(currentLogEntry));
+
+  loadConfig();
+
+  if (!configChecksumCorrect()) {
+    // Serial.println("CHECKSUM INCORRECT?!?");
+    restoreDefaultConfig();
+    saveConfig();
+    wipeLogs();
+  }
+
+  if (config.mustRunInitialSetup) {
+    while (!runInitialSetup());
+  }
+
+  initialaverageMsBetweenFeeds();
+
+  // Serial.println("GOING TO LATEST SLOT FOR DEBUGGING REASONS:");
+  createBootLogEntry();
+  goToLatestSlot();
+
+  setSoilSensorLazy();
+}
+
+
+void loop() {
+  unsigned long currentMillis = millis();
+  if (millis() - lastButtonPressTime > SCREENSAVER_TRIGGER_TIME) screenSaverModeOn();
+
+  analogButtonsCheck();
+  
+  if (pressedButton != nullptr) {
+    if (pressedButton == &upButton) screenCounter = (screenCounter - 1 + 4) % 4;
+    if (pressedButton == &downButton) screenCounter = (screenCounter + 1) % 4;
+    displayInfo(screenCounter);
+  }
+
+  if (pressedButton != nullptr) {
+    lastButtonPressTime = millis();
+
+    if (pressedButton == &okButton) mainMenu();
+
+    else screenSaverModeOff();
+    // pressedButton = nullptr;
+  }
+
+  // Necessary to run this consistently so that
+  // lazy reads work
+  runSoilSensorLazyReadings();
+
+  if (currentMillis - actionPreviousMillis >= actionInterval) {
+    actionPreviousMillis = currentMillis;
+    maybeRunActions();
+    emptyTrayIfNecessary();
+    displayInfo(screenCounter);
+    // int pinValue = digitalRead(12);
+    // Serial.print(digitalRead(12));
+  }
+  delay(50); // Let the CPU breathe
+}
+
+void initialPinSetup() {
   // Initial set for all pins
   // This is a blanket-set, it will be overridden by
   // sensor functions as needed.
@@ -69,40 +138,10 @@ void setup() {
 
   pinMode(A6, INPUT_PULLUP); // Input onlu, set as pullup
   pinMode(A7, INPUT_PULLUP); // Input onlu, set as pullup
-
-  initTraySensors();
-  initPumps();
-  initMoistureSensor();
-
-  // Init logs memory
-  initLogs(&currentLogEntry, 1024, 256, 768, sizeof(currentLogEntry));
-
-  loadConfig();
-
-  if (!configChecksumCorrect()) {
-    // Serial.println("CHECKSUM INCORRECT?!?");
-    restoreDefaultConfig();
-    saveConfig();
-    wipeLogs();
-  }
-
-  if (config.mustRunInitialSetup) {
-    while (!runInitialSetup())
-      ;
-  }
-
-  initialaverageMsBetweenFeeds();
-  createBootLogEntry();
-
-  // Serial.println("GOING TO LATEST SLOT FOR DEBUGGING REASONS:");
-  goToLatestSlot();
 }
 
-
 void createBootLogEntry() {
-  senseSoilMoisture(1);
-  delay(500);
-  uint8_t soilMoistureBefore = soilMoistureAsPercentage(senseSoilMoisture(2));
+  uint8_t soilMoistureBefore = soilMoistureAsPercentage(getSoilMoisture());
 
   clearLogEntry((void *)&newLogEntry);
   newLogEntry.millisStart = 0;
@@ -117,8 +156,6 @@ void createBootLogEntry() {
 
   // Serial.println("Writing initial boot entry...");
   writeLogEntry((void *)&newLogEntry);
-
-  senseSoilMoisture(1);
 }
 
 
@@ -166,40 +203,6 @@ void updateaverageMsBetweenFeeds(unsigned long durationMillis) {
   averageMsBetweenFeeds += (durationMillis - averageMsBetweenFeeds) / callCount;
 
   // Serial.print("New average: ");// Serial.println(averageMsBetweenFeeds);
-}
-
-void loop() {
-
-  unsigned long currentMillis = millis();
-  if (millis() - lastButtonPressTime > SCREENSAVER_TRIGGER_TIME) screenSaverModeOn();
-
-  analogButtonsCheck();
-  
-  if (pressedButton != nullptr) {
-    if (pressedButton == &upButton) screenCounter = (screenCounter - 1 + 4) % 4;
-    if (pressedButton == &downButton) screenCounter = (screenCounter + 1) % 4;
-    displayInfo(screenCounter);
-  }
-
-  if (pressedButton != nullptr) {
-    lastButtonPressTime = millis();
-
-    if (pressedButton == &okButton) mainMenu();
-
-    else screenSaverModeOff();
-    // pressedButton = nullptr;
-  }
-
-
-  if (currentMillis - actionPreviousMillis >= actionInterval) {
-    actionPreviousMillis = currentMillis;
-    maybeRunActions();
-    emptyTrayIfNecessary();
-    displayInfo(screenCounter);
-    // int pinValue = digitalRead(12);
-    // Serial.print(digitalRead(12));
-  }
-
 }
 
 void screenSaverModeOff() {
@@ -320,7 +323,7 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
   c = start ? &action->triggerConditions : &action->stopConditions;
 
   uint8_t trayState = trayWaterLevelAsState(senseTrayWaterLevelLow(), senseTrayWaterLevelMid(), senseTrayWaterLevelHigh());
-  uint8_t soilPercentage = soilMoistureAsPercentage(senseSoilMoisture(2));
+  uint8_t soilPercentage = soilMoistureAsPercentage(getSoilMoisture());
 
   /*
   Serial.println("B");
@@ -374,7 +377,7 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
 
 
 void printSoilAndWaterTrayStatus() {
-  uint16_t soilMoisture = senseSoilMoisture(1);
+  uint16_t soilMoisture = getSoilMoisture();
   uint16_t soilMoisturePercent = soilMoistureAsPercentage(soilMoisture);
   uint16_t twlLow = senseTrayWaterLevelLow();
   uint16_t twlMid = senseTrayWaterLevelMid();
@@ -418,17 +421,16 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
 
   // Serial.println("3");
 
+  setSoilSensorRealTime();
+
   // Let water in
   openLineIn();
 
-  // Serial.println("Hereeeeeeeeeeeeeeeee");
-  senseSoilMoisture(2);
-  
   unsigned long feedStartMillis = millis();
   // Serial.print("feedStartMillis: "); Serial.println(feedStartMillis);
 
 
-  uint8_t soilMoistureBefore = soilMoistureAsPercentage(senseSoilMoisture());
+  uint8_t soilMoistureBefore = soilMoistureAsPercentage(getSoilMoisture());
 
   uint8_t shouldStop = 0;
   uint8_t retCode = 0;
@@ -473,7 +475,7 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
       millisAtEndOfLastFeed = millis();
 
       closeLineIn();
-      senseSoilMoisture(1);
+      getSoilMoisture();
 
       // Serial.print("MS: "); Serial.println(millis());
 
@@ -483,11 +485,13 @@ void runAction(Action *action, uint8_t index, bool force = 0) {
       newLogEntry.millisEnd = millis();
       newLogEntry.actionId = index;
       newLogEntry.soilMoistureBefore = soilMoistureBefore;
-      newLogEntry.soilMoistureAfter = soilMoistureAsPercentage(senseSoilMoisture());
+      newLogEntry.soilMoistureAfter = soilMoistureAsPercentage(getSoilMoisture());
       newLogEntry.topFeed = action->feedFrom == FeedFrom::FEED_FROM_TOP;
       newLogEntry.outcome = retCode;
 
       writeLogEntry((void *)&newLogEntry);
+
+      setSoilSensorLazy();
 
       return;
     }

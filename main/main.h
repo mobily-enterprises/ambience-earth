@@ -23,6 +23,7 @@ enum PumpState { IDLE, PUMPING, COMPLETED };
 #define SCREENSAVER_TRIGGER_TIME 60000
 
 void runAction(Action *action, uint8_t index, bool force = 0);
+void initialPinSetup();
 void mainMenu();
 int runInitialSetup();
 void displayInfo(uint8_t screen);
