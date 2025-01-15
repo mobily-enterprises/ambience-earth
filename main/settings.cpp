@@ -443,6 +443,7 @@ void runButtonsSetup() {
     }
   }
 
+  delay(1000);
 
   initializeButtons();
 }
