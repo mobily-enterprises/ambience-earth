@@ -11,6 +11,7 @@
 #include "settings.h"
 #include "main.h"
 #include <LiquidCrystal_I2C.h>
+#include <AnalogButtons.h>
 
 extern LiquidCrystal_I2C lcd;
 
@@ -20,6 +21,12 @@ extern LogEntry newLogEntry;
 
 extern double averageMsBetweenFeeds;
 extern unsigned long int millisAtEndOfLastFeed;
+
+extern Button upButton;
+extern Button leftButton;
+extern Button downButton;
+extern Button rightButton;
+extern Button okButton;
 extern Button *pressedButton;
 
 void settings() {
@@ -190,11 +197,11 @@ Conditions inputConditions(Conditions *initialConditions, char verb, int8_t choi
     MSG_TRAY_SOIL_IGNORE, 0,
     MSG_60_PERCENT, 60,
     MSG_65_PERCENT, 65,
-    MSG_70_PERCENT, 60,
+    MSG_70_PERCENT, 70,
     MSG_75_PERCENT, 75,
     MSG_80_PERCENT, 80,
     MSG_85_PERCENT, 85,
-    MSG_90_PERCENT, 60,
+    MSG_90_PERCENT, 90,
     MSG_95_PERCENT, 95,
     MSG_100_PERCENT, 100
   );
@@ -345,9 +352,6 @@ void settingsSafetyLimits() {
   }
 }
 
-
-
-
 void settingsCalibrate() {
   bool calibrated;
 
@@ -365,15 +369,103 @@ void settingsCalibrate() {
   }
 }
 
+void runButtonsSetup() {
+  uint16_t read = 1024;
+
+  lcd.setCursor(0, 0);
+  lcdPrint(MSG_PRESS_UP);
+  while (read > 1000) {
+    read = analogRead(BUTTONS_PIN);
+    if (read < 1000) {
+      delay(100);
+      read = analogRead(BUTTONS_PIN);
+      config.kbdUp = read;
+      break;
+    }
+  }
+
+  delay(1000);
+
+  lcd.setCursor(0, 0);
+  lcdPrint(MSG_PRESS_DOWN);
+  read = 1024;
+  while (read > 1000) {
+    read = analogRead(BUTTONS_PIN);
+    if (read < 1000) {
+      delay(100);
+      read = analogRead(BUTTONS_PIN);
+      config.kbdDown = read;
+      break;
+    }
+  }
+  delay(1000);
+
+  lcd.setCursor(0, 0);
+  lcdPrint(MSG_PRESS_LEFT);
+  read = 1024;
+  while (read > 1000) {
+    read = analogRead(BUTTONS_PIN);
+    if (read < 1000) {
+      delay(100);
+      read = analogRead(BUTTONS_PIN);
+      config.kbdLeft = read;
+      break;
+    }
+  }
+
+  delay(1000);
+
+  lcd.setCursor(0, 0);
+  lcdPrint(MSG_PRESS_RIGHT);
+  read = 1024;
+  while (read > 1000) {
+    read = analogRead(BUTTONS_PIN);
+    if (read < 1000) {
+      delay(100);
+      read = analogRead(BUTTONS_PIN);
+      config.kbdRight = read;
+      break;
+    }
+  }
+
+  delay(1000);
+
+  lcd.setCursor(0, 0);
+  lcdPrint(MSG_PRESS_OK);
+  read = 1024;
+  while (read > 1000) {
+    read = analogRead(BUTTONS_PIN);
+    if (read < 1000) {
+      delay(100);
+      read = analogRead(BUTTONS_PIN);
+      config.kbdOk = read;
+      break;
+    }
+  }
+
+
+  initializeButtons();
+}
+
 int runInitialSetup() {
+  
+    
+  // leftButton = Button(read, &leftClick);
+  // downButton = Button(read, &downClick); 
+  // rightButton = Button(read, &rightClick);
+  // okButton = Button(read, &okClick);
+  
   setChoices(MSG_TOP, FeedFrom::FEED_FROM_TOP, MSG_TRAY, FeedFrom::FEED_FROM_TRAY);
   setChoicesHeader(MSG_FEED_FROM);
   config.feedFrom = selectChoice(2, FeedFrom::FEED_FROM_TOP);
   if (config.feedFrom == -1) return false;
 
   if (config.feedFrom == FeedFrom::FEED_FROM_TOP) {
-    config.trayNeedsEmptying = yesOrNo(MSG_AUTO_DRAIN, false);
-    if (config.trayNeedsEmptying == -1) return 0;
+    int8_t trayNeedsEmptying;
+    trayNeedsEmptying = yesOrNo(MSG_AUTO_DRAIN, false);
+    Serial.println(config.trayNeedsEmptying);
+    if (trayNeedsEmptying == -1) return false;
+    config.trayNeedsEmptying = trayNeedsEmptying;
   } else {
     config.trayNeedsEmptying = false;
   }

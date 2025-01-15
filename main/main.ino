@@ -44,7 +44,7 @@ bool screenSaverMode = false;
 
 void setup() {
   Serial.begin(115200);  // Initialize serial communication at 9600 baud rate
-  initLcdAndButtons();
+  initLcd();
 
   extern LiquidCrystal_I2C lcd;
 
@@ -66,8 +66,11 @@ void setup() {
   }
 
   if (config.mustRunInitialSetup) {
+    runButtonsSetup();
     while (!runInitialSetup());
   }
+
+  initializeButtons();
 
   initialaverageMsBetweenFeeds();
 

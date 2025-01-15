@@ -10,6 +10,7 @@ void settingsEditActions();
 void settingsDefaultMoistLevels();
 void settingsCalibrate();
 int runInitialSetup();
+void runButtonsSetup();
 int readSensor(int sensor);
 int calibrateSoilMoistureSensor();
 void setFeedFrom();

@@ -60,6 +60,11 @@ typedef struct {
 
     int8_t activeActionsIndex0;
     int8_t activeActionsIndex1;
+    uint16_t kbdUp;
+    uint16_t kbdDown;
+    uint16_t kbdLeft;
+    uint16_t kbdRight;
+    uint16_t kbdOk;
 } Config;
 
 uint8_t calculateConfigChecksum();

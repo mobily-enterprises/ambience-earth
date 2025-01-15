@@ -229,8 +229,11 @@ const char PROGMEM MSG_TRAY_MID_COLUMN[] =  "Tray mid :";
 const char PROGMEM MSG_TRAY_LOW_COLUMN[] =  "Tray low :";
 const char PROGMEM MSG_SOIL_MOISTURE_COLUMN[] =  "Soil mst:";
 
-
-
+const char PROGMEM MSG_PRESS_UP[] = "Press UP";
+const char PROGMEM MSG_PRESS_DOWN[] = "Press DOWN";
+const char PROGMEM MSG_PRESS_LEFT[] = "Press LEFT";
+const char PROGMEM MSG_PRESS_RIGHT[] = "Press RIGHT";
+const char PROGMEM MSG_PRESS_OK[] = "Press OK   ";
 
 const char PROGMEM MSG_SAFETY_LIMITS[] = "Safety limits";
 

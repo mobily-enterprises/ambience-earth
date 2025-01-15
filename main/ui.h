@@ -11,6 +11,8 @@
 #define BUTTONS_DEBOUNCE_MULTIPLIER 2  // Set debounce frequency multiplier
 #define BUTTONS_ANALOG_MARGIN 20       // Set analog value margin
 
+void initializeButtons();
+
 // ****************************************
 // **         USER INPUT                 **
 // ****************************************
@@ -19,7 +21,7 @@ struct Choice {
   int value;
 };
 
-void initLcdAndButtons();
+void initLcd();
 int8_t yesOrNo(char* question, bool initialUserInput = true);
 bool alert(char *question=MSG_LITTLE);
 int8_t giveOk(char* top, const char *promptText=MSG_LITTLE, const char *line2=MSG_LITTLE, const char *line3=MSG_LITTLE);

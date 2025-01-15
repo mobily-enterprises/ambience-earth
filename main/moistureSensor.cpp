@@ -38,18 +38,29 @@ uint16_t soilSensorOp(uint8_t op) {
   static uint8_t readMode = 1; // Real time mode by default
   static uint8_t state = 0;    // Initial state: everything is off
 
-  static unsigned long lastReadTime = 0;    // Last lazy read time
+  static unsigned long lastReadTime = millis();    // Last lazy read time
   static unsigned long sensorOnTime = 0;   // Time when the sensor was powered on
 
   const unsigned long readInterval = SENSOR_READ_INTERVAL;
   const unsigned long stabilizationTime = SENSOR_STABILIZATION_TIME;
 
+  // Serial.print("State:");Serial.print(state);Serial.print(" ");
+      
+
+
   switch (op) {
     case 0: { // Update laze value after stabilising
+
+      // Serial.print("BKND ");
+      
       if (readMode == 0) {
+        // Serial.print("ACTV ");
+
         switch (state) {
           case 0: // Idle, check if it's time to read
+            // Serial.print("wait ");Serial.print(millis() - lastReadTime);Serial.print("-");Serial.print(readInterval); Serial.print(" ");
             if (millis() - lastReadTime >= readInterval) {
+              // Serial.print("sensOn ");
               digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH); // Power on the sensor
               sensorOnTime = millis(); // Record when the sensor was turned on
               state = 1;
@@ -57,7 +68,9 @@ uint16_t soilSensorOp(uint8_t op) {
             break;
 
           case 1: // Stabilizing and reading
+            // Serial.print("rdy ");Serial.print(millis() - sensorOnTime);Serial.print("-");Serial.print(stabilizationTime); Serial.print(" ");           
             if (millis() - sensorOnTime >= stabilizationTime) {
+              // Serial.print("read+sensOff ");
               lazyValue = analogRead(SOIL_MOISTURE_SENSOR); // Read the sensor value
               lastReadTime = millis(); // Update the last read time
               digitalWrite(SOIL_MOISTURE_SENSOR_POWER, LOW); // Power off the sensor
@@ -69,16 +82,28 @@ uint16_t soilSensorOp(uint8_t op) {
       return lazyValue; // Always return the last lazy value
     }
 
-    case 1: { // Immediate read
+    case 1: { // Read (lazy value or analog read)
+
+      // Serial.print("READ ");
+    
       if (readMode == 1) {
+        // Serial.print("active ");
         uint16_t realTimeValue = lazyValue = analogRead(SOIL_MOISTURE_SENSOR); // Read the sensor value
+        // Serial.print(realTimeValue);
+        // Serial.println(" ");
+
         return realTimeValue; // Return the real-time value
       } else {
+        // Serial.print("lazy ");
+        // Serial.print(lazyValue);
+        // Serial.println(" ");
         return lazyValue; // Default to lazy value if in lazy mode
       }
     }
 
     case 2: { // Set lazy mode
+      // Serial.print("SETLAZY ");
+    
       digitalWrite(SOIL_MOISTURE_SENSOR_POWER, LOW); // Power off the sensor
       readMode = 0; // Switch to lazy mode
       state = 0; // Reset to idle state
@@ -86,6 +111,7 @@ uint16_t soilSensorOp(uint8_t op) {
     }
 
     case 3: { // Set real-time mode
+      // Serial.println("SETREALTIME ");
       readMode = 1; // Switch to real-time mode
       digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH); // Power on the sensor
       delay(stabilizationTime); // Stabilize the sensor
@@ -96,7 +122,7 @@ uint16_t soilSensorOp(uint8_t op) {
       return 0xFFFF; // Return a special value for invalid operations
   }
   
-  return 0; // Default return for non-reading operations
+  return 0; //  Default return for non-reading operations
 }
 
 uint8_t soilMoistureAsPercentage(uint16_t soilMoisture) {

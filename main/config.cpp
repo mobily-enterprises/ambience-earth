@@ -82,6 +82,12 @@ void restoreDefaultConfig() {
   config.maxPumpOutTime = 1000L * 60 * 3;
   config.pumpOutRestTime = 1000L * 60 * 3;
 
+  config.kbdUp = 0;
+  config.kbdDown = 0;
+  config.kbdLeft = 0;
+  config.kbdRight = 0;
+  config.kbdOk = 0;
+
   // Set default checksum
   config.checksum = calculateConfigChecksum();
 

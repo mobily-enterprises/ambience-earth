@@ -3,6 +3,7 @@
 #include "ui.h"
 #include "messages.h"
 #include "hardwareConf.h"
+#include "config.h"
 
 // Private functions (not declared in ui.h)
 void labelcpyFromString(char *destination, const char *source);
@@ -15,6 +16,7 @@ void sanitizeUserInput(char *userInput);
 int actualLength(const char *str);
 char getNextCharacter(char currentChar);
 char getPreviousCharacter(char currentChar);
+extern Config config;
 
 LiquidCrystal_I2C lcd = LiquidCrystal_I2C(0x27, 16, 4);
 
@@ -28,37 +30,25 @@ char choicesHeader[LABEL_LENGTH + 1];
 
 char userInputString[LABEL_LENGTH + 1];
 
-Button upButton(0, nullptr);
-Button leftButton(0, nullptr);
-Button downButton(0, nullptr);
-Button rightButton(0, nullptr);
-Button okButton(0, nullptr);
-
-
-/*
-// Tony's keypad
-Button upButton = Button(340, &upClick);
-Button leftButton = Button(512, &leftClick);
-Button downButton = Button(682, &downClick);
-Button rightButton = Button(170, &rightClick);
-Button okButton = Button(853, &okClick);
-*/
+Button upButton;
+Button leftButton;
+Button downButton;
+Button rightButton;
+Button okButton;
 
 void initializeButtons() {
-  if (KEYPAD_TYPE !=  KEYPAD_ALIBABA_TONY) {
-    // Keypad (bought later at Alibaba)
-    upButton = Button(318, &upClick);
-    leftButton = Button(516, &leftClick);
-    downButton = Button(150, &downClick);
-    rightButton = Button(0, &rightClick);
-    okButton = Button(820, &okClick);
-  } else {
-    upButton = Button(96, &upClick);
-    leftButton = Button(182, &leftClick);
-    downButton = Button(34, &downClick);
-    rightButton = Button(0, &rightClick);
-    okButton = Button(370, &okClick);
-  }
+    upButton = Button(config.kbdUp, &upClick);
+    leftButton = Button(config.kbdLeft, &leftClick);
+    rightButton = Button(config.kbdRight, &rightClick);
+    downButton = Button(config.kbdDown, &downClick); 
+    okButton = Button(config.kbdOk, &okClick);
+
+    analogButtons.add(upButton);
+    analogButtons.add(leftButton);
+    analogButtons.add(rightButton);
+    analogButtons.add(downButton);
+    analogButtons.add(okButton);
+
 }
 
 void upClick() {
@@ -166,20 +156,10 @@ void labelcpyFromString(char *destination, const char *source) {
   destination[strnlen(destination, LABEL_LENGTH)] = '\0';
 }
 
-void initLcdAndButtons() {
+void initLcd() {
   lcd.init();
   delay(1000);
   lcd.backlight();
-
-  pinMode(BUTTONS_PIN, INPUT_PULLUP);
-
-  initializeButtons(); // Call to initialize the buttons
-
-  analogButtons.add(upButton);
-  analogButtons.add(leftButton);
-  analogButtons.add(downButton);
-  analogButtons.add(rightButton);
-  analogButtons.add(okButton);
 
   lcd.createChar(0, fullSquare);
   lcd.createChar(1, leftArrow);

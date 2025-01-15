@@ -3,8 +3,8 @@
 
 #include <Arduino.h>
 
-#define PUMP_IN_DEVICE 10
-#define PUMP_OUT_DEVICE 2
+#define PUMP_IN_DEVICE 2
+#define PUMP_OUT_DEVICE 3
 
 void initPumps();
 
