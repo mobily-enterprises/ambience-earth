@@ -212,6 +212,12 @@ const char PROGMEM MSG_PUMP_OUT_REST_TIME[] = "Pump out rest time";
 const char PROGMEM MSG_DEVICE_WILL_BLINK[] = "Device will blink";
 const char PROGMEM MSG_THREE_TIMES[] = "three times...";
 
+const char PROGMEM MSG_30_PERCENT[] = "30%";
+const char PROGMEM MSG_35_PERCENT[] = "35%";
+const char PROGMEM MSG_40_PERCENT[] = "40%";
+const char PROGMEM MSG_45_PERCENT[] = "45%";
+const char PROGMEM MSG_50_PERCENT[] = "50%";
+const char PROGMEM MSG_55_PERCENT[] = "55%";
 const char PROGMEM MSG_60_PERCENT[] = "60%";
 const char PROGMEM MSG_65_PERCENT[] = "65%";
 const char PROGMEM MSG_70_PERCENT[] = "70%";

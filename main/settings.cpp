@@ -195,15 +195,15 @@ Conditions inputConditions(Conditions *initialConditions, char verb, int8_t choi
   
   setChoices(
     MSG_TRAY_SOIL_IGNORE, 0,
+    MSG_35_PERCENT, 35,
+    MSG_40_PERCENT, 40,
+    MSG_45_PERCENT, 45,
+    MSG_50_PERCENT, 60,
+    MSG_55_PERCENT, 55,
     MSG_60_PERCENT, 60,
     MSG_65_PERCENT, 65,
     MSG_70_PERCENT, 70,
-    MSG_75_PERCENT, 75,
-    MSG_80_PERCENT, 80,
-    MSG_85_PERCENT, 85,
-    MSG_90_PERCENT, 90,
-    MSG_95_PERCENT, 95,
-    MSG_100_PERCENT, 100
+    MSG_75_PERCENT, 75
   );
 
 
