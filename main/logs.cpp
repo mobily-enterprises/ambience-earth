@@ -11,6 +11,17 @@ int EEPROM_TOTAL_SLOTS;
 void* logBuffer; 
 int8_t currentSlot;
 
+// Treat 8-bit sequence numbers with wrap-around semantics.
+// Returns true if 'a' is later than 'b' assuming differences < 128.
+static inline bool seqIsLater(uint8_t a, uint8_t b) {
+  return (int8_t)(a - b) > 0;
+}
+
+// A slot is considered empty if seq == 0 (we always avoid writing 0).
+static inline bool slotIsEmpty(uint8_t seq) {
+  return seq == 0;
+}
+
 int8_t getCurrentLogSlot() {
   return currentSlot;
 }
@@ -49,50 +60,32 @@ void goToLogSlot (uint8_t slot) {
 
 
 void goToLatestSlot (void (*callback)()=nullptr) {
-// Initialize highestMillisStart with 0
-  int8_t currentSeq = 0;
+  // Find the latest slot using wrap-aware sequence comparison.
+  // Ignore empty slots (seq == 0). With <128 slots, wrap is safe.
+  bool found = false;
+  uint8_t bestSeq = 0;
+  int8_t bestSlot = -1;
+
   currentSlot = -1;
-  // Serial.println("goToLatestSlot()");
-  
 
   for (int slotNumber = 0; slotNumber < EEPROM_TOTAL_SLOTS; slotNumber++) {
-    // Serial.print("SLOT ");
-    // Serial.print(slotNumber);
-    // Serial.print(": ");
-    // Read log entry from EEPROM
     readLogEntry(slotNumber);
-    
     if (callback) callback();
 
-    uint8_t currentLogEntrySeq = *static_cast<uint8_t*>(logBuffer);
-    uint16_t millis = *reinterpret_cast<uint16_t*>(static_cast<uint8_t*>(logBuffer) + 1);
-    
-    // Serial.print("Seq and ms: ");
-    // Serial.print(currentLogEntrySeq);
-    // Serial.print(", ");
-    // Serial.print(millis);
-    // Serial.print(", ");
+    uint8_t seq = *static_cast<uint8_t*>(logBuffer);
+    if (slotIsEmpty(seq)) continue;
 
-    auto* logEntry = reinterpret_cast<LogEntry*>(logBuffer);
-    // Serial.println(logEntry->entryType);
-    // Serial.println(logEntry->millisStart);
-  
-    if (currentLogEntrySeq > currentSeq) {
-      currentSeq = currentLogEntrySeq;
-      currentSlot = slotNumber;
-    }    
+    if (!found) {
+      bestSeq = seq;
+      bestSlot = slotNumber;
+      found = true;
+    } else if (seqIsLater(seq, bestSeq)) {
+      bestSeq = seq;
+      bestSlot = slotNumber;
+    }
   }
 
-  // Serial.print("RESULT: ");
-  // Serial.print(currentSeq);
-  // Serial.print(", ");
-  // Serial.print(currentSlot);
-  // Serial.println(". ");
-
-
-   // No slot was ever assigned: leaves -1 one as the current one,
-   // so that the next entry will go on slot 0 (which is what we want)  
-
+  currentSlot = bestSlot;
   if (currentSlot == -1) {
     clearLogEntry(logBuffer);
   } else {
@@ -115,7 +108,9 @@ void writeLogEntry(void* buffer) {
   // Serial.println(*static_cast<uint8_t*>(logBuffer));
 
   uint8_t newSeq = (*static_cast<uint8_t*>(logBuffer));
-  newSeq ++;
+  newSeq++;
+  // Keep 0 reserved for "empty" so wrap 255->1
+  if (newSeq == 0) newSeq = 1;
   // Serial.print("New seq: ");
   // Serial.println(newSeq);
 
@@ -139,11 +134,10 @@ void writeLogEntry(void* buffer) {
   // Serial.println(*reinterpret_cast<uint16_t*>(static_cast<uint8_t*>(buffer) + 1));
 
 
-  // Write data to EEPROM
+  // Write data to EEPROM with minimal wear
   for (unsigned int i = 0; i < EEPROM_SLOT_SIZE; i++) {
     byte value = *((byte*)buffer + i);
-    EEPROM.write(eepromAddress + i, value);
-    delay(5); // Delay to ensure EEPROM write completes
+    EEPROM.update(eepromAddress + i, value);
   }
 
   // Re-read the log entry, 
@@ -169,6 +163,13 @@ bool noLogs() {
 uint8_t goToNextLogSlot(bool force = false) {
   int8_t originalSlot = currentSlot;
 
+  // First log ever: target slot 0
+  if (originalSlot < 0) {
+    currentSlot = 0;
+    return true;
+  }
+
+  currentSlot = originalSlot;
   readLogEntry();
   uint8_t originalLogEntrySeq = *static_cast<uint8_t*>(logBuffer);
   
@@ -186,44 +187,38 @@ uint8_t goToNextLogSlot(bool force = false) {
 
   if (force) return true;
   uint8_t newLogEntrySeq = *static_cast<uint8_t*>(logBuffer);
-  if (!newLogEntrySeq || newLogEntrySeq < originalLogEntrySeq) {
-    currentSlot = originalSlot;
-    readLogEntry();
-    return false;
+  if (!slotIsEmpty(newLogEntrySeq) && seqIsLater(newLogEntrySeq, originalLogEntrySeq)) {
+    return true;
   }
 
-  return true;
+  currentSlot = originalSlot;
+  readLogEntry();
+  return false;
 
 }
 
 uint8_t goToPreviousLogSlot(bool force = false) {
   int8_t originalSlot = currentSlot;
+  if (originalSlot < 0) originalSlot = 0; // normalise if uninitialised
+  currentSlot = originalSlot;
   readLogEntry();
   uint8_t originalLogEntrySeq = *static_cast<uint8_t*>(logBuffer);
 
-  // Serial.println("goToPreviousLogSlot()");
-  
-  // Serial.println("Current slot:");
-  // Serial.println(currentSlot);
-  
   currentSlot --;
-  // Serial.print("New current slot: ");
-  // Serial.println(currentSlot);
- 
   if (currentSlot < 0) currentSlot = EEPROM_TOTAL_SLOTS - 1;
-  // Serial.print("Actual current slot: ");
-  // Serial.println(currentSlot);
   readLogEntry();
 
   if (force) return true;
 
   uint8_t newLogEntrySeq = *static_cast<uint8_t*>(logBuffer);
-  if (!newLogEntrySeq || newLogEntrySeq > originalLogEntrySeq){
-    currentSlot = originalSlot;
-    readLogEntry();
-    return false;
+  // Allow moving back only if the target is a valid older entry
+  if (!slotIsEmpty(newLogEntrySeq) && seqIsLater(originalLogEntrySeq, newLogEntrySeq)) {
+    return true;
   }
-  return true;
+
+  currentSlot = originalSlot;
+  readLogEntry();
+  return false;
 }
 
 void initLogs(void *buffer, int eepromSize, int startAddress, int logsMemory, int slotSize, void (*callback)()=nullptr) {
@@ -258,7 +253,7 @@ void clearLogEntry(void *buffer) {
 
 void wipeLogs() {
   for (uint16_t i = EEPROM_START_ADDRESS; i < EEPROM_START_ADDRESS + (EEPROM_TOTAL_SLOTS * EEPROM_SLOT_SIZE); i++) {
-    EEPROM.write(i, 0);
+    EEPROM.update(i, 0);
   }
   currentSlot = - 1;
   clearLogEntry(logBuffer);

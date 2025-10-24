@@ -70,6 +70,8 @@ void setup() {
     while (!runInitialSetup());
   }
 
+  // runButtonsSetup();
+
   initializeButtons();
 
   initialaverageMsBetweenFeeds();
@@ -380,7 +382,9 @@ bool actionShouldStartOrStop(Action *action, bool start = true) {
 
   
   bool r;
-  if (!actionTrayState && actionSoilPercentage) r = false;
+  // If both tray and soil are ignored, nothing to evaluate
+  if (!actionTrayState && !actionSoilPercentage) r = false;
+  // If tray is ignored but soil is set, base decision only on soil
   else if (!actionTrayState && actionSoilPercentage) r = soilSatisfied;
   else if (actionTrayState && !actionSoilPercentage) r = traySatisfied;
   else if (actionLogic == Conditions::TRAY_OR_SOIL) r = soilSatisfied || traySatisfied;
@@ -732,6 +736,9 @@ void showLogType2() {
 
 void viewLogs() {
   lcdClear();
+
+  // Always start from the latest available log entry
+  goToLatestSlot();
 
   if (noLogs()) {
     lcdFlashMessage(MSG_NO_LOG_ENTRIES);

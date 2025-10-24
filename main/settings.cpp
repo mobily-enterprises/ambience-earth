@@ -198,7 +198,7 @@ Conditions inputConditions(Conditions *initialConditions, char verb, int8_t choi
     MSG_35_PERCENT, 35,
     MSG_40_PERCENT, 40,
     MSG_45_PERCENT, 45,
-    MSG_50_PERCENT, 60,
+    MSG_50_PERCENT, 50,
     MSG_55_PERCENT, 55,
     MSG_60_PERCENT, 60,
     MSG_65_PERCENT, 65,
@@ -222,7 +222,7 @@ Conditions inputConditions(Conditions *initialConditions, char verb, int8_t choi
   if (tray && soil) {
     setChoices(
       MSG_BOTH, Conditions::TRAY_AND_SOIL,
-      MSG_EITHER, Conditions::TRAY_AND_SOIL);
+      MSG_EITHER, Conditions::TRAY_OR_SOIL);
     setChoicesHeader(MSG_LOGIC);
     logic = (int8_t)selectChoice(2, (int8_t)initialConditions->logic);
     initialConditions->logic = logic;
