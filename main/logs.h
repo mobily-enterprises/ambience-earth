@@ -33,4 +33,9 @@ int8_t getCurrentLogSlot();
 int8_t getTotalLogSlots();
 void goToLogSlot (uint8_t slot);
 
+// Epoch-aware numbering helpers
+uint16_t getLogEpoch();
+uint16_t getBrowseEpoch();
+uint32_t getAbsoluteLogNumber();
+
 #endif LOGS_H

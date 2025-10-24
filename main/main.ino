@@ -656,7 +656,8 @@ void lcdPrintTimeDuration(unsigned long start, unsigned long finish) {
 
 void showLogType0() {
   lcdClear();
-  lcdPrintNumber(currentLogEntry.seq, 0);
+  // Print absolute log number (epoch-aware)
+  lcd.print((unsigned long)getAbsoluteLogNumber());
   lcdPrint(MSG_SPACE);
   lcdPrint(MSG_LOG_TYPE_0);
   // lcdPrint(MSG_SPACE);
@@ -668,7 +669,8 @@ void showLogType0() {
 void showLogType1() {
   lcdClear();
   lcdClear();
-  lcdPrintNumber(currentLogEntry.seq, 0);
+  // Print absolute log number (epoch-aware)
+  lcd.print((unsigned long)getAbsoluteLogNumber());
   lcdPrint(MSG_SPACE);
   lcdPrint(MSG_LOG_TYPE_1);
   lcdPrint(MSG_SPACE);
@@ -709,7 +711,8 @@ void showLogType1() {
 
 void showLogType2() {
   lcdClear();
-  lcdPrintNumber(currentLogEntry.seq, 0);
+  // Print absolute log number (epoch-aware)
+  lcd.print((unsigned long)getAbsoluteLogNumber());
   lcdPrint(MSG_SPACE);
   lcdPrint(MSG_LOG_TYPE_2);
   lcdPrint(MSG_SPACE);

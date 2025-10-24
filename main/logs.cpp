@@ -3,13 +3,16 @@
 #include <Arduino.h>
 
 int EEPROM_SIZE;
-int EEPROM_START_ADDRESS;
+int EEPROM_START_ADDRESS;   // start of log slots (after metadata)
 int EEPROM_LOGS_MEMORY;
 int EEPROM_SLOT_SIZE;
 int EEPROM_TOTAL_SLOTS;
+int EEPROM_META_ADDRESS;    // start of logs metadata (epoch)
 
 void* logBuffer; 
 int8_t currentSlot;
+static uint16_t logEpoch = 0;     // Persisted across boots (EEPROM)
+static uint16_t browseEpoch = 0;  // Session epoch aligned to current slot for UI
 
 // Treat 8-bit sequence numbers with wrap-around semantics.
 // Returns true if 'a' is later than 'b' assuming differences < 128.
@@ -20,6 +23,22 @@ static inline bool seqIsLater(uint8_t a, uint8_t b) {
 // A slot is considered empty if seq == 0 (we always avoid writing 0).
 static inline bool slotIsEmpty(uint8_t seq) {
   return seq == 0;
+}
+
+static uint16_t readEpochFromEeprom() {
+  uint8_t lo = EEPROM.read(EEPROM_META_ADDRESS + 0);
+  uint8_t hi = EEPROM.read(EEPROM_META_ADDRESS + 1);
+  // Treat 0xFFFF (erased) as 0
+  if (lo == 0xFF && hi == 0xFF) return 0;
+  uint16_t val = ((uint16_t)hi << 8) | lo;
+  return val;
+}
+
+static void writeEpochToEeprom(uint16_t epoch) {
+  uint8_t lo = epoch & 0xFF;
+  uint8_t hi = (epoch >> 8) & 0xFF;
+  EEPROM.update(EEPROM_META_ADDRESS + 0, lo);
+  EEPROM.update(EEPROM_META_ADDRESS + 1, hi);
 }
 
 int8_t getCurrentLogSlot() {
@@ -88,8 +107,12 @@ void goToLatestSlot (void (*callback)()=nullptr) {
   currentSlot = bestSlot;
   if (currentSlot == -1) {
     clearLogEntry(logBuffer);
+    // No logs present; align browsing epoch to persisted epoch
+    browseEpoch = logEpoch;
   } else {
     readLogEntry(currentSlot);
+    // Latest entry belongs to the current persisted epoch
+    browseEpoch = logEpoch;
   }
 }
 
@@ -107,10 +130,15 @@ void writeLogEntry(void* buffer) {
   // Serial.print("Latest slot's seq: ");
   // Serial.println(*static_cast<uint8_t*>(logBuffer));
 
-  uint8_t newSeq = (*static_cast<uint8_t*>(logBuffer));
+  uint8_t latestSeq = (*static_cast<uint8_t*>(logBuffer));
+  uint8_t newSeq = latestSeq;
   newSeq++;
-  // Keep 0 reserved for "empty" so wrap 255->1
-  if (newSeq == 0) newSeq = 1;
+  // Keep 0 reserved for "empty" and bump epoch on wrap 255->1
+  if (newSeq == 0) {
+    newSeq = 1;
+    logEpoch++;
+    writeEpochToEeprom(logEpoch);
+  }
   // Serial.print("New seq: ");
   // Serial.println(newSeq);
 
@@ -188,6 +216,8 @@ uint8_t goToNextLogSlot(bool force = false) {
   if (force) return true;
   uint8_t newLogEntrySeq = *static_cast<uint8_t*>(logBuffer);
   if (!slotIsEmpty(newLogEntrySeq) && seqIsLater(newLogEntrySeq, originalLogEntrySeq)) {
+    // Crossing 255 -> 1 means moving into a newer epoch during browsing
+    if (originalLogEntrySeq == 255 && newLogEntrySeq == 1) browseEpoch++;
     return true;
   }
 
@@ -213,6 +243,8 @@ uint8_t goToPreviousLogSlot(bool force = false) {
   uint8_t newLogEntrySeq = *static_cast<uint8_t*>(logBuffer);
   // Allow moving back only if the target is a valid older entry
   if (!slotIsEmpty(newLogEntrySeq) && seqIsLater(originalLogEntrySeq, newLogEntrySeq)) {
+    // Crossing 1 -> 255 means moving into a previous epoch during browsing
+    if (originalLogEntrySeq == 1 && newLogEntrySeq == 255) browseEpoch--;
     return true;
   }
 
@@ -224,10 +256,19 @@ uint8_t goToPreviousLogSlot(bool force = false) {
 void initLogs(void *buffer, int eepromSize, int startAddress, int logsMemory, int slotSize, void (*callback)()=nullptr) {
   logBuffer = buffer;
   EEPROM_SIZE = eepromSize;
-  EEPROM_START_ADDRESS = startAddress;
+  EEPROM_META_ADDRESS = startAddress;         // reserve first 2 bytes for epoch
+  EEPROM_START_ADDRESS = startAddress + 2;    // actual start of log slots
   EEPROM_LOGS_MEMORY = logsMemory;
   EEPROM_SLOT_SIZE = slotSize;
-  EEPROM_TOTAL_SLOTS = ((EEPROM_SIZE - EEPROM_START_ADDRESS) / EEPROM_SLOT_SIZE);
+  if (EEPROM_LOGS_MEMORY > 0) {
+    EEPROM_TOTAL_SLOTS = ((EEPROM_LOGS_MEMORY - 2) / EEPROM_SLOT_SIZE);
+  } else {
+    EEPROM_TOTAL_SLOTS = ((EEPROM_SIZE - EEPROM_START_ADDRESS) / EEPROM_SLOT_SIZE);
+  }
+
+  // Load persisted epoch
+  logEpoch = readEpochFromEeprom();
+  browseEpoch = logEpoch;
 
 
   // Will set currentSlot
@@ -252,13 +293,25 @@ void clearLogEntry(void *buffer) {
 }
 
 void wipeLogs() {
+  // Clear slots
   for (uint16_t i = EEPROM_START_ADDRESS; i < EEPROM_START_ADDRESS + (EEPROM_TOTAL_SLOTS * EEPROM_SLOT_SIZE); i++) {
     EEPROM.update(i, 0);
   }
+  // Reset epoch
+  logEpoch = 0;
+  browseEpoch = 0;
+  writeEpochToEeprom(logEpoch);
   currentSlot = - 1;
   clearLogEntry(logBuffer);
 }
 
 int8_t getCurrentSlot() {
   return currentSlot;
+}
+
+uint16_t getLogEpoch() { return logEpoch; }
+uint16_t getBrowseEpoch() { return browseEpoch; }
+uint32_t getAbsoluteLogNumber() {
+  uint8_t seq = *static_cast<uint8_t*>(logBuffer);
+  return ((uint32_t)browseEpoch << 8) | seq;
 }
