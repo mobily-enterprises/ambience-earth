@@ -3,51 +3,51 @@
   "author": "ambience-earth",
   "editor": "wokwi",
   "parts": [
-    { "type": "wokwi-arduino-nano", "id": "nano", "top": 60, "left": -10, "attrs": {} },
+    { "type": "wokwi-arduino-nano", "id": "nano", "top": -40, "left": -120, "attrs": {} },
     { "type": "wokwi-lcd2004", "id": "lcd1", "top": -170, "left": 220, "attrs": { "pins": "i2c", "i2cAddress": "0x27" } },
-    { "type": "wokwi-slide-potentiometer", "id": "soilPot", "top": 210, "left": 220, "attrs": { "value": "512", "travelLength": "60", "label": "Soil" } },
-    { "type": "wokwi-slide-switch", "id": "trayLow", "top": 210, "left": -260, "attrs": { "label": "Tray Low" } },
-    { "type": "wokwi-pushbutton", "id": "btnUp", "top": 320, "left": -210, "attrs": { "label": "UP", "key": "e" } },
-    { "type": "wokwi-pushbutton", "id": "btnLeft", "top": 360, "left": -250, "attrs": { "label": "LEFT", "key": "a" } },
-    { "type": "wokwi-pushbutton", "id": "btnRight", "top": 360, "left": -170, "attrs": { "label": "RIGHT", "key": "f" } },
-    { "type": "wokwi-pushbutton", "id": "btnDown", "top": 400, "left": -210, "attrs": { "label": "DOWN", "key": "x" } },
-    { "type": "wokwi-pushbutton", "id": "btnOk", "top": 360, "left": -330, "attrs": { "label": "OK", "key": "d" } },
-    { "type": "chip-keyladder", "id": "keys", "top": 340, "left": -120, "attrs": {} },
-    { "type": "wokwi-led", "id": "pumpInLed", "top": 0, "left": 330, "attrs": { "color": "white", "lightColor": "#00ff3c", "label": "PUMP IN ON" } }
+    { "type": "wokwi-slide-potentiometer", "id": "soilPot", "top": 70, "left": 420, "attrs": { "value": "512", "travelLength": "60", "label": "Soil" } },
+    { "type": "wokwi-slide-switch", "id": "trayLow", "top": 80, "left": 120, "attrs": { "label": "Tray Low" } },
+    { "type": "wokwi-pushbutton", "id": "btnUp", "top": 40, "left": 300, "attrs": { "label": "UP", "key": "e" } },
+    { "type": "wokwi-pushbutton", "id": "btnLeft", "top": 80, "left": 260, "attrs": { "label": "LEFT", "key": "a" } },
+    { "type": "wokwi-pushbutton", "id": "btnRight", "top": 80, "left": 340, "attrs": { "label": "RIGHT", "key": "f" } },
+    { "type": "wokwi-pushbutton", "id": "btnDown", "top": 120, "left": 300, "attrs": { "label": "DOWN", "key": "x" } },
+    { "type": "wokwi-pushbutton", "id": "btnOk", "top": 80, "left": 200, "attrs": { "label": "OK", "key": "d" } },
+    { "type": "chip-keyladder", "id": "keys", "top": 170, "left": 260, "attrs": {} },
+    { "type": "wokwi-led", "id": "pumpInLed", "top": 10, "left": 120, "attrs": { "color": "white", "lightColor": "#00ff3c", "label": "PUMP IN ON" } }
   ],
   "connections": [
-    ["nano:5V", "lcd1:VCC", "red", ["v0"]],
-    ["nano:GND.1", "lcd1:GND", "black", ["v0"]],
-    ["nano:A4", "lcd1:SDA", "green", ["v0"]],
-    ["nano:A5", "lcd1:SCL", "green", ["v0"]],
+    ["nano:5V", "lcd1:VCC", "#5a2e2e", ["v0"]],
+    ["nano:GND.1", "lcd1:GND", "#333333", ["v0"]],
+    ["nano:A4", "lcd1:SDA", "#2e5a2e", ["v0"]],
+    ["nano:A5", "lcd1:SCL", "#2e5a2e", ["v0"]],
 
-    ["nano:12", "soilPot:VCC", "red", ["v0"]],
-    ["nano:GND.2", "soilPot:GND", "black", ["v0"]],
-    ["nano:A0", "soilPot:SIG", "green", ["v0"]],
+    ["nano:12", "soilPot:VCC", "#5a2e2e", ["v0"]],
+    ["nano:GND.2", "soilPot:GND", "#333333", ["v0"]],
+    ["nano:A0", "soilPot:SIG", "#2e5a2e", ["v0"]],
 
-    ["nano:GND.1", "trayLow:2", "black", ["v0"]],
-    ["nano:5", "trayLow:3", "green", ["v0"]],
+    ["nano:GND.1", "trayLow:2", "#333333", ["v0"]],
+    ["nano:5", "trayLow:3", "#2e5a2e", ["v0"]],
 
-    ["nano:5V", "pumpInLed:A", "red", ["v0"]],
-    ["nano:2", "pumpInLed:C", "green", ["v0"]],
+    ["nano:5V", "pumpInLed:A", "#5a2e2e", ["v0"]],
+    ["nano:2", "pumpInLed:C", "#2e5a2e", ["v0"]],
 
-    ["nano:5V", "keys:VCC", "red", ["v0"]],
-    ["nano:GND.1", "keys:GND", "black", ["v0"]],
-    ["keys:OUT", "nano:A7", "green", ["v0"]],
+    ["nano:5V", "keys:VCC", "#5a2e2e", ["v0"]],
+    ["nano:GND.1", "keys:GND", "#333333", ["v0"]],
+    ["keys:OUT", "nano:A7", "#2e5a2e", ["v0"]],
 
-    ["keys:E", "btnUp:1.r", "green", ["v0"]],
-    ["btnUp:2.l", "nano:GND.1", "black", ["v0"]],
+    ["keys:E", "btnUp:1.r", "#2e5a2e", ["v0"]],
+    ["btnUp:2.l", "nano:GND.1", "#333333", ["v0"]],
 
-    ["keys:X", "btnDown:1.r", "green", ["v0"]],
-    ["btnDown:2.l", "nano:GND.1", "black", ["v0"]],
+    ["keys:X", "btnDown:1.r", "#2e5a2e", ["v0"]],
+    ["btnDown:2.l", "nano:GND.1", "#333333", ["v0"]],
 
-    ["keys:A", "btnLeft:1.r", "green", ["v0"]],
-    ["btnLeft:2.l", "nano:GND.1", "black", ["v0"]],
+    ["keys:A", "btnLeft:1.r", "#2e5a2e", ["v0"]],
+    ["btnLeft:2.l", "nano:GND.1", "#333333", ["v0"]],
 
-    ["keys:D", "btnRight:1.r", "green", ["v0"]],
-    ["btnRight:2.l", "nano:GND.1", "black", ["v0"]],
+    ["keys:D", "btnRight:1.r", "#2e5a2e", ["v0"]],
+    ["btnRight:2.l", "nano:GND.1", "#333333", ["v0"]],
 
-    ["keys:F", "btnOk:1.r", "green", ["v0"]],
-    ["btnOk:2.l", "nano:GND.1", "black", ["v0"]]
+    ["keys:F", "btnOk:1.r", "#2e5a2e", ["v0"]],
+    ["btnOk:2.l", "nano:GND.1", "#333333", ["v0"]]
   ]
 }
