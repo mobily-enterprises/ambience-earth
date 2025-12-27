@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "author": "ambience-earth",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-nano", "id": "nano", "top": 60, "left": -10, "attrs": {} },
+    { "type": "wokwi-lcd2004", "id": "lcd1", "top": -170, "left": 220, "attrs": { "pins": "i2c", "i2cAddress": "0x27" } },
+    { "type": "wokwi-potentiometer", "id": "soilPot", "top": 210, "left": 260, "attrs": { "value": "512", "label": "Soil" } },
+    { "type": "wokwi-pushbutton", "id": "trayLow", "top": 220, "left": -230, "attrs": { "label": "Tray Low" } },
+    { "type": "wokwi-pushbutton", "id": "trayHigh", "top": 260, "left": -230, "attrs": { "label": "Tray Mid/High" } },
+    { "type": "wokwi-pushbutton", "id": "btnUp", "top": 320, "left": -210, "attrs": { "label": "UP", "key": "e" } },
+    { "type": "wokwi-pushbutton", "id": "btnLeft", "top": 360, "left": -250, "attrs": { "label": "LEFT", "key": "a" } },
+    { "type": "wokwi-pushbutton", "id": "btnRight", "top": 360, "left": -170, "attrs": { "label": "RIGHT", "key": "f" } },
+    { "type": "wokwi-pushbutton", "id": "btnDown", "top": 400, "left": -210, "attrs": { "label": "DOWN", "key": "x" } },
+    { "type": "wokwi-pushbutton", "id": "btnOk", "top": 360, "left": -330, "attrs": { "label": "OK", "key": "d" } },
+    { "type": "chip-keyladder", "id": "keys", "top": 340, "left": -120, "attrs": {} }
+  ],
+  "connections": [
+    ["nano:5V", "lcd1:VCC", "red", ["v0"]],
+    ["nano:GND.1", "lcd1:GND", "black", ["v0"]],
+    ["nano:A4", "lcd1:SDA", "green", ["v0"]],
+    ["nano:A5", "lcd1:SCL", "green", ["v0"]],
+
+    ["nano:D12", "soilPot:VCC", "red", ["v0"]],
+    ["nano:GND.2", "soilPot:GND", "black", ["v0"]],
+    ["nano:A0", "soilPot:SIG", "green", ["v0"]],
+
+    ["nano:D5", "trayLow:1.r", "green", ["v0"]],
+    ["nano:GND.1", "trayLow:2.l", "black", ["v0"]],
+    ["nano:D7", "trayHigh:1.r", "green", ["v0"]],
+    ["nano:GND.1", "trayHigh:2.l", "black", ["v0"]],
+
+    ["nano:5V", "keys:VCC", "red", ["v0"]],
+    ["nano:GND.1", "keys:GND", "black", ["v0"]],
+    ["keys:OUT", "nano:A7", "green", ["v0"]],
+
+    ["keys:E", "btnUp:1.r", "green", ["v0"]],
+    ["btnUp:2.l", "nano:GND.1", "black", ["v0"]],
+
+    ["keys:X", "btnDown:1.r", "green", ["v0"]],
+    ["btnDown:2.l", "nano:GND.1", "black", ["v0"]],
+
+    ["keys:A", "btnLeft:1.r", "green", ["v0"]],
+    ["btnLeft:2.l", "nano:GND.1", "black", ["v0"]],
+
+    ["keys:D", "btnRight:1.r", "green", ["v0"]],
+    ["btnRight:2.l", "nano:GND.1", "black", ["v0"]],
+
+    ["keys:F", "btnOk:1.r", "green", ["v0"]],
+    ["btnOk:2.l", "nano:GND.1", "black", ["v0"]]
+  ]
+}

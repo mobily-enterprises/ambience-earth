@@ -369,6 +369,23 @@ void settingsCalibrate() {
   }
 }
 
+static void debugButtonRead(uint16_t readValue) {
+  static unsigned long lastDebugMillis = 0;
+  const unsigned long interval = 250;
+  const unsigned long now = millis();
+
+  if (now - lastDebugMillis < interval) return;
+  lastDebugMillis = now;
+
+  Serial.print(F("A7="));
+  Serial.println(readValue);
+
+  lcdClearLine(1);
+  lcdSetCursor(0, 1);
+  lcd.print(F("A7:"));
+  lcd.print(readValue);
+}
+
 void runButtonsSetup() {
   uint16_t read = 1024;
 
@@ -376,6 +393,7 @@ void runButtonsSetup() {
   lcdPrint(MSG_PRESS_UP);
   while (read > 1000) {
     read = analogRead(BUTTONS_PIN);
+    debugButtonRead(read);
     if (read < 1000) {
       delay(100);
       read = analogRead(BUTTONS_PIN);
@@ -391,6 +409,7 @@ void runButtonsSetup() {
   read = 1024;
   while (read > 1000) {
     read = analogRead(BUTTONS_PIN);
+    debugButtonRead(read);
     if (read < 1000) {
       delay(100);
       read = analogRead(BUTTONS_PIN);
@@ -405,6 +424,7 @@ void runButtonsSetup() {
   read = 1024;
   while (read > 1000) {
     read = analogRead(BUTTONS_PIN);
+    debugButtonRead(read);
     if (read < 1000) {
       delay(100);
       read = analogRead(BUTTONS_PIN);
@@ -420,6 +440,7 @@ void runButtonsSetup() {
   read = 1024;
   while (read > 1000) {
     read = analogRead(BUTTONS_PIN);
+    debugButtonRead(read);
     if (read < 1000) {
       delay(100);
       read = analogRead(BUTTONS_PIN);
@@ -435,6 +456,7 @@ void runButtonsSetup() {
   read = 1024;
   while (read > 1000) {
     read = analogRead(BUTTONS_PIN);
+    debugButtonRead(read);
     if (read < 1000) {
       delay(100);
       read = analogRead(BUTTONS_PIN);

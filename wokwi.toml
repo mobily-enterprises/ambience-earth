@@ -1,0 +1,7 @@
+[wokwi]
+version = 1
+firmware = "main/build/arduino.avr.nano/main.ino.hex"
+
+[[chip]]
+name = "keyladder"
+binary = "inverter-chip-orig/dist/chip.wasm"

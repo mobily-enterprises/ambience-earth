@@ -178,7 +178,7 @@ void initialPinSetup() {
   pinMode(A5, OUTPUT); digitalWrite(A5, LOW);
 
   pinMode(A6, INPUT_PULLUP); // Input only, set as pullup
-  pinMode(A7, INPUT_PULLUP); // Input only, set as pullup
+  pinMode(A7, INPUT_PULLUP); // Analog buttons use external ladder/pull-up
 }
 
 void createBootLogEntry() {

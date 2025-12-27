@@ -85,3 +85,8 @@ findings.md
   Let me know if you want diagrams, edge-case notes, or proposed fixes for the
   above ambiguities.
 
+- `config.trayNeedsEmptying` is set when the user enables “Auto drain?”, yet `emptyTrayIfNecessary()` bails out when the flag is true, so the semantics appear inverted. Clarify whether auto-drain should run or skip when this flag is set.
+- Tray calibration fields (`trayWaterLevelSensorCalibrationQuarter/Half/ThreeQuarters`) are declared but never initialised in `restoreDefaultConfig()` or used elsewhere; calibration flow seems incomplete.
+- `soilMoistureAsState()` is declared in `moistureSensor.h` but not implemented or referenced.
+- `TRAY_SENSOR_HIGH` and `TRAY_SENSOR_MID` both map to pin 7 (mid is noted as placeholder); add the real pin when the mid-level sensor is wired.
+- `openLineOut()/closeLineOut()` drive PUMP_OUT HIGH to open and LOW to close; confirm this matches the hardware wiring to avoid reversed behavior.
