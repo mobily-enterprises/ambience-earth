@@ -555,10 +555,8 @@ void emptyTrayIfNecessary() {
 
 void lcdPrintTime(unsigned long milliseconds) {
 
-  // Calculate the total number of seconds, minutes, and hours
-  unsigned long totalSeconds = milliseconds / 1000;
-  unsigned long seconds = totalSeconds % 60;
-  unsigned long totalMinutes = totalSeconds / 60;
+  // Calculate the total number of minutes and hours
+  unsigned long totalMinutes = milliseconds / 1000 / 60;
   unsigned long minutes = totalMinutes % 60;
   unsigned long hours = totalMinutes / 60;
 
@@ -567,13 +565,9 @@ void lcdPrintTime(unsigned long milliseconds) {
     lcd.print('h');
   }
 
-  if (minutes) {
-    lcd.print(minutes);
-    lcd.print('m');
-  }
-
-  lcd.print(seconds);
-  lcd.print('s');
+  // Always show minutes (even 0m) so the time isn't blank
+  lcd.print(minutes);
+  lcd.print('m');
 }
 
 
@@ -581,10 +575,8 @@ void lcdPrintTimeSince(unsigned long milliseconds) {
   // Calculate elapsed time in milliseconds
   unsigned long elapsedMillis = millis() - milliseconds;
 
-  // Calculate the total number of seconds, minutes, and hours
-  unsigned long totalSeconds = elapsedMillis / 1000;
-  unsigned long seconds = totalSeconds % 60;
-  unsigned long totalMinutes = totalSeconds / 60;
+  // Calculate the total number of minutes and hours
+  unsigned long totalMinutes = elapsedMillis / 1000 / 60;
   unsigned long minutes = totalMinutes % 60;
   unsigned long hours = totalMinutes / 60;
 
@@ -593,13 +585,8 @@ void lcdPrintTimeSince(unsigned long milliseconds) {
     lcd.print('h');
   }
 
-  if (minutes) {
-    lcd.print(minutes);
-    lcd.print('m');
-  }
-
-  /* lcd.print(seconds);
-  lcd.print('s');*/
+  lcd.print(minutes);
+  lcd.print('m');
 }
 
 
@@ -607,10 +594,8 @@ void lcdPrintTimePretty(unsigned long milliseconds) {
   // Calculate elapsed time in milliseconds
   unsigned long elapsedMillis = milliseconds;
 
-  // Calculate the total number of seconds, minutes, and hours
-  unsigned long totalSeconds = elapsedMillis / 1000;
-  unsigned long seconds = totalSeconds % 60;
-  unsigned long totalMinutes = totalSeconds / 60;
+  // Calculate the total number of minutes and hours
+  unsigned long totalMinutes = elapsedMillis / 1000 / 60;
   unsigned long minutes = totalMinutes % 60;
   unsigned long hours = totalMinutes / 60;
 
@@ -619,13 +604,8 @@ void lcdPrintTimePretty(unsigned long milliseconds) {
     lcd.print('h');
   }
 
-  if (minutes) {
-    lcd.print(minutes);
-    lcd.print('m');
-  }
-
-  lcd.print(seconds);
-  lcd.print('s');
+  lcd.print(minutes);
+  lcd.print('m');
 }
 
 
@@ -633,10 +613,8 @@ void lcdPrintTimeDuration(unsigned long start, unsigned long finish) {
   // Calculate elapsed time in milliseconds
   unsigned long elapsedMillis = finish - start;
 
-  // Calculate the total number of seconds, minutes, and hours
-  unsigned long totalSeconds = elapsedMillis / 1000;
-  unsigned long seconds = totalSeconds % 60;
-  unsigned long totalMinutes = totalSeconds / 60;
+  // Calculate the total number of minutes and hours
+  unsigned long totalMinutes = elapsedMillis / 1000 / 60;
   unsigned long minutes = totalMinutes % 60;
   unsigned long hours = totalMinutes / 60;
 
@@ -645,13 +623,8 @@ void lcdPrintTimeDuration(unsigned long start, unsigned long finish) {
     lcd.print('h');
   }
 
-  if (minutes) {
-    lcd.print(minutes);
-    lcd.print('m');
-  }
-
-  lcd.print(seconds);
-  lcd.print('s');
+  lcd.print(minutes);
+  lcd.print('m');
 }
 
 void showLogType0() {
