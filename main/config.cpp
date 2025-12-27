@@ -61,26 +61,16 @@ void setConfigChecksum() {
 
 void restoreDefaultConfig() {
   config.checksum = 0;
-  config.feedFrom = FeedFrom::FEED_FROM_TOP;
-
   config.mustRunInitialSetup = true;
-
-  config.trayNeedsEmptying = false;
 
   config.moistSensorCalibrationSoaked = 400;
   config.moistSensorCalibrationDry = 780;
-
-  config.trayWaterLevelSensorCalibrationQuarter;
-  config.trayWaterLevelSensorCalibrationHalf;
-  config.trayWaterLevelSensorCalibrationThreeQuarters;
 
   config.minFeedInterval = 1000L * 60 * 30;
   //config.minFeedIntervalMoistOverride = 65;
 
 
   config.maxFeedTime = 1000L * 60 * 3;
-  config.maxPumpOutTime = 1000L * 60 * 3;
-  config.pumpOutRestTime = 1000L * 60 * 3;
 
   config.kbdUp = 0;
   config.kbdDown = 0;
@@ -90,37 +80,4 @@ void restoreDefaultConfig() {
 
   // Set default checksum
   config.checksum = calculateConfigChecksum();
-
-  config.actions[0] = Action{
-    "BOTTOM FEED",
-    { Conditions::TRAY_DRY, 65, Conditions::TRAY_OR_SOIL },
-    { Conditions::TRAY_FULL, 0, Conditions::NO_LOGIC },
-    FeedFrom::FEED_FROM_TRAY,
-  };
-  config.actions[1] = Action{
-    "TOP FEED ROFF",
-    { Conditions::TRAY_IGNORED, 70, Conditions::NO_LOGIC },
-    { Conditions::TRAY_MIDDLE, 0, Conditions::NO_LOGIC },
-    FeedFrom::FEED_FROM_TOP,
-  };
-  config.actions[2] = Action{
-    "STACK FEED",
-    { Conditions::TRAY_IGNORED, 70, Conditions::NO_LOGIC },
-    { Conditions::TRAY_LITTLE, 0, Conditions::TRAY_OR_SOIL },
-    FeedFrom::FEED_FROM_TOP,
-  };
-  config.actions[3] = Action{
-    "STACK W/ROFF",
-    { Conditions::TRAY_IGNORED, 70, Conditions::NO_LOGIC },
-    { Conditions::TRAY_MIDDLE, 0, Conditions::NO_LOGIC },
-    FeedFrom::FEED_FROM_TOP,
-  };
-  config.actions[4] = Action{
-    "FEED RECIRC",
-    { Conditions::TRAY_IGNORED, 70, Conditions::NO_LOGIC },
-    { Conditions::TRAY_IGNORED, 0, Conditions::NO_LOGIC },
-    FeedFrom::FEED_FROM_TOP,
-  };
-  config.activeActionsIndex0 = -1;
-  config.activeActionsIndex1 = -1;
 }
