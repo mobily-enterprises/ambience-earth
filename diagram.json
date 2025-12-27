@@ -13,7 +13,7 @@
     { "type": "wokwi-pushbutton", "id": "btnDown", "top": 400, "left": -210, "attrs": { "label": "DOWN", "key": "x" } },
     { "type": "wokwi-pushbutton", "id": "btnOk", "top": 360, "left": -330, "attrs": { "label": "OK", "key": "d" } },
     { "type": "chip-keyladder", "id": "keys", "top": 340, "left": -120, "attrs": {} },
-    { "type": "wokwi-led", "id": "pumpInLed", "top": 0, "left": 330, "attrs": { "color": "red", "label": "Pump In" } }
+    { "type": "wokwi-led", "id": "pumpInLed", "top": 0, "left": 330, "attrs": { "color": "white", "lightColor": "#00ff3c", "label": "PUMP IN ON" } }
   ],
   "connections": [
     ["nano:5V", "lcd1:VCC", "red", ["v0"]],
