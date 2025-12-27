@@ -377,13 +377,7 @@ static void debugButtonRead(uint16_t readValue) {
   if (now - lastDebugMillis < interval) return;
   lastDebugMillis = now;
 
-  Serial.print(F("A7="));
-  Serial.println(readValue);
-
-  lcdClearLine(1);
-  lcdSetCursor(0, 1);
-  lcd.print(F("A7:"));
-  lcd.print(readValue);
+  (void)readValue;
 }
 
 void runButtonsSetup() {
