@@ -6,7 +6,7 @@
     { "type": "wokwi-arduino-nano", "id": "nano", "top": 60, "left": -10, "attrs": {} },
     { "type": "wokwi-lcd2004", "id": "lcd1", "top": -170, "left": 220, "attrs": { "pins": "i2c", "i2cAddress": "0x27" } },
     { "type": "wokwi-slide-potentiometer", "id": "soilPot", "top": 210, "left": 220, "attrs": { "value": "512", "travelLength": "60", "label": "Soil" } },
-    { "type": "wokwi-slide-switch", "id": "trayLow", "top": 210, "left": -260, "attrs": { "value": "1", "label": "Tray Low" } },
+    { "type": "wokwi-slide-switch", "id": "trayLow", "top": 210, "left": -260, "attrs": { "label": "Tray Low" } },
     { "type": "wokwi-pushbutton", "id": "btnUp", "top": 320, "left": -210, "attrs": { "label": "UP", "key": "e" } },
     { "type": "wokwi-pushbutton", "id": "btnLeft", "top": 360, "left": -250, "attrs": { "label": "LEFT", "key": "a" } },
     { "type": "wokwi-pushbutton", "id": "btnRight", "top": 360, "left": -170, "attrs": { "label": "RIGHT", "key": "f" } },
@@ -21,16 +21,15 @@
     ["nano:A4", "lcd1:SDA", "green", ["v0"]],
     ["nano:A5", "lcd1:SCL", "green", ["v0"]],
 
-    ["nano:D12", "soilPot:VCC", "red", ["v0"]],
+    ["nano:12", "soilPot:VCC", "red", ["v0"]],
     ["nano:GND.2", "soilPot:GND", "black", ["v0"]],
     ["nano:A0", "soilPot:SIG", "green", ["v0"]],
 
-    ["nano:D5", "trayLow:2", "green", ["v0"]],
-    ["nano:GND.1", "trayLow:1", "black", ["v0"]],
-    ["nano:5V", "trayLow:3", "red", ["v0"]],
+    ["nano:GND.1", "trayLow:2", "black", ["v0"]],
+    ["nano:5", "trayLow:3", "green", ["v0"]],
 
     ["nano:5V", "pumpInLed:A", "red", ["v0"]],
-    ["nano:D2", "pumpInLed:C", "green", ["v0"]],
+    ["nano:2", "pumpInLed:C", "green", ["v0"]],
 
     ["nano:5V", "keys:VCC", "red", ["v0"]],
     ["nano:GND.1", "keys:GND", "black", ["v0"]],
