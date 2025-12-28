@@ -18,7 +18,7 @@ char getNextCharacter(char currentChar);
 char getPreviousCharacter(char currentChar);
 extern Config config;
 
-LiquidCrystal_I2C lcd = LiquidCrystal_I2C(0x27, 16, 4);
+LiquidCrystal_I2C lcd = LiquidCrystal_I2C(0x27, 20, 4);
 
 
 AnalogButtons analogButtons = AnalogButtons(BUTTONS_PIN, BUTTONS_PIN_MODE, BUTTONS_DEBOUNCE_MULTIPLIER, BUTTONS_ANALOG_MARGIN);
@@ -286,23 +286,10 @@ long int inputNumber(char *prompt, long int initialUserInput, int stepSize = 1, 
 }
 
 void resetChoicesAndHeader() {
-  choices[0].label[0] = '\0';
-  choices[0].value = 0;
-
-  choices[1].label[0] = '\0';
-  choices[1].value = 0;
-
-  choices[2].label[0] = '\0';
-  choices[2].value = 0;
-
-  choices[3].label[0] = '\0';
-  choices[3].value = 0;
-
-  choices[4].label[0] = '\0';
-  choices[4].value = 0;
-
-  choices[5].label[0] = '\0';
-  choices[5].value = 0;
+  for (int i = 0; i < 10; i++) {
+    choices[i].label[0] = '\0';
+    choices[i].value = 0;
+  }
 
   choicesHeader[0] = '\0';
 }
@@ -483,16 +470,20 @@ void inputString(char *prompt, char *initialUserInput, char *optionalHeader = MS
         lcd.write((uint8_t)1);
         lcd.setCursor(1, INPUT_Y);
         lcd.print(userInputString);
-        lcd.setCursor(cursorPosition, INPUT_Y);
-        lcd.print(userInputString[cursorPosition - 1]);
+        if (cursorPosition > 0) {
+          lcd.setCursor(cursorPosition, INPUT_Y);
+          lcd.print(userInputString[cursorPosition - 1]);
+        }
       } else {
         lcd.setCursor(0, INPUT_Y);
         lcd.write((uint8_t)1);
         lcd.setCursor(1, INPUT_Y);
         lcd.print(userInputString);
         // Print the full square instead of the character to simulate blinking cursor
-        lcd.setCursor(cursorPosition, INPUT_Y);
-        lcd.write((uint8_t)0);  // Print custom character fullSquare
+        if (cursorPosition > 0) {
+          lcd.setCursor(cursorPosition, INPUT_Y);
+          lcd.write((uint8_t)0);  // Print custom character fullSquare
+        }
       }
       displayChanged = false;
     }
