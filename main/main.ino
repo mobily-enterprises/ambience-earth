@@ -422,6 +422,7 @@ void showLogType0() {
 }
 
 void showLogType1() {
+  // Feed log entry (entryType = 1); shown when feeding logic is reintroduced.
   lcdClear();
   lcdClear();
   // Print absolute log number (epoch-aware)
