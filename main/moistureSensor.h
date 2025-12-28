@@ -8,9 +8,10 @@
 
 #define SENSOR_SLEEP_INTERVAL 60000UL
 #define SENSOR_WINDOW_DURATION 30000UL
-#define SENSOR_SAMPLE_INTERVAL 500UL
+#define SENSOR_SAMPLE_INTERVAL 250UL
 #define SENSOR_STABILIZATION_TIME 2000UL
 #define SENSOR_WINDOW_MAX_SAMPLES ((SENSOR_WINDOW_DURATION / SENSOR_SAMPLE_INTERVAL) + 1)
+#define SENSOR_REALTIME_EMA_TAU_MS 700UL
 
 
 void setSoilSensorLazy();
@@ -18,6 +19,9 @@ void setSoilSensorRealTime();
 uint16_t getSoilMoisture();
 uint16_t runSoilSensorLazyReadings();
 bool soilSensorIsActive();
+bool soilSensorRealtimeReady();
+uint16_t soilSensorGetRealtimeAvg();
+uint16_t soilSensorGetRealtimeRaw();
 uint8_t soilSensorGetLastWindowSampleCount();
 uint8_t soilSensorGetLastWindowSample(uint8_t index);
 uint8_t soilSensorGetLastWindowMinPercent();

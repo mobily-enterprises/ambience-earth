@@ -62,6 +62,7 @@ extern const char PROGMEM MSG_RESET[];
 extern const char PROGMEM MSG_TEST_PUMPS[];
 extern const char PROGMEM MSG_LOGS[];
 extern const char PROGMEM MSG_SETTINGS[];
+extern const char PROGMEM MSG_RAW_COLUMN[];
 
 extern const char PROGMEM MSG_TINY_BIT_OF_WATER[];
 extern const char PROGMEM MSG_HOLD_IT_STILL[];

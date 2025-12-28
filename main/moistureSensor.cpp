@@ -19,7 +19,8 @@ enum LazyState : uint8_t {
 };
 
 static uint16_t lazyValue = 0;
-static uint16_t realtimeValue = 0;
+static uint16_t realtimeRaw = 0;
+static float realtimeAvg = 0.0f;
 static ReadMode readMode = READ_MODE_LAZY;
 static LazyState lazyState = LAZY_STATE_IDLE;
 static bool sensorPowered = false;
@@ -28,6 +29,9 @@ static unsigned long sensorOnTime = 0;
 static unsigned long windowStartAt = 0;
 static unsigned long nextSampleAt = 0;
 static unsigned long nextWindowAt = 0;
+static unsigned long realtimeWarmupUntil = 0;
+static unsigned long realtimeLastSampleAt = 0;
+static bool realtimeSeeded = false;
 
 static uint32_t windowSum = 0;
 static uint32_t windowPercentSum = 0;
@@ -90,6 +94,40 @@ static void finalizeWindow() {
   lastWindowMaxPercent = windowMaxPercent;
 }
 
+static void resetRealtimeFilter(uint16_t seed) {
+  realtimeAvg = (float)seed;
+  realtimeRaw = seed;
+  realtimeSeeded = true;
+  realtimeLastSampleAt = 0;
+  realtimeWarmupUntil = millis() + SENSOR_STABILIZATION_TIME;
+}
+
+static void tickRealtime(bool forceSample) {
+  if (!sensorPowered) return;
+
+  unsigned long now = millis();
+  if (now < realtimeWarmupUntil) return;
+
+  if (!forceSample && realtimeLastSampleAt && now - realtimeLastSampleAt < SENSOR_SAMPLE_INTERVAL) {
+    return;
+  }
+
+  uint16_t raw = readMedian3();
+  realtimeRaw = raw;
+
+  unsigned long dt = realtimeLastSampleAt ? (now - realtimeLastSampleAt) : SENSOR_SAMPLE_INTERVAL;
+  float alpha = (float)dt / (SENSOR_REALTIME_EMA_TAU_MS + (float)dt);
+
+  if (!realtimeSeeded) {
+    realtimeAvg = (float)raw;
+    realtimeSeeded = true;
+  } else {
+    realtimeAvg += alpha * ((float)raw - realtimeAvg);
+  }
+
+  realtimeLastSampleAt = now;
+}
+
 void initMoistureSensor() {
   pinMode(SOIL_MOISTURE_SENSOR_POWER, OUTPUT);
   pinMode(SOIL_MOISTURE_SENSOR, INPUT);
@@ -105,8 +143,11 @@ void initMoistureSensor() {
 
   sensorPowerOn();
   delay(SENSOR_STABILIZATION_TIME);
-  realtimeValue = lazyValue = readMedian3();
+  lazyValue = readMedian3();
   sensorPowerOff();
+  realtimeRaw = lazyValue;
+  realtimeAvg = (float)lazyValue;
+  realtimeSeeded = true;
 }
 
 uint16_t runSoilSensorLazyReadings() {
@@ -127,6 +168,21 @@ void setSoilSensorRealTime() {
 
 bool soilSensorIsActive() {
   return sensorPowered;
+}
+
+bool soilSensorRealtimeReady() {
+  if (readMode != READ_MODE_REALTIME) return false;
+  if (!sensorPowered) return false;
+  return millis() >= realtimeWarmupUntil;
+}
+
+uint16_t soilSensorGetRealtimeAvg() {
+  if (!realtimeSeeded) return lazyValue;
+  return (uint16_t)(realtimeAvg + 0.5f);
+}
+
+uint16_t soilSensorGetRealtimeRaw() {
+  return realtimeRaw;
 }
 
 uint8_t soilSensorGetLastWindowSampleCount() {
@@ -153,7 +209,10 @@ uint8_t soilSensorGetLastWindowAvgPercent() {
 uint16_t soilSensorOp(uint8_t op) {
   switch (op) {
     case 0: { // Tick lazy state machine
-      if (readMode != READ_MODE_LAZY) return lazyValue;
+      if (readMode != READ_MODE_LAZY) {
+        tickRealtime(false);
+        return soilSensorGetRealtimeAvg();
+      }
 
       const unsigned long now = millis();
 
@@ -208,8 +267,8 @@ uint16_t soilSensorOp(uint8_t op) {
 
     case 1: { // Read (lazy value or real-time read)
       if (readMode == READ_MODE_REALTIME) {
-        realtimeValue = lazyValue = readMedian3();
-        return realtimeValue;
+        tickRealtime(true);
+        return soilSensorGetRealtimeAvg();
       }
       return lazyValue;
     }
@@ -219,6 +278,7 @@ uint16_t soilSensorOp(uint8_t op) {
       lazyState = LAZY_STATE_IDLE;
       sensorPowerOff();
       nextWindowAt = millis();
+      realtimeSeeded = false;
       break;
     }
 
@@ -226,8 +286,7 @@ uint16_t soilSensorOp(uint8_t op) {
       readMode = READ_MODE_REALTIME;
       lazyState = LAZY_STATE_IDLE;
       sensorPowerOn();
-      delay(SENSOR_STABILIZATION_TIME);
-      realtimeValue = lazyValue = readMedian3();
+      resetRealtimeFilter(lazyValue);
       break;
     }
 

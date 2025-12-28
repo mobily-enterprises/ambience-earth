@@ -59,6 +59,7 @@ const char PROGMEM MSG_RESET[] = "Reset";
 const char PROGMEM MSG_TEST_PUMPS[] = "Test pump";
 const char PROGMEM MSG_LOGS[] = "Logs";
 const char PROGMEM MSG_SETTINGS[] = "Settings";
+const char PROGMEM MSG_RAW_COLUMN[] = "Raw:";
 
 const char PROGMEM MSG_TINY_BIT_OF_WATER[] = "TINY bit of water";
 const char PROGMEM MSG_HOLD_IT_STILL[] = "Hold it still";

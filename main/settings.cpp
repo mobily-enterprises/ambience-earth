@@ -168,8 +168,10 @@ static void runCalibrationTask() {
         lcdClear();
         lcdPrint_P(MSG_DRY_COLUMN, 1);
       }
+      if (!soilSensorRealtimeReady()) break;
       if (millis() >= calTask.nextSampleAt) {
-        uint16_t sample = getSoilMoisture();
+        (void)getSoilMoisture();
+        uint16_t sample = soilSensorGetRealtimeRaw();
         calTask.sampleSum += sample;
         lcdPrint_P(MSG_DRY_COLUMN, 1);
         lcdPrintNumber(sample);
@@ -213,8 +215,10 @@ static void runCalibrationTask() {
         lcdClear();
         lcdPrint_P(MSG_SOAKED_COLUMN, 1);
       }
+      if (!soilSensorRealtimeReady()) break;
       if (millis() >= calTask.nextSampleAt) {
-        uint16_t sample = getSoilMoisture();
+        (void)getSoilMoisture();
+        uint16_t sample = soilSensorGetRealtimeRaw();
         calTask.sampleSum += sample;
         lcdPrint_P(MSG_SOAKED_COLUMN, 1);
         lcdPrintNumber(sample);
@@ -369,17 +373,20 @@ void maintenance() {
 void testSensors() {
   static const unsigned long interval = 300;  // interval at which to run (milliseconds)
   static unsigned long previousMillis = 0;   // will store last time the loop ran
-  static int soilMoisturePercentage = 0;
+  static int soilMoistureRawPercentage = 0;
+  static int soilMoistureAvgPercentage = 0;
   static bool trayWaterLevelLow = false;
-  static int soilMoistureReading;
+  static int soilMoistureRawReading;
+  static int soilMoistureAvgReading;
 
 
   lcdClear();
 
   lcdSetCursor(0, 0);
   lcdPrint_P(MSG_TRAY_LOW_COLUMN);
-  lcdSetCursor(0, 3);
-  lcdPrint_P(MSG_SOIL_MOISTURE_COLUMN);
+  lcdClearLine(1);
+  lcdClearLine(2);
+  lcdClearLine(3);
 
   setSoilSensorRealTime();
 
@@ -389,9 +396,11 @@ void testSensors() {
     if (currentMillis - previousMillis >= interval) {
       previousMillis = currentMillis;
 
-      soilMoistureReading = getSoilMoisture();
+      soilMoistureAvgReading = getSoilMoisture();
+      soilMoistureRawReading = soilSensorGetRealtimeRaw();
       
-      soilMoisturePercentage = soilMoistureAsPercentage(soilMoistureReading);
+      soilMoistureAvgPercentage = soilMoistureAsPercentage(soilMoistureAvgReading);
+      soilMoistureRawPercentage = soilMoistureAsPercentage(soilMoistureRawReading);
       
       trayWaterLevelLow = senseTrayWaterLevelLow();
 
@@ -408,14 +417,23 @@ void testSensors() {
       lcdPrintNumber(trayWaterLevelLow);
       lcdPrint_P(MSG_SPACE);
 
-      lcdSetCursor(10, 3);
-      lcdPrintNumber(soilMoisturePercentage);
+      lcdClearLine(1);
+      lcdSetCursor(0, 1);
+      lcdPrint_P(MSG_RAW_COLUMN);
+      lcdSetCursor(5, 1);
+      lcdPrintNumber(soilMoistureRawPercentage);
       lcdPrint_P(MSG_PERCENT);
       lcdPrint_P(MSG_SPACE);
-      lcdPrintNumber(soilMoistureReading);
+      lcdPrintNumber(soilMoistureRawReading);
 
+      lcdClearLine(2);
+      lcdSetCursor(0, 2);
+      lcdPrint_P(MSG_AVG_COLUMN);
+      lcdSetCursor(5, 2);
+      lcdPrintNumber(soilMoistureAvgPercentage);
+      lcdPrint_P(MSG_PERCENT);
       lcdPrint_P(MSG_SPACE);
-      lcdPrint_P(MSG_SPACE);
+      lcdPrintNumber(soilMoistureAvgReading);
     }
   }
 }
