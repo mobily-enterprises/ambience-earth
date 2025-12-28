@@ -301,7 +301,7 @@ void setChoice_R(unsigned char index, const char *label, int value = 0) {
 }
 
 
-char *allowedStringCharacters = " ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+static const char allowedStringCharacters[] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 int initialCharacterPosition = 1;
 
 int isCharacterAllowed(char character) {
