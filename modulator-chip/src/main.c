@@ -34,12 +34,12 @@ static float rand_unit(chip_state_t *chip) {
 }
 
 static void choose_cycle(chip_state_t *chip) {
-  chip->period = 10.0f + rand_unit(chip) * 10.0f;
+  chip->period = 20.0f + rand_unit(chip) * 15.0f;
   chip->depth = 0.05f + rand_unit(chip) * 0.02f;
 }
 
 static void choose_hold(chip_state_t *chip) {
-  chip->hold_remaining = 3.0f + rand_unit(chip) * 2.0f;
+  chip->hold_remaining = 1.5f + rand_unit(chip) * 1.0f;
 }
 
 static float wrap_pi(float value) {
