@@ -21,9 +21,6 @@ typedef struct {
 
     uint16_t moistSensorCalibrationSoaked;
     uint16_t moistSensorCalibrationDry;
-    
-    uint32_t minFeedInterval;
-    uint32_t maxFeedTime;
 
     uint16_t kbdUp;
     uint16_t kbdDown;

@@ -13,6 +13,5 @@ int calibrateSoilMoistureSensor();
 void resetData();
 void activatePumps();
 void createBootLogEntry();
-void settingsSafetyLimits();
 void testSensors();
 #endif UI_H

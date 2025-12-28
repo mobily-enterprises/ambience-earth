@@ -59,7 +59,7 @@ const char PROGMEM MSG_SENSOR_2_MM_WATER[] = "Sensor in 2mm water";
 const char PROGMEM MSG_LINE_IN[] = "Line in...";
 
 const char PROGMEM MSG_RESET_DATA[] = "Reset data";
-const char PROGMEM MSG_TEST_PUMPS[] = "Test pumps/sol";
+const char PROGMEM MSG_TEST_PUMPS[] = "Test pump";
 const char PROGMEM MSG_LOGS[] = "Logs";
 const char PROGMEM MSG_SETTINGS[] = "Settings";
 
@@ -140,11 +140,6 @@ const char PROGMEM MSG_W_COLUMN[] = "W:";
 const char PROGMEM MSG_NOT_YET[] = "Not yet";
 const char PROGMEM MSG_NA[] = "n/a";
 
-const char PROGMEM MSG_MINUTES[] = "Minutes";
-const char PROGMEM MSG_SECONDS[] = "Seconds";
-
-const char PROGMEM MSG_MIN_FEED_INTERVAL[] = "Min interval bw feed";
-const char PROGMEM MSG_MAX_FEED_TIME[] = "Max feeding time";
 const char PROGMEM MSG_DEVICE_WILL_BLINK[] = "Device will blink";
 const char PROGMEM MSG_THREE_TIMES[] = "three times...";
 
@@ -174,7 +169,5 @@ const char PROGMEM MSG_PRESS_DOWN[] = "Press DOWN";
 const char PROGMEM MSG_PRESS_LEFT[] = "Press LEFT";
 const char PROGMEM MSG_PRESS_RIGHT[] = "Press RIGHT";
 const char PROGMEM MSG_PRESS_OK[] = "Press OK   ";
-
-const char PROGMEM MSG_SAFETY_LIMITS[] = "Safety limits";
 
 #endif MESSAGES_H

@@ -46,20 +46,18 @@ void maintenance() {
   while (choice != -1) {
     lcdClear();
     setChoices(
-      MSG_SAFETY_LIMITS, 1,
-      MSG_TEST_PUMPS, 2,
-      MSG_TEST_SENSORS, 3,
-      MSG_RESET_ONLY_LOGS, 4,
-      MSG_RESET_DATA, 5
+      MSG_TEST_PUMPS, 1,
+      MSG_TEST_SENSORS, 2,
+      MSG_RESET_ONLY_LOGS, 3,
+      MSG_RESET_DATA, 4
 
     );
-    choice = selectChoice(5, 1);
+    choice = selectChoice(4, 1);
 
-    if (choice == 1) settingsSafetyLimits();
-    else if (choice == 2) activatePumps();
-    else if (choice == 3) testSensors();
-    else if (choice == 4) resetOnlyLogs();
-    else if (choice == 5) resetData();
+    if (choice == 1) activatePumps();
+    else if (choice == 2) testSensors();
+    else if (choice == 3) resetOnlyLogs();
+    else if (choice == 4) resetData();
   }
 }
 
@@ -101,7 +99,7 @@ void testSensors() {
       }
 
       // Serial.print("AH"); Serial.println(digitalRead(TRAY_SENSOR_LOW)); 
-      lcdSetCursor(11, 0);
+      lcdSetCursor(15, 0);
       lcdPrintNumber(trayWaterLevelLow);
       lcdPrint(MSG_SPACE);
 
@@ -138,34 +136,6 @@ void resetOnlyLogs() {
     wipeLogsAndResetVars();
     createBootLogEntry();
   };
-}
-
-void settingsSafetyLimits() {
-  uint32_t minFeedInterval;
-  uint32_t maxFeedTime;
-  int8_t goAhead;
-
-  minFeedInterval = inputNumber(MSG_MINUTES, config.minFeedInterval/1000/60, 30, 0, 600, MSG_LITTLE, MSG_MIN_FEED_INTERVAL);
-  if (minFeedInterval == -1) return;
-
-  maxFeedTime = inputNumber(MSG_SECONDS, config.maxFeedTime/1000, 10, 0, 600, MSG_LITTLE, MSG_MAX_FEED_TIME);
-  if (maxFeedTime == -1) return;
-  
-  // Normalise to ms
-  minFeedInterval = minFeedInterval * 1000L * 60;
-  maxFeedTime = maxFeedTime * 1000L;
-
-  lcdClear();
-
-  goAhead = yesOrNo(MSG_SAVE_QUESTION);
-  if (goAhead == -1) return;
-
-  if (goAhead) {
-    config.minFeedInterval = minFeedInterval;
-    config.maxFeedTime = maxFeedTime;
-
-    saveConfig();
-  }
 }
 
 void settingsCalibrate() {
@@ -358,20 +328,12 @@ void resetData() {
 }
 
 void activatePumps() {
-  int8_t choice;
-  while (true) {
-    setChoices(MSG_PUMP_IN, PUMP_IN_DEVICE);
-    choice = selectChoice(1, 0);
-    if (choice == -1) return;
-
   lcdFlashMessage(MSG_DEVICE_WILL_BLINK, MSG_THREE_TIMES, 100);
  
-   // pinMode(choice, OUTPUT);
-    for(int i = 0; i <= 3; i++) {
-      digitalWrite(choice, LOW);
-      delay(1000);
-      digitalWrite(choice, HIGH);
-      delay(1000);
-    }
+  for (int i = 0; i <= 3; i++) {
+    digitalWrite(PUMP_IN_DEVICE, LOW);
+    delay(1000);
+    digitalWrite(PUMP_IN_DEVICE, HIGH);
+    delay(1000);
   }
 }

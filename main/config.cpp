@@ -70,12 +70,6 @@ void restoreDefaultConfig() {
   config.moistSensorCalibrationSoaked = 200;
   config.moistSensorCalibrationDry = 500;
 
-  config.minFeedInterval = 1000L * 60 * 30;
-  //config.minFeedIntervalMoistOverride = 65;
-
-
-  config.maxFeedTime = 1000L * 60 * 3;
-
 #ifdef WOKWI_SIM
   // Wokwi keyladder defaults: E=500, X=300, A=900, F=700, D=100
   config.kbdUp = 500;

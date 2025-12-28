@@ -19,7 +19,7 @@ findings.md
   Configuration & Persistence (config.*)
 
   - Config stored at EEPROM address 0 with checksum; includes moisture
-    calibration, safety timers, and button ADC values.
+    calibration and button ADC values.
 
   Sensors & Actuators
 
@@ -36,8 +36,8 @@ findings.md
     per-button ADC thresholds stored in config (runButtonsSetup() captures
     them).
   - Screens cycle with up/down; OK opens main menu (logs, settings). Settings
-    provide calibration and maintenance (safety limits, test pump, test sensors,
-    reset logs/data).
+    provide calibration and maintenance (test pump, test sensors, reset
+    logs/data).
 
   Logging (main/logs.*)
 

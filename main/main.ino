@@ -564,13 +564,5 @@ void displayInfo4() {
 void displayInfo3() {
   lcdClear();
   lcdPrint(MSG_NEXT_FEED, 1);
-
-
-  uint32_t millisSinceLastFeed = millis() - millisAtEndOfLastFeed;
-  if (millisAtEndOfLastFeed && millisSinceLastFeed < config.minFeedInterval) {
-    lcdPrintTime(config.minFeedInterval - millisSinceLastFeed);
-    lcdPrint(MSG_AT_THE_EARLIEST, 2);
-  } else {
-    lcdPrint(MSG_WHEN_CONDITIONS_ALLOW, 2);
-  }
+  lcdPrint(MSG_WHEN_CONDITIONS_ALLOW, 2);
 }
