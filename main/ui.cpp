@@ -3,6 +3,7 @@
 #include "ui.h"
 #include "messages.h"
 #include "config.h"
+#include "moistureSensor.h"
 
 // Private functions (not declared in ui.h)
 static void labelcpy_P(char *destination, PGM_P source);
@@ -67,10 +68,35 @@ void okClick() {
   pressedButton = &okButton;
 }
 
+static void updateSensorIndicator() {
+  static bool indicatorOn = false;
+  static unsigned long lastToggleAt = 0;
+  const unsigned long blinkInterval = 200;
+
+  if (!soilSensorIsActive()) {
+    if (indicatorOn) {
+      indicatorOn = false;
+      lcdSetCursor(19, 0);
+      lcd.print(' ');
+    }
+    return;
+  }
+
+  unsigned long now = millis();
+  if (now - lastToggleAt < blinkInterval) return;
+  lastToggleAt = now;
+  indicatorOn = !indicatorOn;
+
+  lcdSetCursor(19, 0);
+  if (indicatorOn) lcd.write((uint8_t)3);
+  else lcd.print(' ');
+}
+
 void analogButtonsCheck() {
   pressedButton = nullptr;
 
   analogButtons.check();
+  updateSensorIndicator();
 }
 
 void lcdClear() {
@@ -162,6 +188,17 @@ const byte rightArrow[8] = {
   B00000
 };
 
+const byte sensorDot[8] = {
+  B00001,
+  B00001,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B00000
+};
+
 static void labelcpy_R(char *destination, const char *source) {
   if (!source) {
     destination[0] = '\0';
@@ -179,6 +216,7 @@ void initLcd() {
   lcd.createChar(0, fullSquare);
   lcd.createChar(1, leftArrow);
   lcd.createChar(2, rightArrow);
+  lcd.createChar(3, sensorDot);
 
   resetChoicesAndHeader();
 }

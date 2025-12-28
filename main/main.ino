@@ -21,6 +21,7 @@
 
 extern LiquidCrystal_I2C lcd;
 uint8_t screenCounter = 0;
+const uint8_t kScreenCount = 4;
 
 extern Config config;
 
@@ -116,8 +117,8 @@ void loop() {
   analogButtonsCheck();
   
   if (pressedButton != nullptr) {
-    if (pressedButton == &upButton) screenCounter = (screenCounter - 1 + 3) % 3;
-    if (pressedButton == &downButton) screenCounter = (screenCounter + 1) % 3;
+    if (pressedButton == &upButton) screenCounter = (screenCounter - 1 + kScreenCount) % kScreenCount;
+    if (pressedButton == &downButton) screenCounter = (screenCounter + 1) % kScreenCount;
     displayInfo(screenCounter);
   }
 
@@ -298,6 +299,13 @@ void mainMenu() {
 
 static void lcdPrintSpaces(uint8_t count) {
   while (count--) lcd.print(' ');
+}
+
+static void lcdPrintPercent3(uint8_t value) {
+  if (value < 100) lcd.print(' ');
+  if (value < 10) lcd.print(' ');
+  lcd.print(value);
+  lcd.print('%');
 }
 
 static void lcdPrintPadded_P(PGM_P message, uint8_t width) {
@@ -573,6 +581,7 @@ void displayInfo(uint8_t screen) {
     case 0: displayInfo1(fullRedraw); break;
     case 1: displayInfo3(fullRedraw); break;
     case 2: displayInfo4(fullRedraw); break;
+    case 3: displayInfoChart(fullRedraw); break;
   }
 }
 
@@ -630,4 +639,75 @@ void displayInfo3(bool fullRedraw) {
   if (!fullRedraw) return;
   lcdPrint_P(MSG_NEXT_FEED, 1);
   lcdPrint_P(MSG_WHEN_CONDITIONS_ALLOW, 2);
+}
+
+void displayInfoChart(bool fullRedraw) {
+  static const char kSparkLevels[] = " .:-=+*#%@";
+  static const uint8_t kSparkLevelCount = sizeof(kSparkLevels) - 1;
+
+  uint8_t count = soilSensorGetLastWindowSampleCount();
+
+  if (count == 0) {
+    if (fullRedraw) {
+      lcdSetCursor(0, 0);
+      lcd.print(F("Moisture chart"));
+      lcdClearLine(1);
+      lcdClearLine(2);
+      lcdClearLine(3);
+      lcdSetCursor(0, 2);
+      lcd.print(F("No data yet"));
+    }
+    return;
+  }
+
+  uint8_t minP = soilSensorGetLastWindowMinPercent();
+  uint8_t maxP = soilSensorGetLastWindowMaxPercent();
+  uint8_t avgP = soilSensorGetLastWindowAvgPercent();
+  uint8_t nowP = soilMoistureAsPercentage(getSoilMoisture());
+
+  lcdSetCursor(0, 0);
+  lcd.print(F("Min:"));
+  lcdPrintPercent3(minP);
+  lcd.print(F(" Max:"));
+  lcdPrintPercent3(maxP);
+  lcdPrintSpaces(DISPLAY_COLUMNS - 17);
+
+  char line[DISPLAY_COLUMNS + 1];
+  uint8_t range = maxP - minP;
+  if (range < 5) range = 5;
+
+  for (uint8_t col = 0; col < DISPLAY_COLUMNS; col++) {
+    uint8_t start = (uint32_t)col * count / DISPLAY_COLUMNS;
+    uint8_t end = (uint32_t)(col + 1) * count / DISPLAY_COLUMNS;
+    if (end <= start) end = start + 1;
+    if (end > count) end = count;
+
+    uint16_t sum = 0;
+    uint8_t n = 0;
+    for (uint8_t i = start; i < end; i++) {
+      sum += soilSensorGetLastWindowSample(i);
+      n++;
+    }
+    uint8_t avg = n ? (uint8_t)(sum / n) : 0;
+
+    uint8_t level;
+    if (avg <= minP) level = 0;
+    else if (avg >= maxP) level = kSparkLevelCount - 1;
+    else level = (uint8_t)((uint32_t)(avg - minP) * (kSparkLevelCount - 1) / range);
+
+    line[col] = kSparkLevels[level];
+  }
+  line[DISPLAY_COLUMNS] = '\0';
+
+  lcdSetCursor(0, 1);
+  lcd.print(line);
+
+  lcdSetCursor(0, 2);
+  lcd.print(F("Avg:"));
+  lcdPrintPercent3(avgP);
+  lcd.print(F(" Now:"));
+  lcdPrintPercent3(nowP);
+  lcdPrintSpaces(DISPLAY_COLUMNS - 17);
+
+  if (fullRedraw) lcdClearLine(3);
 }

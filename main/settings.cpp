@@ -31,6 +31,7 @@ enum UiTaskKind : uint8_t {
 };
 
 static UiTaskKind uiTask = UI_TASK_NONE;
+static const uint8_t kCalibrationSamples = 8;
 
 enum CalState : uint8_t {
   CAL_STATE_IDLE = 0,
@@ -55,6 +56,7 @@ struct CalTask {
   unsigned long nextSampleAt;
   unsigned long stateStartAt;
   uint8_t samplesTaken;
+  int32_t sampleSum;
   int dry;
   int soaked;
   bool saveChoice;
@@ -118,6 +120,7 @@ void startCalibrationTask() {
   calTask.lastState = CAL_STATE_IDLE;
   calTask.nextSampleAt = 0;
   calTask.samplesTaken = 0;
+  calTask.sampleSum = 0;
   calTask.dry = 0;
   calTask.soaked = 0;
   calTask.saveChoice = true;
@@ -160,18 +163,21 @@ static void runCalibrationTask() {
     case CAL_STATE_SAMPLE_DRY:
       if (entered) {
         calTask.samplesTaken = 0;
+        calTask.sampleSum = 0;
         calTask.nextSampleAt = 0;
         lcdClear();
         lcdPrint_P(MSG_DRY_COLUMN, 1);
       }
       if (millis() >= calTask.nextSampleAt) {
-        calTask.dry = getSoilMoisture();
+        uint16_t sample = getSoilMoisture();
+        calTask.sampleSum += sample;
         lcdPrint_P(MSG_DRY_COLUMN, 1);
-        lcdPrintNumber(calTask.dry);
+        lcdPrintNumber(sample);
         lcdPrint_P(MSG_SPACE);
         calTask.samplesTaken++;
         calTask.nextSampleAt = millis() + 900;
-        if (calTask.samplesTaken >= 4) {
+        if (calTask.samplesTaken >= kCalibrationSamples) {
+          calTask.dry = (int)(calTask.sampleSum / calTask.samplesTaken);
           calTask.state = CAL_STATE_WAIT_AFTER_DRY;
           return;
         }
@@ -202,18 +208,21 @@ static void runCalibrationTask() {
     case CAL_STATE_SAMPLE_SOAK:
       if (entered) {
         calTask.samplesTaken = 0;
+        calTask.sampleSum = 0;
         calTask.nextSampleAt = 0;
         lcdClear();
         lcdPrint_P(MSG_SOAKED_COLUMN, 1);
       }
       if (millis() >= calTask.nextSampleAt) {
-        calTask.soaked = getSoilMoisture();
+        uint16_t sample = getSoilMoisture();
+        calTask.sampleSum += sample;
         lcdPrint_P(MSG_SOAKED_COLUMN, 1);
-        lcdPrintNumber(calTask.soaked);
+        lcdPrintNumber(sample);
         lcdPrint_P(MSG_SPACE);
         calTask.samplesTaken++;
         calTask.nextSampleAt = millis() + 900;
-        if (calTask.samplesTaken >= 4) {
+        if (calTask.samplesTaken >= kCalibrationSamples) {
+          calTask.soaked = (int)(calTask.sampleSum / calTask.samplesTaken);
           setSoilSensorLazy();
           calTask.state = CAL_STATE_CONFIRM_SAVE;
           return;

@@ -1,19 +1,112 @@
-
-#include "config.h"
-
 #include "moistureSensor.h"
 
 #include <Arduino.h>
+#include <string.h>
+
+#include "config.h"
 
 extern Config config;
 
+enum ReadMode : uint8_t {
+  READ_MODE_LAZY = 0,
+  READ_MODE_REALTIME = 1
+};
+
+enum LazyState : uint8_t {
+  LAZY_STATE_IDLE = 0,
+  LAZY_STATE_WARMING,
+  LAZY_STATE_SAMPLING
+};
+
+static uint16_t lazyValue = 0;
+static uint16_t realtimeValue = 0;
+static ReadMode readMode = READ_MODE_LAZY;
+static LazyState lazyState = LAZY_STATE_IDLE;
+static bool sensorPowered = false;
+
+static unsigned long sensorOnTime = 0;
+static unsigned long windowStartAt = 0;
+static unsigned long nextSampleAt = 0;
+static unsigned long nextWindowAt = 0;
+
+static uint32_t windowSum = 0;
+static uint32_t windowPercentSum = 0;
+static uint16_t windowCount = 0;
+static uint8_t windowSampleCount = 0;
+static uint8_t windowSamples[SENSOR_WINDOW_MAX_SAMPLES];
+static uint8_t lastWindowSamples[SENSOR_WINDOW_MAX_SAMPLES];
+static uint8_t lastWindowSampleCount = 0;
+static uint8_t windowMinPercent = 0;
+static uint8_t windowMaxPercent = 0;
+static uint8_t lastWindowMinPercent = 0;
+static uint8_t lastWindowMaxPercent = 0;
+static uint8_t lastWindowAvgPercent = 0;
+
+static void sensorPowerOn() {
+  if (sensorPowered) return;
+  digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH);
+  sensorPowered = true;
+}
+
+static void sensorPowerOff() {
+  if (!sensorPowered) return;
+  digitalWrite(SOIL_MOISTURE_SENSOR_POWER, LOW);
+  sensorPowered = false;
+}
+
+static uint16_t readMedian3() {
+  uint16_t a = analogRead(SOIL_MOISTURE_SENSOR);
+  uint16_t b = analogRead(SOIL_MOISTURE_SENSOR);
+  uint16_t c = analogRead(SOIL_MOISTURE_SENSOR);
+
+  uint16_t min_ab = (a < b) ? a : b;
+  uint16_t max_ab = (a > b) ? a : b;
+
+  if (c < min_ab) return min_ab;
+  if (c > max_ab) return max_ab;
+  return c;
+}
+
+static void resetWindowAccum() {
+  windowSum = 0;
+  windowPercentSum = 0;
+  windowCount = 0;
+  windowSampleCount = 0;
+  windowMinPercent = 100;
+  windowMaxPercent = 0;
+}
+
+static void finalizeWindow() {
+  if (windowCount == 0) return;
+
+  lazyValue = (uint16_t)(windowSum / windowCount);
+  lastWindowAvgPercent = (uint8_t)(windowPercentSum / windowCount);
+
+  lastWindowSampleCount = windowSampleCount;
+  if (lastWindowSampleCount > 0) {
+    memcpy(lastWindowSamples, windowSamples, lastWindowSampleCount);
+  }
+  lastWindowMinPercent = windowMinPercent;
+  lastWindowMaxPercent = windowMaxPercent;
+}
+
 void initMoistureSensor() {
   pinMode(SOIL_MOISTURE_SENSOR_POWER, OUTPUT);
-
   pinMode(SOIL_MOISTURE_SENSOR, INPUT);
 
-  digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH); // Power on the sensor
-  delay(SENSOR_STABILIZATION_TIME); // Stabilize the sensor    
+  sensorPowerOff();
+  readMode = READ_MODE_LAZY;
+  lazyState = LAZY_STATE_IDLE;
+  nextWindowAt = millis();
+  lastWindowSampleCount = 0;
+  lastWindowMinPercent = 0;
+  lastWindowMaxPercent = 0;
+  lastWindowAvgPercent = 0;
+
+  sensorPowerOn();
+  delay(SENSOR_STABILIZATION_TIME);
+  realtimeValue = lazyValue = readMedian3();
+  sensorPowerOff();
 }
 
 uint16_t runSoilSensorLazyReadings() {
@@ -32,96 +125,117 @@ void setSoilSensorRealTime() {
   soilSensorOp(3);
 }
 
+bool soilSensorIsActive() {
+  return sensorPowered;
+}
+
+uint8_t soilSensorGetLastWindowSampleCount() {
+  return lastWindowSampleCount;
+}
+
+uint8_t soilSensorGetLastWindowSample(uint8_t index) {
+  if (index >= lastWindowSampleCount) return 0;
+  return lastWindowSamples[index];
+}
+
+uint8_t soilSensorGetLastWindowMinPercent() {
+  return lastWindowMinPercent;
+}
+
+uint8_t soilSensorGetLastWindowMaxPercent() {
+  return lastWindowMaxPercent;
+}
+
+uint8_t soilSensorGetLastWindowAvgPercent() {
+  return lastWindowAvgPercent;
+}
+
 uint16_t soilSensorOp(uint8_t op) {
-  static uint16_t lazyValue = 0;
-  static uint8_t readMode = 1; // Real time mode by default
-  static uint8_t state = 0;    // Initial state: everything is off
-
-  static unsigned long lastReadTime = millis();    // Last lazy read time
-  static unsigned long sensorOnTime = 0;   // Time when the sensor was powered on
-
-  const unsigned long readInterval = SENSOR_READ_INTERVAL;
-  const unsigned long stabilizationTime = SENSOR_STABILIZATION_TIME;
-
-  // Serial.print("State:");Serial.print(state);Serial.print(" ");
-      
-
-
   switch (op) {
-    case 0: { // Update laze value after stabilising
+    case 0: { // Tick lazy state machine
+      if (readMode != READ_MODE_LAZY) return lazyValue;
 
-      // Serial.print("BKND ");
-      
-      if (readMode == 0) {
-        // Serial.print("ACTV ");
+      const unsigned long now = millis();
 
-        switch (state) {
-          case 0: // Idle, check if it's time to read
-            // Serial.print("wait ");Serial.print(millis() - lastReadTime);Serial.print("-");Serial.print(readInterval); Serial.print(" ");
-            if (millis() - lastReadTime >= readInterval) {
-              // Serial.print("sensOn ");
-              digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH); // Power on the sensor
-              sensorOnTime = millis(); // Record when the sensor was turned on
-              state = 1;
+      switch (lazyState) {
+        case LAZY_STATE_IDLE:
+          if (now >= nextWindowAt) {
+            sensorPowerOn();
+            sensorOnTime = now;
+            lazyState = LAZY_STATE_WARMING;
+          }
+          break;
+
+        case LAZY_STATE_WARMING:
+          if (now - sensorOnTime >= SENSOR_STABILIZATION_TIME) {
+            windowStartAt = now;
+            nextSampleAt = now;
+            resetWindowAccum();
+            lazyState = LAZY_STATE_SAMPLING;
+          }
+          break;
+
+        case LAZY_STATE_SAMPLING:
+          if (now >= nextSampleAt) {
+            uint16_t raw = readMedian3();
+            uint8_t percent = soilMoistureAsPercentage(raw);
+
+            windowSum += raw;
+            windowPercentSum += percent;
+            windowCount++;
+
+            if (windowSampleCount < SENSOR_WINDOW_MAX_SAMPLES) {
+              windowSamples[windowSampleCount++] = percent;
             }
-            break;
 
-          case 1: // Stabilizing and reading
-            // Serial.print("rdy ");Serial.print(millis() - sensorOnTime);Serial.print("-");Serial.print(stabilizationTime); Serial.print(" ");           
-            if (millis() - sensorOnTime >= stabilizationTime) {
-              // Serial.print("read+sensOff ");
-              lazyValue = analogRead(SOIL_MOISTURE_SENSOR); // Read the sensor value
-              lastReadTime = millis(); // Update the last read time
-              digitalWrite(SOIL_MOISTURE_SENSOR_POWER, LOW); // Power off the sensor
-              state = 0; // Return to idle state
-            }
-            break;
-        }
+            if (percent < windowMinPercent) windowMinPercent = percent;
+            if (percent > windowMaxPercent) windowMaxPercent = percent;
+
+            nextSampleAt = now + SENSOR_SAMPLE_INTERVAL;
+          }
+
+          if (now - windowStartAt >= SENSOR_WINDOW_DURATION) {
+            finalizeWindow();
+            sensorPowerOff();
+            lazyState = LAZY_STATE_IDLE;
+            nextWindowAt = now + SENSOR_SLEEP_INTERVAL;
+          }
+          break;
       }
-      return lazyValue; // Always return the last lazy value
+
+      return lazyValue;
     }
 
-    case 1: { // Read (lazy value or analog read)
-
-      // Serial.print("READ ");
-    
-      if (readMode == 1) {
-        // Serial.print("active ");
-        uint16_t realTimeValue = lazyValue = analogRead(SOIL_MOISTURE_SENSOR); // Read the sensor value
-        // Serial.print(realTimeValue);
-        // Serial.println(" ");
-
-        return realTimeValue; // Return the real-time value
-      } else {
-        // Serial.print("lazy ");
-        // Serial.print(lazyValue);
-        // Serial.println(" ");
-        return lazyValue; // Default to lazy value if in lazy mode
+    case 1: { // Read (lazy value or real-time read)
+      if (readMode == READ_MODE_REALTIME) {
+        realtimeValue = lazyValue = readMedian3();
+        return realtimeValue;
       }
+      return lazyValue;
     }
 
     case 2: { // Set lazy mode
-      // Serial.print("SETLAZY ");
-    
-      digitalWrite(SOIL_MOISTURE_SENSOR_POWER, LOW); // Power off the sensor
-      readMode = 0; // Switch to lazy mode
-      state = 0; // Reset to idle state
+      readMode = READ_MODE_LAZY;
+      lazyState = LAZY_STATE_IDLE;
+      sensorPowerOff();
+      nextWindowAt = millis();
       break;
     }
 
     case 3: { // Set real-time mode
-      // Serial.println("SETREALTIME ");
-      readMode = 1; // Switch to real-time mode
-      digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH); // Power on the sensor
-      delay(stabilizationTime); // Stabilize the sensor
+      readMode = READ_MODE_REALTIME;
+      lazyState = LAZY_STATE_IDLE;
+      sensorPowerOn();
+      delay(SENSOR_STABILIZATION_TIME);
+      realtimeValue = lazyValue = readMedian3();
       break;
     }
 
-    default: // Handle invalid operation codes
-      return 0xFFFF; // Return a special value for invalid operations
+    default:
+      return 0xFFFF;
   }
-  
-  return 0; //  Default return for non-reading operations
+
+  return 0;
 }
 
 uint8_t soilMoistureAsPercentage(uint16_t soilMoisture) {
