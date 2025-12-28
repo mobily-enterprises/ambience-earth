@@ -42,6 +42,10 @@ static uint8_t lastWindowSamples[SENSOR_WINDOW_MAX_SAMPLES];
 static uint8_t lastWindowSampleCount = 0;
 static uint8_t windowMinPercent = 0;
 static uint8_t windowMaxPercent = 0;
+static uint8_t windowMinHold = 0;
+static uint8_t windowMaxHold = 0;
+static bool windowMinConfirmed = false;
+static bool windowMaxConfirmed = false;
 static uint8_t lastWindowMinPercent = 0;
 static uint8_t lastWindowMaxPercent = 0;
 static uint8_t lastWindowAvgPercent = 0;
@@ -78,6 +82,10 @@ static void resetWindowAccum() {
   windowSampleCount = 0;
   windowMinPercent = 100;
   windowMaxPercent = 0;
+  windowMinHold = 0;
+  windowMaxHold = 0;
+  windowMinConfirmed = false;
+  windowMaxConfirmed = false;
 }
 
 static void finalizeWindow() {
@@ -247,13 +255,44 @@ uint16_t soilSensorOp(uint8_t op) {
               windowSamples[windowSampleCount++] = percent;
             }
 
-            if (percent < windowMinPercent) windowMinPercent = percent;
-            if (percent > windowMaxPercent) windowMaxPercent = percent;
+            if (percent < windowMinPercent) {
+              windowMinPercent = percent;
+              windowMinHold = 1;
+              windowMinConfirmed = false;
+            } else if (!windowMinConfirmed) {
+              if (percent <= windowMinPercent + SENSOR_EXTREME_HYSTERESIS) {
+                if (windowMinHold < 255) windowMinHold++;
+                if (windowMinHold >= SENSOR_EXTREME_HOLD_SAMPLES) {
+                  windowMinConfirmed = true;
+                }
+              } else {
+                windowMinHold = 0;
+              }
+            }
+
+            if (percent > windowMaxPercent) {
+              windowMaxPercent = percent;
+              windowMaxHold = 1;
+              windowMaxConfirmed = false;
+            } else if (!windowMaxConfirmed) {
+              if (percent + SENSOR_EXTREME_HYSTERESIS >= windowMaxPercent) {
+                if (windowMaxHold < 255) windowMaxHold++;
+                if (windowMaxHold >= SENSOR_EXTREME_HOLD_SAMPLES) {
+                  windowMaxConfirmed = true;
+                }
+              } else {
+                windowMaxHold = 0;
+              }
+            }
 
             nextSampleAt = now + SENSOR_SAMPLE_INTERVAL;
           }
 
-          if (now - windowStartAt >= SENSOR_WINDOW_DURATION) {
+          bool rangeOk = (windowMaxPercent >= (uint8_t)(windowMinPercent + SENSOR_EXTREME_RANGE_MIN));
+          bool extremesOk = windowMinConfirmed && windowMaxConfirmed && rangeOk;
+          bool minWindowOk = (now - windowStartAt >= SENSOR_WINDOW_MIN_DURATION);
+
+          if ((extremesOk && minWindowOk) || (now - windowStartAt >= SENSOR_WINDOW_DURATION)) {
             finalizeWindow();
             sensorPowerOff();
             lazyState = LAZY_STATE_IDLE;
