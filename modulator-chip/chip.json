@@ -6,6 +6,7 @@
   "docs": "docs/README.md",
   "pins": [
     "OUT",
+    "IN",
     "A",
     "F",
     "E",
