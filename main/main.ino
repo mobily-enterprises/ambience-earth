@@ -103,7 +103,15 @@ void setup() {
 
 void loop() {
   unsigned long currentMillis = millis();
-  if (millis() - lastButtonPressTime > SCREENSAVER_TRIGGER_TIME) screenSaverModeOn();
+  if (!uiTaskActive() && millis() - lastButtonPressTime > SCREENSAVER_TRIGGER_TIME) screenSaverModeOn();
+
+  if (uiTaskActive()) {
+    runUiTask();
+    runSoilSensorLazyReadings();
+    maybeLogValues();
+    delay(50); // Let the CPU breathe
+    return;
+  }
 
   analogButtonsCheck();
   
@@ -284,6 +292,7 @@ void mainMenu() {
 
     if (choice == 1) viewLogs();
     else if (choice == 2) settings();
+    if (uiTaskActive()) return;
   } while (choice != -1);
 }
 

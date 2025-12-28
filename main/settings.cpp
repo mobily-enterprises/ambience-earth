@@ -1,17 +1,15 @@
 #include <AnalogButtons.h>
 #include <Arduino.h>
-#include "main.h"
-#include "ui.h"
-#include "config.h"
-#include "messages.h"
-#include "traySensors.h"
-#include "pumps.h"
-#include "moistureSensor.h"
-#include "logs.h"
-#include "settings.h"
-#include "main.h"
 #include <LiquidCrystal_I2C.h>
-#include <AnalogButtons.h>
+#include "config.h"
+#include "logs.h"
+#include "main.h"
+#include "messages.h"
+#include "moistureSensor.h"
+#include "pumps.h"
+#include "settings.h"
+#include "traySensors.h"
+#include "ui.h"
 
 extern LiquidCrystal_I2C lcd;
 
@@ -26,6 +24,298 @@ extern Button rightButton;
 extern Button okButton;
 extern Button *pressedButton;
 
+enum UiTaskKind : uint8_t {
+  UI_TASK_NONE = 0,
+  UI_TASK_CALIBRATION,
+  UI_TASK_PUMP_TEST
+};
+
+static UiTaskKind uiTask = UI_TASK_NONE;
+
+enum CalState : uint8_t {
+  CAL_STATE_IDLE = 0,
+  CAL_STATE_PROMPT_DRY,
+  CAL_STATE_SAMPLE_DRY,
+  CAL_STATE_WAIT_AFTER_DRY,
+  CAL_STATE_PROMPT_SOAK,
+  CAL_STATE_SAMPLE_SOAK,
+  CAL_STATE_CONFIRM_SAVE
+};
+
+enum PumpState : uint8_t {
+  PUMP_STATE_IDLE = 0,
+  PUMP_STATE_MESSAGE,
+  PUMP_STATE_ON,
+  PUMP_STATE_OFF
+};
+
+struct CalTask {
+  CalState state;
+  CalState lastState;
+  unsigned long nextSampleAt;
+  unsigned long stateStartAt;
+  uint8_t samplesTaken;
+  int dry;
+  int soaked;
+  bool saveChoice;
+  bool saved;
+};
+
+struct PumpTask {
+  PumpState state;
+  PumpState lastState;
+  unsigned long nextActionAt;
+  uint8_t cyclesRemaining;
+};
+
+static CalTask calTask = {};
+static PumpTask pumpTask = {};
+
+static void drawOkPrompt(PGM_P header, PGM_P prompt, PGM_P line2, PGM_P line3) {
+  lcdClear();
+  lcdPrint_P(header, 0);
+  lcdClearLine(1);
+  lcdSetCursor(0, 1);
+  lcd.write((uint8_t)2);
+  lcdPrint_P(prompt);
+  lcdPrint_P(line2, 2);
+  lcdPrint_P(line3, 3);
+}
+
+static void drawYesNoPrompt(bool yesSelected) {
+  lcdClear();
+  lcdPrint_P(MSG_SAVE_QUESTION, 0);
+  lcdClearLine(1);
+  lcdSetCursor(0, 1);
+  if (yesSelected) lcd.write((uint8_t)2);
+  else lcdPrint_P(MSG_SPACE);
+  lcdPrint_P(MSG_YES);
+  lcdClearLine(2);
+  lcdSetCursor(0, 2);
+  if (!yesSelected) lcd.write((uint8_t)2);
+  else lcdPrint_P(MSG_SPACE);
+  lcdPrint_P(MSG_NO);
+}
+
+bool uiTaskActive() {
+  return uiTask != UI_TASK_NONE;
+}
+
+static void finishCalibrationTask() {
+  setSoilSensorLazy();
+  uiTask = UI_TASK_NONE;
+}
+
+static void finishPumpTestTask() {
+  digitalWrite(PUMP_IN_DEVICE, HIGH);
+  uiTask = UI_TASK_NONE;
+}
+
+void startCalibrationTask() {
+  if (uiTaskActive()) return;
+  uiTask = UI_TASK_CALIBRATION;
+  calTask.state = CAL_STATE_PROMPT_DRY;
+  calTask.lastState = CAL_STATE_IDLE;
+  calTask.nextSampleAt = 0;
+  calTask.samplesTaken = 0;
+  calTask.dry = 0;
+  calTask.soaked = 0;
+  calTask.saveChoice = true;
+  calTask.saved = false;
+  setSoilSensorRealTime();
+  screenSaverModeOff();
+}
+
+void startPumpTestTask() {
+  if (uiTaskActive()) return;
+  uiTask = UI_TASK_PUMP_TEST;
+  pumpTask.state = PUMP_STATE_MESSAGE;
+  pumpTask.lastState = PUMP_STATE_IDLE;
+  pumpTask.nextActionAt = 0;
+  pumpTask.cyclesRemaining = 3;
+  screenSaverModeOff();
+}
+
+static void runCalibrationTask() {
+  analogButtonsCheck();
+
+  bool entered = calTask.state != calTask.lastState;
+  if (entered) calTask.stateStartAt = millis();
+
+  switch (calTask.state) {
+    case CAL_STATE_PROMPT_DRY:
+      if (entered) {
+        drawOkPrompt(MSG_MOIST_SENSOR, MSG_YES_ITS_DRY, MSG_ENSURE_SENSOR_IS, MSG_VERY_DRY);
+      }
+      if (pressedButton == &okButton) {
+        calTask.state = CAL_STATE_SAMPLE_DRY;
+        return;
+      }
+      if (pressedButton == &leftButton) {
+        finishCalibrationTask();
+        return;
+      }
+      break;
+
+    case CAL_STATE_SAMPLE_DRY:
+      if (entered) {
+        calTask.samplesTaken = 0;
+        calTask.nextSampleAt = 0;
+        lcdClear();
+        lcdPrint_P(MSG_DRY_COLUMN, 1);
+      }
+      if (millis() >= calTask.nextSampleAt) {
+        calTask.dry = getSoilMoisture();
+        lcdPrint_P(MSG_DRY_COLUMN, 1);
+        lcdPrintNumber(calTask.dry);
+        lcdPrint_P(MSG_SPACE);
+        calTask.samplesTaken++;
+        calTask.nextSampleAt = millis() + 900;
+        if (calTask.samplesTaken >= 4) {
+          calTask.state = CAL_STATE_WAIT_AFTER_DRY;
+          return;
+        }
+      }
+      break;
+
+    case CAL_STATE_WAIT_AFTER_DRY:
+      if (millis() - calTask.stateStartAt >= 2000) {
+        calTask.state = CAL_STATE_PROMPT_SOAK;
+        return;
+      }
+      break;
+
+    case CAL_STATE_PROMPT_SOAK:
+      if (entered) {
+        drawOkPrompt(MSG_MOIST_SENSOR, MSG_YES_ITS_SOAKED, MSG_ENSURE_SENSOR_IS, MSG_VERY_SOAKED);
+      }
+      if (pressedButton == &okButton) {
+        calTask.state = CAL_STATE_SAMPLE_SOAK;
+        return;
+      }
+      if (pressedButton == &leftButton) {
+        finishCalibrationTask();
+        return;
+      }
+      break;
+
+    case CAL_STATE_SAMPLE_SOAK:
+      if (entered) {
+        calTask.samplesTaken = 0;
+        calTask.nextSampleAt = 0;
+        lcdClear();
+        lcdPrint_P(MSG_SOAKED_COLUMN, 1);
+      }
+      if (millis() >= calTask.nextSampleAt) {
+        calTask.soaked = getSoilMoisture();
+        lcdPrint_P(MSG_SOAKED_COLUMN, 1);
+        lcdPrintNumber(calTask.soaked);
+        lcdPrint_P(MSG_SPACE);
+        calTask.samplesTaken++;
+        calTask.nextSampleAt = millis() + 900;
+        if (calTask.samplesTaken >= 4) {
+          setSoilSensorLazy();
+          calTask.state = CAL_STATE_CONFIRM_SAVE;
+          return;
+        }
+      }
+      break;
+
+    case CAL_STATE_CONFIRM_SAVE:
+      if (entered) {
+        calTask.saveChoice = true;
+        drawYesNoPrompt(calTask.saveChoice);
+      }
+      if (pressedButton == &upButton || pressedButton == &downButton) {
+        calTask.saveChoice = !calTask.saveChoice;
+        drawYesNoPrompt(calTask.saveChoice);
+      }
+      if (pressedButton == &okButton) {
+        if (calTask.saveChoice) {
+          config.moistSensorCalibrationSoaked = calTask.soaked;
+          config.moistSensorCalibrationDry = calTask.dry;
+          saveConfig();
+          calTask.saved = true;
+        }
+        finishCalibrationTask();
+        return;
+      }
+      if (pressedButton == &leftButton) {
+        finishCalibrationTask();
+        return;
+      }
+      break;
+
+    default:
+      finishCalibrationTask();
+      return;
+  }
+
+  calTask.lastState = calTask.state;
+}
+
+static void runPumpTestTask() {
+  analogButtonsCheck();
+
+  bool entered = pumpTask.state != pumpTask.lastState;
+
+  switch (pumpTask.state) {
+    case PUMP_STATE_MESSAGE:
+      if (entered) {
+        lcdClear();
+        lcdPrint_P(MSG_DEVICE_WILL_BLINK, 1);
+        lcdPrint_P(MSG_THREE_TIMES, 2);
+        pumpTask.nextActionAt = millis() + 100;
+      }
+      if (millis() >= pumpTask.nextActionAt) {
+        pumpTask.state = PUMP_STATE_ON;
+        return;
+      }
+      break;
+
+    case PUMP_STATE_ON:
+      if (entered) {
+        digitalWrite(PUMP_IN_DEVICE, LOW);
+        pumpTask.nextActionAt = millis() + 1000;
+      }
+      if (millis() >= pumpTask.nextActionAt) {
+        pumpTask.state = PUMP_STATE_OFF;
+        return;
+      }
+      break;
+
+    case PUMP_STATE_OFF:
+      if (entered) {
+        digitalWrite(PUMP_IN_DEVICE, HIGH);
+        pumpTask.nextActionAt = millis() + 1000;
+      }
+      if (millis() >= pumpTask.nextActionAt) {
+        if (pumpTask.cyclesRemaining > 0) pumpTask.cyclesRemaining--;
+        if (pumpTask.cyclesRemaining == 0) {
+          finishPumpTestTask();
+          return;
+        }
+        pumpTask.state = PUMP_STATE_ON;
+        return;
+      }
+      break;
+
+    default:
+      finishPumpTestTask();
+      return;
+  }
+
+  pumpTask.lastState = pumpTask.state;
+}
+
+void runUiTask() {
+  if (uiTask == UI_TASK_CALIBRATION) {
+    runCalibrationTask();
+  } else if (uiTask == UI_TASK_PUMP_TEST) {
+    runPumpTestTask();
+  }
+}
+
 void settings() {
   int8_t choice = 0;
 
@@ -36,8 +326,13 @@ void settings() {
       MSG_MAINTENANCE, 2);
     choice = selectChoice(2, 1);
 
-    if (choice == 1 && calibrateSoilMoistureSensor()) saveConfig();
-    else if (choice == 2) maintenance();
+    if (choice == 1) {
+      startCalibrationTask();
+      return;
+    } else if (choice == 2) {
+      maintenance();
+      if (uiTaskActive()) return;
+    }
   }
 }
 
@@ -53,7 +348,10 @@ void maintenance() {
     );
     choice = selectChoice(3, 1);
 
-    if (choice == 1) activatePumps();
+    if (choice == 1) {
+      startPumpTestTask();
+      return;
+    }
     else if (choice == 2) testSensors();
     else if (choice == 3) settingsReset();
   }
@@ -257,56 +555,11 @@ int runInitialSetup() {
 }
 
 int calibrateSoilMoistureSensor() {
-  int8_t goAhead;
-  int soaked;
-  int dry;
-
-  goAhead = giveOk_P(MSG_MOIST_SENSOR, MSG_YES_ITS_DRY, MSG_ENSURE_SENSOR_IS, MSG_VERY_DRY);
-  if (goAhead == -1) return false;
-
-  setSoilSensorRealTime();
-
-  lcdClear();
-  lcdPrint_P(MSG_DRY_COLUMN, 1);
-  for (int i = 0; i < 4; i++) {
-    dry = getSoilMoisture();
-    // lcdClear();
-    lcdPrintNumber(dry);
-    lcdPrint_P(MSG_SPACE);
-    delay(900);
+  startCalibrationTask();
+  while (uiTaskActive()) {
+    runUiTask();
   }
-
-  delay(2000);
-
-  goAhead = giveOk_P(MSG_MOIST_SENSOR, MSG_YES_ITS_SOAKED, MSG_ENSURE_SENSOR_IS, MSG_VERY_SOAKED);
-  if (goAhead == -1) {
-    setSoilSensorLazy();
-    return false;
-  }
-
-  lcdClear();
-  lcdPrint_P(MSG_SOAKED_COLUMN, 1);
-  for (int i = 0; i < 4; i++) {
-    soaked = getSoilMoisture();
-    // lcdClear();
-    lcdPrintNumber(soaked);
-    lcdPrint_P(MSG_SPACE);
-    delay(900);
-  }
-
-  setSoilSensorLazy();
-
-  goAhead = yesOrNo_P(MSG_SAVE_QUESTION);
-  if (goAhead == -1) return;
-
-  // Confirm to save
-  if (goAhead) {
-    config.moistSensorCalibrationSoaked = soaked;
-    config.moistSensorCalibrationDry = dry;
-    return true;
-  } else {
-    return false;
-  }
+  return calTask.saved ? true : false;
 }
 
 void resetData() {
@@ -327,12 +580,5 @@ void resetData() {
 }
 
 void activatePumps() {
-  lcdFlashMessage_P(MSG_DEVICE_WILL_BLINK, MSG_THREE_TIMES, 100);
- 
-  for (int i = 0; i < 3; i++) {
-    digitalWrite(PUMP_IN_DEVICE, LOW);
-    delay(1000);
-    digitalWrite(PUMP_IN_DEVICE, HIGH);
-    delay(1000);
-  }
+  startPumpTestTask();
 }
