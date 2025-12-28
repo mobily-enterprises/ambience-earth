@@ -1,7 +1,6 @@
 
 #include "config.h"
 
-#include "hardwareConf.h"
 #include "moistureSensor.h"
 
 #include <Arduino.h>

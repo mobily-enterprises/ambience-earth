@@ -1,6 +1,5 @@
 
 #include "config.h"
-#include "hardwareConf.h"
 #include "messages.h"
 #include "traySensors.h"
 

@@ -2,7 +2,6 @@
 #include <AnalogButtons.h>
 #include "ui.h"
 #include "messages.h"
-#include "hardwareConf.h"
 #include "config.h"
 
 // Private functions (not declared in ui.h)
