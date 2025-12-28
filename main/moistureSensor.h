@@ -19,5 +19,4 @@ uint16_t soilSensorOp(uint8_t op);
 
 void initMoistureSensor();
 uint8_t soilMoistureAsPercentage(uint16_t soilMosture);
-uint8_t soilMoistureAsState(uint8_t soilMoistureAsPercentage);
 #endif MOISTURE_SENSORS_H
