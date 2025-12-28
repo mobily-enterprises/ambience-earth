@@ -4,6 +4,8 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 
+#define LOG_FORMAT_VERSION 1
+
 typedef struct {
   unsigned int seq : 8;
   unsigned long millisStart;

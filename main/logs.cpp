@@ -7,12 +7,13 @@ int EEPROM_START_ADDRESS;   // start of log slots (after metadata)
 int EEPROM_LOGS_MEMORY;
 int EEPROM_SLOT_SIZE;
 int EEPROM_TOTAL_SLOTS;
-int EEPROM_META_ADDRESS;    // start of logs metadata (epoch)
+int EEPROM_META_ADDRESS;    // start of logs metadata (epoch + format version)
 
 void* logBuffer; 
 int8_t currentSlot;
 static uint16_t logEpoch = 0;     // Persisted across boots (EEPROM)
 static uint16_t browseEpoch = 0;  // Session epoch aligned to current slot for UI
+static const uint8_t kLogMetaSize = 3;
 
 // Treat 8-bit sequence numbers with wrap-around semantics.
 // Returns true if 'a' is later than 'b' assuming differences < 128.
@@ -34,11 +35,21 @@ static uint16_t readEpochFromEeprom() {
   return val;
 }
 
+static uint8_t readLogVersionFromEeprom() {
+  uint8_t version = EEPROM.read(EEPROM_META_ADDRESS + 2);
+  if (version == 0xFF) return 0;
+  return version;
+}
+
 static void writeEpochToEeprom(uint16_t epoch) {
   uint8_t lo = epoch & 0xFF;
   uint8_t hi = (epoch >> 8) & 0xFF;
   EEPROM.update(EEPROM_META_ADDRESS + 0, lo);
   EEPROM.update(EEPROM_META_ADDRESS + 1, hi);
+}
+
+static void writeLogVersionToEeprom(uint8_t version) {
+  EEPROM.update(EEPROM_META_ADDRESS + 2, version);
 }
 
 int8_t getCurrentLogSlot() {
@@ -256,14 +267,19 @@ uint8_t goToPreviousLogSlot(bool force = false) {
 void initLogs(void *buffer, int eepromSize, int startAddress, int logsMemory, int slotSize, void (*callback)()=nullptr) {
   logBuffer = buffer;
   EEPROM_SIZE = eepromSize;
-  EEPROM_META_ADDRESS = startAddress;         // reserve first 2 bytes for epoch
-  EEPROM_START_ADDRESS = startAddress + 2;    // actual start of log slots
+  EEPROM_META_ADDRESS = startAddress;               // reserve bytes for epoch + format version
+  EEPROM_START_ADDRESS = startAddress + kLogMetaSize;    // actual start of log slots
   EEPROM_LOGS_MEMORY = logsMemory;
   EEPROM_SLOT_SIZE = slotSize;
   if (EEPROM_LOGS_MEMORY > 0) {
-    EEPROM_TOTAL_SLOTS = ((EEPROM_LOGS_MEMORY - 2) / EEPROM_SLOT_SIZE);
+    EEPROM_TOTAL_SLOTS = ((EEPROM_LOGS_MEMORY - kLogMetaSize) / EEPROM_SLOT_SIZE);
   } else {
     EEPROM_TOTAL_SLOTS = ((EEPROM_SIZE - EEPROM_START_ADDRESS) / EEPROM_SLOT_SIZE);
+  }
+
+  uint8_t storedVersion = readLogVersionFromEeprom();
+  if (storedVersion != LOG_FORMAT_VERSION) {
+    wipeLogs();
   }
 
   // Load persisted epoch
@@ -301,6 +317,7 @@ void wipeLogs() {
   logEpoch = 0;
   browseEpoch = 0;
   writeEpochToEeprom(logEpoch);
+  writeLogVersionToEeprom(LOG_FORMAT_VERSION);
   currentSlot = - 1;
   clearLogEntry(logBuffer);
 }
