@@ -6,10 +6,15 @@
 ✔ Improve input checking that polling is the way to go @done(25-12-28 15:32)
 ✔ Improve sensor-fetching code, so that it flattens the input values to normal level, but still turning it on and off @done(25-12-28 20:43)
 
+TODO:
+X Fix showing info of slot
+Improve time input
+Define proper steps and values for input
+
 
 * Start conditions:
-Time is:
-Moisture lower than:
+Time is: 2 (one byte for the hour and one for the minutes)
+Moisture lower than: 
 Time since last feed:
 
 * End condition:

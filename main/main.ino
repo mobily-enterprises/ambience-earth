@@ -8,6 +8,7 @@
 #include "pumps.h"
 #include "moistureSensor.h"
 #include "settings.h"
+#include "feeding.h"
 #include "logs.h"
 #include <LiquidCrystal_I2C.h>
 #include <avr/pgmspace.h>
@@ -63,7 +64,7 @@ void setup() {
 
   loadConfig();
 
-  if (!validateAndMigrateConfig()) {
+  if (!validateConfig()) {
     restoreDefaultConfig();
     saveConfig();
     wipeLogs();
@@ -79,12 +80,12 @@ void setup() {
     saveConfig();
   }
 
-  if (config.mustRunInitialSetup) {
-    config.mustRunInitialSetup = false;
+  if (config.flags & CONFIG_FLAG_MUST_RUN_INITIAL_SETUP) {
+    config.flags &= static_cast<uint8_t>(~CONFIG_FLAG_MUST_RUN_INITIAL_SETUP);
     saveConfig();
   }
 #else
-  if (config.mustRunInitialSetup) {
+  if (config.flags & CONFIG_FLAG_MUST_RUN_INITIAL_SETUP) {
     runButtonsSetup();
     while (!runInitialSetup());
   }
@@ -288,12 +289,14 @@ void mainMenu() {
   do {
     setChoices_P(
       MSG_LOGS, 1,
-      MSG_SETTINGS, 2);
+      MSG_FEEDING_MENU, 2,
+      MSG_SETTINGS, 3);
 
-    choice = selectChoice(2, 1);
+    choice = selectChoice(3, 1);
 
     if (choice == 1) viewLogs();
-    else if (choice == 2) settings();
+    else if (choice == 2) feedingMenu();
+    else if (choice == 3) settings();
     if (uiTaskActive()) return;
   } while (choice != -1);
   forceDisplayRedraw = true;

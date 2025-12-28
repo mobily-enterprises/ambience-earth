@@ -725,7 +725,7 @@ int runInitialSetup() {
   if (!calibrateSoilMoistureSensor()) return 0;
 
   // Save config
-  config.mustRunInitialSetup = false;
+  config.flags &= static_cast<uint8_t>(~CONFIG_FLAG_MUST_RUN_INITIAL_SETUP);
   saveConfig();
 
   lcdClear();

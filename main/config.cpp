@@ -5,7 +5,7 @@
 
 Config config;
 
-bool validateAndMigrateConfig() {
+bool validateConfig() {
   if (!configChecksumCorrect()) return false;
   if (config.version != CONFIG_VERSION) return false;
   return true;
@@ -68,10 +68,11 @@ void setConfigChecksum() {
 void restoreDefaultConfig() {
   config.checksum = 0;
   config.version = CONFIG_VERSION;
+  config.flags = 0;
 #ifdef WOKWI_SIM
-  config.mustRunInitialSetup = false;
+  config.flags &= static_cast<uint8_t>(~CONFIG_FLAG_MUST_RUN_INITIAL_SETUP);
 #else
-  config.mustRunInitialSetup = true;
+  config.flags |= CONFIG_FLAG_MUST_RUN_INITIAL_SETUP;
 #endif
 
   config.moistSensorCalibrationSoaked = 200;

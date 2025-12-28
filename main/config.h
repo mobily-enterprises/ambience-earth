@@ -6,7 +6,8 @@
 #include "feedSlots.h"
 
 #define CONFIG_ADDRESS 0
-#define CONFIG_VERSION 2
+#define CONFIG_VERSION 3
+#define CONFIG_FLAG_MUST_RUN_INITIAL_SETUP 0x01
 
 // ************************************************************
 // ** TYPE DEFINITIONS
@@ -15,8 +16,7 @@
 typedef struct {
     uint8_t checksum;
     uint8_t version;
-    bool mustRunInitialSetup;
-    char deviceName[10];
+    uint8_t flags;
 
     uint16_t moistSensorCalibrationSoaked;
     uint16_t moistSensorCalibrationDry;
@@ -36,7 +36,7 @@ bool configChecksumCorrect();
 bool verifyConfigChecksum();
 void setConfigChecksum();
 void restoreDefaultConfig();
-bool validateAndMigrateConfig();
+bool validateConfig();
 
 void saveConfig();
 // Config& getConfig();

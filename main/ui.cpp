@@ -76,7 +76,7 @@ static void updateSensorIndicator() {
   if (!soilSensorIsActive()) {
     if (indicatorOn) {
       indicatorOn = false;
-      lcdSetCursor(19, 0);
+      lcdSetCursor(19, 3);
       lcd.print(' ');
     }
     return;
@@ -87,7 +87,7 @@ static void updateSensorIndicator() {
   lastToggleAt = now;
   indicatorOn = !indicatorOn;
 
-  lcdSetCursor(19, 0);
+  lcdSetCursor(19, 3);
   if (indicatorOn) lcd.write((uint8_t)3);
   else lcd.print(' ');
 }
