@@ -12,6 +12,7 @@ typedef struct {
   pin_t pin_x;
   pin_t pin_d;
   pin_t pin_out;
+  int last_adc;
 } chip_state_t;
 
 static float adc_to_volts(int adc) {
@@ -31,10 +32,9 @@ static void update_output(chip_state_t *chip) {
   else if (is_pressed(chip->pin_x)) adc = 300;
   else if (is_pressed(chip->pin_d)) adc = 100;
 
-  static int last_adc = -1;
-  if (adc != last_adc) {
+  if (adc != chip->last_adc) {
     printf("adc=%d\n", adc);
-    last_adc = adc;
+    chip->last_adc = adc;
   }
 
   pin_dac_write(chip->pin_out, adc_to_volts(adc));
@@ -54,6 +54,7 @@ void chip_init(void) {
   chip->pin_x = pin_init("X", INPUT_PULLUP);
   chip->pin_d = pin_init("D", INPUT_PULLUP);
   chip->pin_out = pin_init("OUT", ANALOG);
+  chip->last_adc = -1;
 
   const pin_watch_config_t config = {
     .edge = BOTH,
