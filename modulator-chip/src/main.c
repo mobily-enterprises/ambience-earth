@@ -14,11 +14,14 @@ typedef struct {
   float phase;
   float depth;
   float period;
+  float hold_remaining;
   uint32_t rng;
 } chip_state_t;
 
 static const float kPi = 3.1415927f;
 static const float kTwoPi = 6.2831853f;
+static const float kHalfPi = 1.5707963f;
+static const float kThreeHalfPi = 4.7123890f;
 static const float kTickSeconds = 0.05f;
 
 static uint32_t lcg_next(uint32_t *state) {
@@ -32,7 +35,11 @@ static float rand_unit(chip_state_t *chip) {
 
 static void choose_cycle(chip_state_t *chip) {
   chip->period = 10.0f + rand_unit(chip) * 10.0f;
-  chip->depth = 0.10f + rand_unit(chip) * 0.05f;
+  chip->depth = 0.05f + rand_unit(chip) * 0.02f;
+}
+
+static void choose_hold(chip_state_t *chip) {
+  chip->hold_remaining = 3.0f + rand_unit(chip) * 2.0f;
 }
 
 static float wrap_pi(float value) {
@@ -70,11 +77,30 @@ static void update_output(void *user_data) {
 
   pin_dac_write(chip->pin_out, modulated);
 
-  chip->phase += (kTwoPi * kTickSeconds) / chip->period;
-  if (chip->phase >= kTwoPi) {
-    chip->phase -= kTwoPi;
+  if (chip->hold_remaining > 0.0f) {
+    chip->hold_remaining -= kTickSeconds;
+    if (chip->hold_remaining < 0.0f) chip->hold_remaining = 0.0f;
+    return;
+  }
+
+  float next_phase = chip->phase + (kTwoPi * kTickSeconds) / chip->period;
+  if (next_phase >= kTwoPi) {
+    next_phase -= kTwoPi;
     choose_cycle(chip);
   }
+
+  if (chip->phase < kHalfPi && next_phase >= kHalfPi) {
+    chip->phase = kHalfPi;
+    choose_hold(chip);
+    return;
+  }
+  if (chip->phase < kThreeHalfPi && next_phase >= kThreeHalfPi) {
+    chip->phase = kThreeHalfPi;
+    choose_hold(chip);
+    return;
+  }
+
+  chip->phase = next_phase;
 }
 
 void chip_init(void) {
@@ -83,6 +109,7 @@ void chip_init(void) {
   chip->pin_out = pin_init("OUT", ANALOG);
   chip->pin_vcc = pin_init("VCC", INPUT);
   chip->phase = 0.0f;
+  chip->hold_remaining = 0.0f;
   chip->rng = (uint32_t)get_sim_nanos();
   if (chip->rng == 0) chip->rng = 1;
   choose_cycle(chip);
