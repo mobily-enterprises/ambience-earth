@@ -31,6 +31,10 @@ static unsigned long nextSampleAt = 0;
 static unsigned long nextWindowAt = 0;
 static unsigned long realtimeWarmupUntil = 0;
 static unsigned long realtimeLastSampleAt = 0;
+static unsigned long realtimeRiseStartAt = 0;
+static bool realtimeRiseActive = false;
+static unsigned long realtimeFallStartAt = 0;
+static bool realtimeFallActive = false;
 static bool realtimeSeeded = false;
 
 static uint32_t windowSum = 0;
@@ -108,6 +112,10 @@ static void resetRealtimeFilter(uint16_t seed) {
   realtimeSeeded = true;
   realtimeLastSampleAt = 0;
   realtimeWarmupUntil = millis() + SENSOR_STABILIZATION_TIME;
+  realtimeRiseStartAt = 0;
+  realtimeRiseActive = false;
+  realtimeFallStartAt = 0;
+  realtimeFallActive = false;
 }
 
 static void tickRealtime(bool forceSample) {
@@ -123,13 +131,54 @@ static void tickRealtime(bool forceSample) {
   uint16_t raw = readMedian3();
   realtimeRaw = raw;
 
-  unsigned long dt = realtimeLastSampleAt ? (now - realtimeLastSampleAt) : SENSOR_SAMPLE_INTERVAL;
-  float alpha = (float)dt / (SENSOR_REALTIME_EMA_TAU_MS + (float)dt);
-
   if (!realtimeSeeded) {
     realtimeAvg = (float)raw;
     realtimeSeeded = true;
+  }
+
+  uint8_t rawPercent = soilMoistureAsPercentage(raw);
+  uint8_t avgPercent = soilMoistureAsPercentage((uint16_t)(realtimeAvg + 0.5f));
+  int16_t diffPercent = (int16_t)rawPercent - (int16_t)avgPercent;
+
+  bool aboveBand = diffPercent > (int16_t)SENSOR_FEED_DEADBAND_PERCENT;
+  bool belowBand = diffPercent < -(int16_t)SENSOR_FEED_DEADBAND_PERCENT;
+
+  if (aboveBand) {
+    if (!realtimeRiseActive) {
+      realtimeRiseActive = true;
+      realtimeRiseStartAt = now;
+    }
   } else {
+    realtimeRiseActive = false;
+    realtimeRiseStartAt = 0;
+  }
+
+  if (belowBand) {
+    if (!realtimeFallActive) {
+      realtimeFallActive = true;
+      realtimeFallStartAt = now;
+    }
+  } else {
+    realtimeFallActive = false;
+    realtimeFallStartAt = 0;
+  }
+
+  bool riseOk = realtimeRiseActive && (now - realtimeRiseStartAt >= SENSOR_FEED_RISE_MS);
+  bool fallOk = realtimeFallActive && (now - realtimeFallStartAt >= SENSOR_FEED_DROP_MS);
+  bool shouldUpdate = false;
+  float tau = SENSOR_FEED_TAU_SLOW_MS;
+
+  if (aboveBand && riseOk) {
+    shouldUpdate = true;
+    tau = SENSOR_FEED_TAU_FAST_MS;
+  } else if (belowBand) {
+    shouldUpdate = true;
+    tau = fallOk ? SENSOR_FEED_TAU_FAST_MS : SENSOR_FEED_TAU_SLOW_MS;
+  }
+
+  if (shouldUpdate) {
+    unsigned long dt = realtimeLastSampleAt ? (now - realtimeLastSampleAt) : SENSOR_SAMPLE_INTERVAL;
+    float alpha = (float)dt / (tau + (float)dt);
     realtimeAvg += alpha * ((float)raw - realtimeAvg);
   }
 

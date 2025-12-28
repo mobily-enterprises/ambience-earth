@@ -59,7 +59,8 @@ const char PROGMEM MSG_RESET[] = "Reset";
 const char PROGMEM MSG_TEST_PUMPS[] = "Test pump";
 const char PROGMEM MSG_LOGS[] = "Logs";
 const char PROGMEM MSG_SETTINGS[] = "Settings";
-const char PROGMEM MSG_RAW_COLUMN[] = "Raw:";
+const char PROGMEM MSG_RAW_COLUMN[] = "Raw";
+const char PROGMEM MSG_AVG_SHORT[] = "Avg";
 
 const char PROGMEM MSG_TINY_BIT_OF_WATER[] = "TINY bit of water";
 const char PROGMEM MSG_HOLD_IT_STILL[] = "Hold it still";
@@ -155,6 +156,7 @@ const char PROGMEM MSG_95_PERCENT[] = "95%";
 const char PROGMEM MSG_100_PERCENT[] = "100%";
 
 const char PROGMEM MSG_TEST_SENSORS[] = "Test sensors";
+const char PROGMEM MSG_MOISTURE_SENSOR_HEADING[] = "Moisture snsr";
 
 const char PROGMEM MSG_TRAY_LOW_COLUMN[] = "Water in tray:";
 const char PROGMEM MSG_SOIL_MOISTURE_COLUMN[] = "Soil mst:";

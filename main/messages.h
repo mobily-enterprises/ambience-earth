@@ -63,6 +63,7 @@ extern const char PROGMEM MSG_TEST_PUMPS[];
 extern const char PROGMEM MSG_LOGS[];
 extern const char PROGMEM MSG_SETTINGS[];
 extern const char PROGMEM MSG_RAW_COLUMN[];
+extern const char PROGMEM MSG_AVG_SHORT[];
 
 extern const char PROGMEM MSG_TINY_BIT_OF_WATER[];
 extern const char PROGMEM MSG_HOLD_IT_STILL[];
@@ -158,6 +159,7 @@ extern const char PROGMEM MSG_95_PERCENT[];
 extern const char PROGMEM MSG_100_PERCENT[];
 
 extern const char PROGMEM MSG_TEST_SENSORS[];
+extern const char PROGMEM MSG_MOISTURE_SENSOR_HEADING[];
 
 extern const char PROGMEM MSG_TRAY_LOW_COLUMN[];
 extern const char PROGMEM MSG_SOIL_MOISTURE_COLUMN[];

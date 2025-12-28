@@ -43,6 +43,7 @@ double averageMsBetweenFeeds = 0.0;
 unsigned long int millisAtEndOfLastFeed = 0;
 unsigned long lastButtonPressTime = 0;
 bool screenSaverMode = false;
+static bool forceDisplayRedraw = false;
 
 void setup() {
   Serial.begin(115200);  // Initialize serial communication at 9600 baud rate
@@ -295,6 +296,8 @@ void mainMenu() {
     else if (choice == 2) settings();
     if (uiTaskActive()) return;
   } while (choice != -1);
+  forceDisplayRedraw = true;
+  displayInfo(screenCounter);
 }
 
 static void lcdPrintSpaces(uint8_t count) {
@@ -571,7 +574,12 @@ void displayInfo(uint8_t screen) {
     lastScreen = 255;
   }
 
-  if (screen != lastScreen) {
+  if (forceDisplayRedraw) {
+    lcd.clear();
+    lastScreen = screen;
+    fullRedraw = true;
+    forceDisplayRedraw = false;
+  } else if (screen != lastScreen) {
     lcd.clear();
     lastScreen = screen;
     fullRedraw = true;

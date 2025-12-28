@@ -36,6 +36,7 @@ static const unsigned long kCalibrationMaxDuration = 60000;
 static const unsigned long kCalibrationSampleInterval = SENSOR_SAMPLE_INTERVAL;
 static const uint16_t kCalibrationRangeMin = 8;
 static const uint16_t kCalibrationRangeHysteresis = 2;
+static const uint16_t kCalibrationTurnHysteresis = 2;
 static const uint8_t kCalibrationHoldSamples = 4;
 
 enum CalState : uint8_t {
@@ -65,6 +66,9 @@ struct CalTask {
   uint32_t sampleSum;
   uint16_t sampleMin;
   uint16_t sampleMax;
+  uint16_t lastSample;
+  int8_t direction;
+  uint8_t turnCount;
   uint8_t minHold;
   uint8_t maxHold;
   bool minConfirmed;
@@ -136,6 +140,9 @@ void startCalibrationTask() {
   calTask.sampleSum = 0;
   calTask.sampleMin = 0;
   calTask.sampleMax = 0;
+  calTask.lastSample = 0;
+  calTask.direction = 0;
+  calTask.turnCount = 0;
   calTask.minHold = 0;
   calTask.maxHold = 0;
   calTask.minConfirmed = false;
@@ -186,6 +193,9 @@ static void runCalibrationTask() {
         calTask.sampleSum = 0;
         calTask.sampleMin = 0xFFFF;
         calTask.sampleMax = 0;
+        calTask.lastSample = 0;
+        calTask.direction = 0;
+        calTask.turnCount = 0;
         calTask.minHold = 0;
         calTask.maxHold = 0;
         calTask.minConfirmed = false;
@@ -209,6 +219,20 @@ static void runCalibrationTask() {
         lcdPrint_P(MSG_SPACE);
         calTask.samplesTaken++;
         calTask.nextSampleAt = millis() + kCalibrationSampleInterval;
+
+        if (calTask.samplesTaken == 1) {
+          calTask.lastSample = sample;
+        } else {
+          int16_t delta = (int16_t)sample - (int16_t)calTask.lastSample;
+          if (delta > (int16_t)kCalibrationTurnHysteresis) {
+            if (calTask.direction < 0) calTask.turnCount++;
+            calTask.direction = 1;
+          } else if (delta < -(int16_t)kCalibrationTurnHysteresis) {
+            if (calTask.direction > 0) calTask.turnCount++;
+            calTask.direction = -1;
+          }
+          calTask.lastSample = sample;
+        }
 
         if (sample < calTask.sampleMin) {
           calTask.sampleMin = sample;
@@ -238,9 +262,10 @@ static void runCalibrationTask() {
 
         unsigned long elapsed = millis() - calTask.stateStartAt;
         bool rangeOk = (calTask.sampleMax >= (uint16_t)(calTask.sampleMin + kCalibrationRangeMin));
-        bool extremesOk = calTask.minConfirmed && calTask.maxConfirmed && rangeOk;
+        bool extremesOk = rangeOk;
         bool minWindowOk = elapsed >= kCalibrationMinDuration;
-        if ((extremesOk && minWindowOk) || (elapsed >= kCalibrationMaxDuration)) {
+        bool cycleOk = calTask.turnCount >= 2;
+        if ((extremesOk && minWindowOk && cycleOk) || (elapsed >= kCalibrationMaxDuration)) {
           if (calTask.samplesTaken > 0) {
             calTask.dry = (int)(calTask.sampleSum / calTask.samplesTaken);
           }
@@ -278,6 +303,9 @@ static void runCalibrationTask() {
         calTask.sampleSum = 0;
         calTask.sampleMin = 0xFFFF;
         calTask.sampleMax = 0;
+        calTask.lastSample = 0;
+        calTask.direction = 0;
+        calTask.turnCount = 0;
         calTask.minHold = 0;
         calTask.maxHold = 0;
         calTask.minConfirmed = false;
@@ -301,6 +329,20 @@ static void runCalibrationTask() {
         lcdPrint_P(MSG_SPACE);
         calTask.samplesTaken++;
         calTask.nextSampleAt = millis() + kCalibrationSampleInterval;
+
+        if (calTask.samplesTaken == 1) {
+          calTask.lastSample = sample;
+        } else {
+          int16_t delta = (int16_t)sample - (int16_t)calTask.lastSample;
+          if (delta > (int16_t)kCalibrationTurnHysteresis) {
+            if (calTask.direction < 0) calTask.turnCount++;
+            calTask.direction = 1;
+          } else if (delta < -(int16_t)kCalibrationTurnHysteresis) {
+            if (calTask.direction > 0) calTask.turnCount++;
+            calTask.direction = -1;
+          }
+          calTask.lastSample = sample;
+        }
 
         if (sample < calTask.sampleMin) {
           calTask.sampleMin = sample;
@@ -330,9 +372,10 @@ static void runCalibrationTask() {
 
         unsigned long elapsed = millis() - calTask.stateStartAt;
         bool rangeOk = (calTask.sampleMax >= (uint16_t)(calTask.sampleMin + kCalibrationRangeMin));
-        bool extremesOk = calTask.minConfirmed && calTask.maxConfirmed && rangeOk;
+        bool extremesOk = rangeOk;
         bool minWindowOk = elapsed >= kCalibrationMinDuration;
-        if ((extremesOk && minWindowOk) || (elapsed >= kCalibrationMaxDuration)) {
+        bool cycleOk = calTask.turnCount >= 2;
+        if ((extremesOk && minWindowOk && cycleOk) || (elapsed >= kCalibrationMaxDuration)) {
           if (calTask.samplesTaken > 0) {
             calTask.soaked = (int)(calTask.sampleSum / calTask.samplesTaken);
           }
@@ -493,7 +536,8 @@ void testSensors() {
 
   lcdSetCursor(0, 0);
   lcdPrint_P(MSG_TRAY_LOW_COLUMN);
-  lcdClearLine(1);
+  lcdSetCursor(0, 1);
+  lcdPrint_P(MSG_MOISTURE_SENSOR_HEADING);
   lcdClearLine(2);
   lcdClearLine(3);
 
@@ -526,19 +570,19 @@ void testSensors() {
       lcdPrintNumber(trayWaterLevelLow);
       lcdPrint_P(MSG_SPACE);
 
-      lcdClearLine(1);
-      lcdSetCursor(0, 1);
+      lcdClearLine(2);
+      lcdSetCursor(0, 2);
       lcdPrint_P(MSG_RAW_COLUMN);
-      lcdSetCursor(5, 1);
+      lcdSetCursor(5, 2);
       lcdPrintNumber(soilMoistureRawPercentage);
       lcdPrint_P(MSG_PERCENT);
       lcdPrint_P(MSG_SPACE);
       lcdPrintNumber(soilMoistureRawReading);
 
-      lcdClearLine(2);
-      lcdSetCursor(0, 2);
-      lcdPrint_P(MSG_AVG_COLUMN);
-      lcdSetCursor(5, 2);
+      lcdClearLine(3);
+      lcdSetCursor(0, 3);
+      lcdPrint_P(MSG_AVG_SHORT);
+      lcdSetCursor(5, 3);
       lcdPrintNumber(soilMoistureAvgPercentage);
       lcdPrint_P(MSG_PERCENT);
       lcdPrint_P(MSG_SPACE);
