@@ -9,6 +9,7 @@
 typedef struct {
   pin_t pin_in;
   pin_t pin_out;
+  pin_t pin_vcc;
   timer_t timer;
   float phase;
   float depth;
@@ -48,6 +49,10 @@ static float sin_approx(float value) {
 
 static void update_output(void *user_data) {
   chip_state_t *chip = (chip_state_t *)user_data;
+  if (chip->pin_vcc != NO_PIN && pin_read(chip->pin_vcc) == LOW) {
+    pin_dac_write(chip->pin_out, 0.0f);
+    return;
+  }
   float volts = pin_adc_read(chip->pin_in);
   if (volts < 0.0f) volts = 0.0f;
   if (volts > 5.0f) volts = 5.0f;
@@ -76,6 +81,7 @@ void chip_init(void) {
   chip_state_t *chip = malloc(sizeof(chip_state_t));
   chip->pin_in = pin_init("IN", ANALOG);
   chip->pin_out = pin_init("OUT", ANALOG);
+  chip->pin_vcc = pin_init("VCC", INPUT);
   chip->phase = 0.0f;
   chip->rng = (uint32_t)get_sim_nanos();
   if (chip->rng == 0) chip->rng = 1;
