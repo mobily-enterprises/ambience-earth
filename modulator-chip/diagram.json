@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "author": "ambience-earth",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-uno", "id": "uno", "top": -60, "left": -20, "attrs": {} },
+    { "type": "chip-modulator", "id": "mod1", "top": -120, "left": 260, "attrs": {} },
+    { "type": "wokwi-slide-potentiometer", "id": "pot1", "top": 80, "left": 260, "attrs": { "value": "512", "travelLength": "60", "label": "Input" } }
+  ],
+  "connections": [
+    [ "uno:5V", "mod1:VCC", "red", [] ],
+    [ "uno:GND.1", "mod1:GND", "black", [] ],
+
+    [ "uno:5V", "pot1:VCC", "red", [] ],
+    [ "uno:GND.1", "pot1:GND", "black", [] ],
+    [ "pot1:SIG", "mod1:IN", "green", [] ],
+    [ "mod1:OUT", "uno:A0", "green", [] ],
+    [ "pot1:SIG", "uno:A1", "green", [] ]
+  ]
+}

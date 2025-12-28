@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "name": "Modulator",
+  "author": "ambience-earth",
+  "license": "MIT",
+  "docs": "docs/README.md",
+  "pins": [
+    "IN",
+    "OUT",
+    "VCC",
+    "GND"
+  ]
+}
