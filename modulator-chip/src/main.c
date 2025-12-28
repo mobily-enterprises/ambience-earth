@@ -4,24 +4,35 @@
 #include "wokwi-api.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 typedef struct {
   pin_t pin_in;
-  pin_t pin_a;
-  pin_t pin_f;
-  pin_t pin_e;
-  pin_t pin_x;
-  pin_t pin_d;
   pin_t pin_out;
   timer_t timer;
   float phase;
+  float depth;
+  float period;
+  uint32_t rng;
 } chip_state_t;
 
 static const float kPi = 3.1415927f;
 static const float kTwoPi = 6.2831853f;
 static const float kTickSeconds = 0.05f;
-static const float kDepth = 0.10f;
-static const float kPeriodSeconds = 15.0f;
+
+static uint32_t lcg_next(uint32_t *state) {
+  *state = (*state * 1664525u) + 1013904223u;
+  return *state;
+}
+
+static float rand_unit(chip_state_t *chip) {
+  return (lcg_next(&chip->rng) & 0x00FFFFFFu) / 16777216.0f;
+}
+
+static void choose_cycle(chip_state_t *chip) {
+  chip->period = 10.0f + rand_unit(chip) * 10.0f;
+  chip->depth = 0.10f + rand_unit(chip) * 0.05f;
+}
 
 static float wrap_pi(float value) {
   while (value > kPi) value -= kTwoPi;
@@ -41,7 +52,7 @@ static void update_output(void *user_data) {
   if (volts < 0.0f) volts = 0.0f;
   if (volts > 5.0f) volts = 5.0f;
 
-  float modulated = volts + (volts * kDepth * sin_approx(chip->phase));
+  float modulated = volts + (volts * chip->depth * sin_approx(chip->phase));
   if (modulated < 0.0f) modulated = 0.0f;
   if (modulated > 5.0f) modulated = 5.0f;
 
@@ -54,40 +65,21 @@ static void update_output(void *user_data) {
 
   pin_dac_write(chip->pin_out, modulated);
 
-  chip->phase += (kTwoPi * kTickSeconds) / kPeriodSeconds;
+  chip->phase += (kTwoPi * kTickSeconds) / chip->period;
   if (chip->phase >= kTwoPi) {
     chip->phase -= kTwoPi;
+    choose_cycle(chip);
   }
-}
-
-static void chip_pin_change(void *user_data, pin_t pin, uint32_t value) {
-  chip_state_t *chip = (chip_state_t*)user_data;
-  printf("Pin change: %d %d\n", pin, value);
-  update_output(chip);
 }
 
 void chip_init(void) {
   chip_state_t *chip = malloc(sizeof(chip_state_t));
   chip->pin_in = pin_init("IN", ANALOG);
-  chip->pin_a = pin_init("A", INPUT_PULLUP);
-  chip->pin_f = pin_init("F", INPUT_PULLUP);
-  chip->pin_e = pin_init("E", INPUT_PULLUP);
-  chip->pin_x = pin_init("X", INPUT_PULLUP);
-  chip->pin_d = pin_init("D", INPUT_PULLUP);
   chip->pin_out = pin_init("OUT", ANALOG);
   chip->phase = 0.0f;
-
-  const pin_watch_config_t config = {
-    .edge = BOTH,
-    .pin_change = chip_pin_change,
-    .user_data = chip,
-  };
-  pin_watch(chip->pin_a, &config);
-  pin_watch(chip->pin_f, &config);
-  pin_watch(chip->pin_e, &config);
-  pin_watch(chip->pin_x, &config);
-  pin_watch(chip->pin_d, &config);
-  pin_watch(chip->pin_in, &config);
+  chip->rng = (uint32_t)get_sim_nanos();
+  if (chip->rng == 0) chip->rng = 1;
+  choose_cycle(chip);
 
   const timer_config_t timer_config = {
     .callback = update_output,
