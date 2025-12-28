@@ -31,7 +31,12 @@ enum UiTaskKind : uint8_t {
 };
 
 static UiTaskKind uiTask = UI_TASK_NONE;
-static const uint8_t kCalibrationSamples = 8;
+static const unsigned long kCalibrationMinDuration = 20000;
+static const unsigned long kCalibrationMaxDuration = 60000;
+static const unsigned long kCalibrationSampleInterval = SENSOR_SAMPLE_INTERVAL;
+static const uint16_t kCalibrationRangeMin = 8;
+static const uint16_t kCalibrationRangeHysteresis = 2;
+static const uint8_t kCalibrationHoldSamples = 4;
 
 enum CalState : uint8_t {
   CAL_STATE_IDLE = 0,
@@ -55,8 +60,15 @@ struct CalTask {
   CalState lastState;
   unsigned long nextSampleAt;
   unsigned long stateStartAt;
-  uint8_t samplesTaken;
-  int32_t sampleSum;
+  bool samplingStarted;
+  uint16_t samplesTaken;
+  uint32_t sampleSum;
+  uint16_t sampleMin;
+  uint16_t sampleMax;
+  uint8_t minHold;
+  uint8_t maxHold;
+  bool minConfirmed;
+  bool maxConfirmed;
   int dry;
   int soaked;
   bool saveChoice;
@@ -119,8 +131,15 @@ void startCalibrationTask() {
   calTask.state = CAL_STATE_PROMPT_DRY;
   calTask.lastState = CAL_STATE_IDLE;
   calTask.nextSampleAt = 0;
+  calTask.samplingStarted = false;
   calTask.samplesTaken = 0;
   calTask.sampleSum = 0;
+  calTask.sampleMin = 0;
+  calTask.sampleMax = 0;
+  calTask.minHold = 0;
+  calTask.maxHold = 0;
+  calTask.minConfirmed = false;
+  calTask.maxConfirmed = false;
   calTask.dry = 0;
   calTask.soaked = 0;
   calTask.saveChoice = true;
@@ -162,13 +181,25 @@ static void runCalibrationTask() {
 
     case CAL_STATE_SAMPLE_DRY:
       if (entered) {
+        calTask.samplingStarted = false;
         calTask.samplesTaken = 0;
         calTask.sampleSum = 0;
+        calTask.sampleMin = 0xFFFF;
+        calTask.sampleMax = 0;
+        calTask.minHold = 0;
+        calTask.maxHold = 0;
+        calTask.minConfirmed = false;
+        calTask.maxConfirmed = false;
         calTask.nextSampleAt = 0;
         lcdClear();
         lcdPrint_P(MSG_DRY_COLUMN, 1);
       }
       if (!soilSensorRealtimeReady()) break;
+      if (!calTask.samplingStarted) {
+        calTask.samplingStarted = true;
+        calTask.stateStartAt = millis();
+        calTask.nextSampleAt = millis();
+      }
       if (millis() >= calTask.nextSampleAt) {
         (void)getSoilMoisture();
         uint16_t sample = soilSensorGetRealtimeRaw();
@@ -177,9 +208,42 @@ static void runCalibrationTask() {
         lcdPrintNumber(sample);
         lcdPrint_P(MSG_SPACE);
         calTask.samplesTaken++;
-        calTask.nextSampleAt = millis() + 900;
-        if (calTask.samplesTaken >= kCalibrationSamples) {
-          calTask.dry = (int)(calTask.sampleSum / calTask.samplesTaken);
+        calTask.nextSampleAt = millis() + kCalibrationSampleInterval;
+
+        if (sample < calTask.sampleMin) {
+          calTask.sampleMin = sample;
+          calTask.minHold = 1;
+          calTask.minConfirmed = false;
+        } else if (!calTask.minConfirmed) {
+          if (sample <= calTask.sampleMin + kCalibrationRangeHysteresis) {
+            if (calTask.minHold < 255) calTask.minHold++;
+            if (calTask.minHold >= kCalibrationHoldSamples) calTask.minConfirmed = true;
+          } else {
+            calTask.minHold = 0;
+          }
+        }
+
+        if (sample > calTask.sampleMax) {
+          calTask.sampleMax = sample;
+          calTask.maxHold = 1;
+          calTask.maxConfirmed = false;
+        } else if (!calTask.maxConfirmed) {
+          if (sample + kCalibrationRangeHysteresis >= calTask.sampleMax) {
+            if (calTask.maxHold < 255) calTask.maxHold++;
+            if (calTask.maxHold >= kCalibrationHoldSamples) calTask.maxConfirmed = true;
+          } else {
+            calTask.maxHold = 0;
+          }
+        }
+
+        unsigned long elapsed = millis() - calTask.stateStartAt;
+        bool rangeOk = (calTask.sampleMax >= (uint16_t)(calTask.sampleMin + kCalibrationRangeMin));
+        bool extremesOk = calTask.minConfirmed && calTask.maxConfirmed && rangeOk;
+        bool minWindowOk = elapsed >= kCalibrationMinDuration;
+        if ((extremesOk && minWindowOk) || (elapsed >= kCalibrationMaxDuration)) {
+          if (calTask.samplesTaken > 0) {
+            calTask.dry = (int)(calTask.sampleSum / calTask.samplesTaken);
+          }
           calTask.state = CAL_STATE_WAIT_AFTER_DRY;
           return;
         }
@@ -209,13 +273,25 @@ static void runCalibrationTask() {
 
     case CAL_STATE_SAMPLE_SOAK:
       if (entered) {
+        calTask.samplingStarted = false;
         calTask.samplesTaken = 0;
         calTask.sampleSum = 0;
+        calTask.sampleMin = 0xFFFF;
+        calTask.sampleMax = 0;
+        calTask.minHold = 0;
+        calTask.maxHold = 0;
+        calTask.minConfirmed = false;
+        calTask.maxConfirmed = false;
         calTask.nextSampleAt = 0;
         lcdClear();
         lcdPrint_P(MSG_SOAKED_COLUMN, 1);
       }
       if (!soilSensorRealtimeReady()) break;
+      if (!calTask.samplingStarted) {
+        calTask.samplingStarted = true;
+        calTask.stateStartAt = millis();
+        calTask.nextSampleAt = millis();
+      }
       if (millis() >= calTask.nextSampleAt) {
         (void)getSoilMoisture();
         uint16_t sample = soilSensorGetRealtimeRaw();
@@ -224,9 +300,42 @@ static void runCalibrationTask() {
         lcdPrintNumber(sample);
         lcdPrint_P(MSG_SPACE);
         calTask.samplesTaken++;
-        calTask.nextSampleAt = millis() + 900;
-        if (calTask.samplesTaken >= kCalibrationSamples) {
-          calTask.soaked = (int)(calTask.sampleSum / calTask.samplesTaken);
+        calTask.nextSampleAt = millis() + kCalibrationSampleInterval;
+
+        if (sample < calTask.sampleMin) {
+          calTask.sampleMin = sample;
+          calTask.minHold = 1;
+          calTask.minConfirmed = false;
+        } else if (!calTask.minConfirmed) {
+          if (sample <= calTask.sampleMin + kCalibrationRangeHysteresis) {
+            if (calTask.minHold < 255) calTask.minHold++;
+            if (calTask.minHold >= kCalibrationHoldSamples) calTask.minConfirmed = true;
+          } else {
+            calTask.minHold = 0;
+          }
+        }
+
+        if (sample > calTask.sampleMax) {
+          calTask.sampleMax = sample;
+          calTask.maxHold = 1;
+          calTask.maxConfirmed = false;
+        } else if (!calTask.maxConfirmed) {
+          if (sample + kCalibrationRangeHysteresis >= calTask.sampleMax) {
+            if (calTask.maxHold < 255) calTask.maxHold++;
+            if (calTask.maxHold >= kCalibrationHoldSamples) calTask.maxConfirmed = true;
+          } else {
+            calTask.maxHold = 0;
+          }
+        }
+
+        unsigned long elapsed = millis() - calTask.stateStartAt;
+        bool rangeOk = (calTask.sampleMax >= (uint16_t)(calTask.sampleMin + kCalibrationRangeMin));
+        bool extremesOk = calTask.minConfirmed && calTask.maxConfirmed && rangeOk;
+        bool minWindowOk = elapsed >= kCalibrationMinDuration;
+        if ((extremesOk && minWindowOk) || (elapsed >= kCalibrationMaxDuration)) {
+          if (calTask.samplesTaken > 0) {
+            calTask.soaked = (int)(calTask.sampleSum / calTask.samplesTaken);
+          }
           setSoilSensorLazy();
           calTask.state = CAL_STATE_CONFIRM_SAVE;
           return;
