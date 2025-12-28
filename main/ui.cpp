@@ -706,8 +706,8 @@ static void inputStringCommon(bool useProgmem, PGM_P promptP, const char *prompt
     } else if (pressedButton == &rightButton) {
       // If RIGHT button is pressed, move cursor to the next position
       cursorPosition++;
-      // If cursor reaches beyond 15, wrap around to 0
-      if (cursorPosition > 15) {
+      // If cursor reaches beyond the display width, wrap around to 0
+      if (cursorPosition >= DISPLAY_COLUMNS) {
         cursorPosition = 0;
       }
       displayChanged = true;
