@@ -5,6 +5,7 @@
   "parts": [
     { "type": "wokwi-arduino-uno", "id": "uno", "top": -57, "left": -0.6, "attrs": {} },
     { "type": "chip-modulator", "id": "keys", "top": -94.98, "left": 292.8, "attrs": {} },
+    { "type": "wokwi-slide-potentiometer", "id": "pot1", "top": 80, "left": 420, "attrs": { "value": "512", "travelLength": "60", "label": "Input" } },
     { "type": "wokwi-pushbutton", "id": "btnA", "top": 20, "left": 220, "attrs": { "label": "A", "key": "a" } },
     { "type": "wokwi-pushbutton", "id": "btnF", "top": 60, "left": 220, "attrs": { "label": "F", "key": "f" } },
     { "type": "wokwi-pushbutton", "id": "btnE", "top": 100, "left": 220, "attrs": { "label": "E", "key": "e" } },
@@ -14,6 +15,10 @@
   "connections": [
     [ "uno:5V", "keys:VCC", "red", [ "v28.7", "h234.5", "v-240" ] ],
     [ "keys:GND", "uno:GND.1", "black", [ "h30.61", "v259.2", "h-259.2" ] ],
+
+    [ "uno:5V", "pot1:VCC", "red", [] ],
+    [ "uno:GND.1", "pot1:GND", "black", [] ],
+    [ "pot1:SIG", "keys:IN", "green", [] ],
 
     [ "keys:A", "btnA:1.r", "green", [] ],
     [ "btnA:2.l", "uno:GND.1", "black", [] ],
