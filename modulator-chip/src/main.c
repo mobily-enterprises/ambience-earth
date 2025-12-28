@@ -14,13 +14,36 @@ typedef struct {
   pin_t pin_d;
   pin_t pin_out;
   timer_t timer;
+  float phase;
 } chip_state_t;
+
+static const float kPi = 3.1415927f;
+static const float kTwoPi = 6.2831853f;
+static const float kTickSeconds = 0.05f;
+static const float kDepth = 0.10f;
+static const float kPeriodSeconds = 15.0f;
+
+static float wrap_pi(float value) {
+  while (value > kPi) value -= kTwoPi;
+  while (value < -kPi) value += kTwoPi;
+  return value;
+}
+
+static float sin_approx(float value) {
+  float x = wrap_pi(value);
+  float x2 = x * x;
+  return x * (1.0f - (x2 / 6.0f) + ((x2 * x2) / 120.0f));
+}
 
 static void update_output(void *user_data) {
   chip_state_t *chip = (chip_state_t *)user_data;
   float volts = pin_adc_read(chip->pin_in);
   if (volts < 0.0f) volts = 0.0f;
   if (volts > 5.0f) volts = 5.0f;
+
+  float modulated = volts + (volts * kDepth * sin_approx(chip->phase));
+  if (modulated < 0.0f) modulated = 0.0f;
+  if (modulated > 5.0f) modulated = 5.0f;
 
   static int last_millivolts = -1;
   int millivolts = (int)(volts * 1000.0f + 0.5f);
@@ -29,7 +52,12 @@ static void update_output(void *user_data) {
     last_millivolts = millivolts;
   }
 
-  pin_dac_write(chip->pin_out, volts);
+  pin_dac_write(chip->pin_out, modulated);
+
+  chip->phase += (kTwoPi * kTickSeconds) / kPeriodSeconds;
+  if (chip->phase >= kTwoPi) {
+    chip->phase -= kTwoPi;
+  }
 }
 
 static void chip_pin_change(void *user_data, pin_t pin, uint32_t value) {
@@ -47,6 +75,7 @@ void chip_init(void) {
   chip->pin_x = pin_init("X", INPUT_PULLUP);
   chip->pin_d = pin_init("D", INPUT_PULLUP);
   chip->pin_out = pin_init("OUT", ANALOG);
+  chip->phase = 0.0f;
 
   const pin_watch_config_t config = {
     .edge = BOTH,
