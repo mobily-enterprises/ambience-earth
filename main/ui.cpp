@@ -287,12 +287,14 @@ void setChoicesHeader_R(const char *header = "") {
 }
 
 void setChoice_P(unsigned char index, PGM_P label, int value = 0) {
+  if (index >= (sizeof(choices) / sizeof(choices[0]))) return;
   choices[index].label.ptr = (const char *)label;
   choices[index].label.is_progmem = 1;
   choices[index].value = value;
 }
 
 void setChoice_R(unsigned char index, const char *label, int value = 0) {
+  if (index >= (sizeof(choices) / sizeof(choices[0]))) return;
   choices[index].label.ptr = label;
   choices[index].label.is_progmem = 0;
   choices[index].value = value;
