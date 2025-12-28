@@ -5,6 +5,7 @@
 #include <Arduino.h>
 
 #define CONFIG_ADDRESS 0
+#define CONFIG_VERSION 1
 
 // ************************************************************
 // ** TYPE DEFINITIONS
@@ -16,6 +17,7 @@ typedef struct {
 
 typedef struct {
     uint8_t checksum;
+    uint8_t version;
     bool mustRunInitialSetup;
     char deviceName[10];
 
@@ -34,6 +36,7 @@ bool configChecksumCorrect();
 bool verifyConfigChecksum();
 void setConfigChecksum();
 void restoreDefaultConfig();
+bool validateAndMigrateConfig();
 
 void saveConfig();
 // Config& getConfig();

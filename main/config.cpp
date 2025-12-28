@@ -5,6 +5,42 @@
 
 Config config;
 
+static bool migrateConfig(uint8_t fromVersion, uint8_t toVersion) {
+  switch (fromVersion) {
+    /*
+    // Example migration pattern (v1 -> v2):
+    // case 1:
+    //   if (toVersion != 2) return false;
+    //   // e.g. set defaults for new fields, clamp old values, etc.
+    //   // config.newField = DEFAULT_NEW_FIELD;
+    //   // if (config.moistSensorCalibrationDry < 200) config.moistSensorCalibrationDry = 200;
+    //   return true;
+    */
+    case 1:
+      return toVersion == 1;
+    default:
+      return false;
+  }
+}
+
+bool validateAndMigrateConfig() {
+  if (!configChecksumCorrect()) return false;
+
+  if (config.version == CONFIG_VERSION) return true;
+  if (config.version == 0) return false;
+
+  uint8_t currentVersion = config.version;
+  while (currentVersion < CONFIG_VERSION) {
+    uint8_t nextVersion = currentVersion + 1;
+    if (!migrateConfig(currentVersion, nextVersion)) return false;
+    currentVersion = nextVersion;
+    config.version = currentVersion;
+  }
+
+  saveConfig();
+  return true;
+}
+
 void saveConfig() {
   setConfigChecksum();
   EEPROM.put(CONFIG_ADDRESS, config);
@@ -61,6 +97,7 @@ void setConfigChecksum() {
 
 void restoreDefaultConfig() {
   config.checksum = 0;
+  config.version = CONFIG_VERSION;
 #ifdef WOKWI_SIM
   config.mustRunInitialSetup = false;
 #else

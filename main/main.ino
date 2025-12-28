@@ -61,7 +61,7 @@ void setup() {
 
   loadConfig();
 
-  if (!configChecksumCorrect()) {
+  if (!validateAndMigrateConfig()) {
     restoreDefaultConfig();
     saveConfig();
     wipeLogs();
