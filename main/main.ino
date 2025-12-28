@@ -65,10 +65,26 @@ void setup() {
     wipeLogs();
   }
 
+#ifdef WOKWI_SIM
+  if (!config.kbdUp && !config.kbdDown && !config.kbdLeft && !config.kbdRight && !config.kbdOk) {
+    config.kbdUp = 500;
+    config.kbdDown = 300;
+    config.kbdLeft = 900;
+    config.kbdRight = 100;
+    config.kbdOk = 700;
+    saveConfig();
+  }
+
   if (config.mustRunInitialSetup) {
     config.mustRunInitialSetup = false;
     saveConfig();
   }
+#else
+  if (config.mustRunInitialSetup) {
+    runButtonsSetup();
+    while (!runInitialSetup());
+  }
+#endif
 
   // runButtonsSetup();
 

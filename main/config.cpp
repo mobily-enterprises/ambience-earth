@@ -61,7 +61,11 @@ void setConfigChecksum() {
 
 void restoreDefaultConfig() {
   config.checksum = 0;
+#ifdef WOKWI_SIM
   config.mustRunInitialSetup = false;
+#else
+  config.mustRunInitialSetup = true;
+#endif
 
   config.moistSensorCalibrationSoaked = 200;
   config.moistSensorCalibrationDry = 500;
@@ -72,11 +76,20 @@ void restoreDefaultConfig() {
 
   config.maxFeedTime = 1000L * 60 * 3;
 
+#ifdef WOKWI_SIM
+  // Wokwi keyladder defaults: E=500, X=300, A=900, F=700, D=100
+  config.kbdUp = 500;
+  config.kbdDown = 300;
+  config.kbdLeft = 900;
+  config.kbdRight = 100;
+  config.kbdOk = 700;
+#else
   config.kbdUp = 0;
   config.kbdDown = 0;
   config.kbdLeft = 0;
   config.kbdRight = 0;
   config.kbdOk = 0;
+#endif
 
   // Set default checksum
   config.checksum = calculateConfigChecksum();
