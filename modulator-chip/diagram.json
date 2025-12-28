@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "author": "ambience-earth",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-uno", "id": "uno", "top": -57, "left": -0.6, "attrs": {} },
+    { "type": "chip-keyladder", "id": "keys", "top": -94.98, "left": 292.8, "attrs": {} },
+    { "type": "wokwi-pushbutton", "id": "btnA", "top": 20, "left": 220, "attrs": { "label": "A", "key": "a" } },
+    { "type": "wokwi-pushbutton", "id": "btnF", "top": 60, "left": 220, "attrs": { "label": "F", "key": "f" } },
+    { "type": "wokwi-pushbutton", "id": "btnE", "top": 100, "left": 220, "attrs": { "label": "E", "key": "e" } },
+    { "type": "wokwi-pushbutton", "id": "btnX", "top": 140, "left": 220, "attrs": { "label": "X", "key": "x" } },
+    { "type": "wokwi-pushbutton", "id": "btnD", "top": 180, "left": 220, "attrs": { "label": "D", "key": "d" } }
+  ],
+  "connections": [
+    [ "uno:5V", "keys:VCC", "red", [ "v28.7", "h234.5", "v-240" ] ],
+    [ "keys:GND", "uno:GND.1", "black", [ "h30.61", "v259.2", "h-259.2" ] ],
+
+    [ "keys:A", "btnA:1.r", "green", [] ],
+    [ "btnA:2.l", "uno:GND.1", "black", [] ],
+    [ "keys:F", "btnF:1.r", "green", [] ],
+    [ "btnF:2.l", "uno:GND.1", "black", [] ],
+    [ "keys:E", "btnE:1.r", "green", [] ],
+    [ "btnE:2.l", "uno:GND.1", "black", [] ],
+    [ "keys:X", "btnX:1.r", "green", [] ],
+    [ "btnX:2.l", "uno:GND.1", "black", [] ],
+    [ "keys:D", "btnD:1.r", "green", [] ],
+    [ "btnD:2.l", "uno:GND.1", "black", [] ],
+
+    [ "keys:OUT", "uno:A0", "green", [] ]
+  ]
+}

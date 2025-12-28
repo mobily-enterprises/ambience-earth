@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "name": "KeyLadder",
+  "author": "ambience-earth",
+  "license": "MIT",
+  "docs": "docs/README.md",
+  "pins": [
+    "OUT",
+    "A",
+    "F",
+    "E",
+    "X",
+    "D",
+    "VCC",
+    "GND"
+  ]
+}
