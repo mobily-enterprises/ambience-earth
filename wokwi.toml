@@ -5,3 +5,7 @@ firmware = "main/build/arduino.avr.nano/main.ino.hex"
 [[chip]]
 name = "keyladder"
 binary = "buttons-chip/dist/chip.wasm"
+
+[[chip]]
+name = "modulator"
+binary = "modulator-chip/dist/chip.wasm"

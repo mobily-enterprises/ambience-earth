@@ -34,12 +34,12 @@ static float rand_unit(chip_state_t *chip) {
 }
 
 static void choose_cycle(chip_state_t *chip) {
-  chip->period = 20.0f + rand_unit(chip) * 15.0f;
-  chip->depth = 0.05f + rand_unit(chip) * 0.02f;
+  chip->period = 16.0f + rand_unit(chip) * 12.0f;
+  chip->depth = 0.01f + rand_unit(chip) * 0.005f;
 }
 
 static void choose_hold(chip_state_t *chip) {
-  chip->hold_remaining = 1.5f + rand_unit(chip) * 1.0f;
+  chip->hold_remaining = 0.75f + rand_unit(chip) * 0.5f;
 }
 
 static float wrap_pi(float value) {
@@ -48,10 +48,17 @@ static float wrap_pi(float value) {
   return value;
 }
 
+static float absf(float value) {
+  return value < 0.0f ? -value : value;
+}
+
 static float sin_approx(float value) {
   float x = wrap_pi(value);
-  float x2 = x * x;
-  return x * (1.0f - (x2 / 6.0f) + ((x2 * x2) / 120.0f));
+  const float B = 4.0f / kPi;
+  const float C = -4.0f / (kPi * kPi);
+  float y = B * x + C * x * absf(x);
+  const float P = 0.225f;
+  return P * (y * absf(y) - y) + y;
 }
 
 static void update_output(void *user_data) {
@@ -64,7 +71,10 @@ static void update_output(void *user_data) {
   if (volts < 0.0f) volts = 0.0f;
   if (volts > 5.0f) volts = 5.0f;
 
-  float modulated = volts + (volts * chip->depth * sin_approx(chip->phase));
+  float sine = sin_approx(chip->phase);
+  if (sine > 1.0f) sine = 1.0f;
+  if (sine < -1.0f) sine = -1.0f;
+  float modulated = volts + (volts * chip->depth * sine);
   if (modulated < 0.0f) modulated = 0.0f;
   if (modulated > 5.0f) modulated = 5.0f;
 

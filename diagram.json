@@ -6,6 +6,7 @@
     { "type": "wokwi-arduino-nano", "id": "nano", "top": -40, "left": -120, "attrs": {} },
     { "type": "wokwi-lcd2004", "id": "lcd1", "top": -170, "left": 220, "attrs": { "pins": "i2c", "i2cAddress": "0x27" } },
     { "type": "wokwi-slide-potentiometer", "id": "soilPot", "top": 70, "left": 420, "attrs": { "value": "512", "travelLength": "60", "label": "Soil" } },
+    { "type": "chip-modulator", "id": "mod1", "top": 150, "left": 430, "attrs": {} },
     { "type": "wokwi-slide-switch", "id": "trayLow", "top": 80, "left": 120, "attrs": { "label": "Tray Low" } },
     { "type": "wokwi-pushbutton", "id": "btnUp", "top": 40, "left": 300, "attrs": { "label": "UP", "key": "e" } },
     { "type": "wokwi-pushbutton", "id": "btnLeft", "top": 80, "left": 260, "attrs": { "label": "LEFT", "key": "a" } },
@@ -23,7 +24,10 @@
 
     ["nano:12", "soilPot:VCC", "#5a2e2e", ["v0"]],
     ["nano:GND.2", "soilPot:GND", "#333333", ["v0"]],
-    ["nano:A0", "soilPot:SIG", "#2e5a2e", ["v0"]],
+    ["soilPot:SIG", "mod1:IN", "#2e5a2e", ["v0"]],
+    ["nano:12", "mod1:VCC", "#5a2e2e", ["v0"]],
+    ["nano:GND.2", "mod1:GND", "#333333", ["v0"]],
+    ["mod1:OUT", "nano:A0", "#2e5a2e", ["v0"]],
 
     ["nano:GND.1", "trayLow:2", "#333333", ["v0"]],
     ["nano:5", "trayLow:3", "#2e5a2e", ["v0"]],

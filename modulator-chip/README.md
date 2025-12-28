@@ -9,9 +9,9 @@ in [chip.json](chip.json).
 Behavior:
 
 - Sine-wave modulation around the input value.
-- Depth: random per cycle, 5% to 7% of the current input value.
-- Period: random per cycle, 20 to 35 seconds for a full up/down cycle.
-- Hold time: 1.5 to 2.5 seconds at the top and bottom of the oscillation.
+- Depth: random per cycle, ~2% to 3% peak-to-peak (1% to 1.5% each side).
+- Period: random per cycle, 16 to 28 seconds for a full up/down cycle.
+- Hold time: 0.75 to 1.25 seconds at the top and bottom of the oscillation.
 - Output is clamped to 0-5V; VCC low forces output to 0V.
 
 ## Building
