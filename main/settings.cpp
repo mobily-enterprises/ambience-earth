@@ -329,7 +329,7 @@ void resetData() {
 void activatePumps() {
   lcdFlashMessage_P(MSG_DEVICE_WILL_BLINK, MSG_THREE_TIMES, 100);
  
-  for (int i = 0; i <= 3; i++) {
+  for (int i = 0; i < 3; i++) {
     digitalWrite(PUMP_IN_DEVICE, LOW);
     delay(1000);
     digitalWrite(PUMP_IN_DEVICE, HIGH);
