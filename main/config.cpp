@@ -35,8 +35,8 @@ uint8_t calculateConfigChecksum() {
   uint64_t hash = FNV_offset_basis;
   uint8_t* ptr = reinterpret_cast<uint8_t*>(&config);
 
-  // Skip the first 8 bytes
-  for (size_t i = 8; i < sizeof(config); ++i) {
+  // Skip only the checksum byte itself.
+  for (size_t i = 1; i < sizeof(config); ++i) {
     hash ^= static_cast<uint64_t>(ptr[i]);
     hash *= FNV_prime;
   }
