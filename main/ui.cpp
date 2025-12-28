@@ -83,8 +83,8 @@ void lcdClearLine(uint8_t y) {
   lcdPrint_P(MSG_SPACES);
 }
 
-void lcdPrintBool(bool b, uint8_t y) {
-  if (y) {
+void lcdPrintBool(bool b, int8_t y) {
+  if (y != -1) {
     lcdClearLine(y);
     lcdSetCursor(0, y);
   }
@@ -114,8 +114,8 @@ void lcdPrint_R(const char *message, int8_t y = -1) {
   lcd.print(buffer);
 }
 
-void lcdPrintNumber(int number, uint8_t y = 0) {
-  if (y) {
+void lcdPrintNumber(int number, int8_t y) {
+  if (y != -1) {
     lcdClearLine(y);
     lcdSetCursor(0, y);
   }
