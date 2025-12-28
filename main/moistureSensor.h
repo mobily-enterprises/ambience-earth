@@ -18,6 +18,14 @@
 #define SENSOR_EXTREME_HOLD_SAMPLES 4
 
 
+/*
+  FEEDING MODE API (USE THIS IN FEED LOGIC):
+  - On feed start: call setSoilSensorRealTime() to power the sensor and seed the EMA.
+  - During feeding: call getSoilMoisture() for the weighted average (EMA).
+  - To ignore warm-up: call soilSensorRealtimeReady() before trusting values.
+  - Optional raw reads: soilSensorGetRealtimeRaw().
+  - On feed end: call setSoilSensorLazy() to resume windowed long-term sampling.
+*/
 void setSoilSensorLazy();
 void setSoilSensorRealTime();
 uint16_t getSoilMoisture();
