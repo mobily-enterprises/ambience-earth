@@ -6,7 +6,8 @@
 #include "config.h"
 
 // Private functions (not declared in ui.h)
-void labelcpyFromString(char *destination, const char *source);
+static void labelcpy_P(char *destination, PGM_P source);
+static void labelcpy_R(char *destination, const char *source);
 void upClick();
 void downClick();
 void leftClick();
@@ -79,7 +80,7 @@ void lcdClear() {
 
 void lcdClearLine(uint8_t y) {
   lcdSetCursor(0, y);
-  lcdPrint(MSG_SPACES);
+  lcdPrint_P(MSG_SPACES);
 }
 
 void lcdPrintBool(bool b, uint8_t y) {
@@ -91,14 +92,25 @@ void lcdPrintBool(bool b, uint8_t y) {
 }
 
 
-void lcdPrint(const char *message, int8_t y = -1) {
+void lcdPrint_P(PGM_P message, int8_t y = -1) {
   char buffer[LABEL_LENGTH + 1];
 
   if (y != -1) {
     lcdClearLine(y);
     lcdSetCursor(0, y);
   }
-  labelcpy(buffer, message);
+  labelcpy_P(buffer, message);
+  lcd.print(buffer);
+}
+
+void lcdPrint_R(const char *message, int8_t y = -1) {
+  char buffer[LABEL_LENGTH + 1];
+
+  if (y != -1) {
+    lcdClearLine(y);
+    lcdSetCursor(0, y);
+  }
+  labelcpy_R(buffer, message);
   lcd.print(buffer);
 }
 
@@ -151,7 +163,7 @@ const byte rightArrow[8] = {
   B00000
 };
 
-void labelcpyFromString(char *destination, const char *source) {
+static void labelcpy_R(char *destination, const char *source) {
   strncpy(destination, source, LABEL_LENGTH);
   destination[strnlen(destination, LABEL_LENGTH)] = '\0';
 }
@@ -168,17 +180,22 @@ void initLcd() {
   resetChoicesAndHeader();
 }
 
-void setChoices(const char *label0 = MSG_LITTLE, int value0 = 0, const char *label1 = MSG_LITTLE, int value1 = 0, const char *label2 = MSG_LITTLE, int value2 = 0, const char *label3 = MSG_LITTLE, int value3 = 0, const char *label4 = MSG_LITTLE, int value4 = 0, const char *label5 = MSG_LITTLE, int value5 = 0, const char *label6 = MSG_LITTLE, int value6 = 0, const char *label7 = MSG_LITTLE, int value7 = 0, const char *label8 = MSG_LITTLE, int value8 = 0, const char *label9 = MSG_LITTLE, int value9 = 0) {
-  labelcpy(choices[0].label, label0);
-  labelcpy(choices[1].label, label1);
-  labelcpy(choices[2].label, label2);
-  labelcpy(choices[3].label, label3);
-  labelcpy(choices[4].label, label4);
-  labelcpy(choices[5].label, label5);
-  labelcpy(choices[6].label, label6);
-  labelcpy(choices[7].label, label7);
-  labelcpy(choices[8].label, label8);
-  labelcpy(choices[9].label, label9);
+static void labelcpy_P(char *destination, PGM_P source) {
+  strncpy_P(destination, source, LABEL_LENGTH);
+  destination[strnlen_P(source, LABEL_LENGTH)] = '\0';
+}
+
+void setChoices_P(PGM_P label0 = MSG_LITTLE, int value0 = 0, PGM_P label1 = MSG_LITTLE, int value1 = 0, PGM_P label2 = MSG_LITTLE, int value2 = 0, PGM_P label3 = MSG_LITTLE, int value3 = 0, PGM_P label4 = MSG_LITTLE, int value4 = 0, PGM_P label5 = MSG_LITTLE, int value5 = 0, PGM_P label6 = MSG_LITTLE, int value6 = 0, PGM_P label7 = MSG_LITTLE, int value7 = 0, PGM_P label8 = MSG_LITTLE, int value8 = 0, PGM_P label9 = MSG_LITTLE, int value9 = 0) {
+  labelcpy_P(choices[0].label, label0);
+  labelcpy_P(choices[1].label, label1);
+  labelcpy_P(choices[2].label, label2);
+  labelcpy_P(choices[3].label, label3);
+  labelcpy_P(choices[4].label, label4);
+  labelcpy_P(choices[5].label, label5);
+  labelcpy_P(choices[6].label, label6);
+  labelcpy_P(choices[7].label, label7);
+  labelcpy_P(choices[8].label, label8);
+  labelcpy_P(choices[9].label, label9);
 
   choices[0].value = value0;
   choices[1].value = value1;
@@ -192,22 +209,45 @@ void setChoices(const char *label0 = MSG_LITTLE, int value0 = 0, const char *lab
   choices[9].value = value9;
 }
 
-void setChoicesHeader(const char *header = MSG_LITTLE) {
-  labelcpy(choicesHeader, header);
+void setChoices_R(const char *label0 = "", int value0 = 0, const char *label1 = "", int value1 = 0, const char *label2 = "", int value2 = 0, const char *label3 = "", int value3 = 0, const char *label4 = "", int value4 = 0, const char *label5 = "", int value5 = 0, const char *label6 = "", int value6 = 0, const char *label7 = "", int value7 = 0, const char *label8 = "", int value8 = 0, const char *label9 = "", int value9 = 0) {
+  labelcpy_R(choices[0].label, label0);
+  labelcpy_R(choices[1].label, label1);
+  labelcpy_R(choices[2].label, label2);
+  labelcpy_R(choices[3].label, label3);
+  labelcpy_R(choices[4].label, label4);
+  labelcpy_R(choices[5].label, label5);
+  labelcpy_R(choices[6].label, label6);
+  labelcpy_R(choices[7].label, label7);
+  labelcpy_R(choices[8].label, label8);
+  labelcpy_R(choices[9].label, label9);
+
+  choices[0].value = value0;
+  choices[1].value = value1;
+  choices[2].value = value2;
+  choices[3].value = value3;
+  choices[4].value = value4;
+  choices[5].value = value5;
+  choices[6].value = value6;
+  choices[7].value = value7;
+  choices[8].value = value8;
+  choices[9].value = value9;
 }
 
-void labelcpy(char *destination, const char *source) {
-  strncpy_P(destination, source, LABEL_LENGTH);
-  destination[strnlen(destination, LABEL_LENGTH)] = '\0';
+void setChoicesHeader_P(PGM_P header = MSG_LITTLE) {
+  labelcpy_P(choicesHeader, header);
 }
 
-void setChoice(unsigned char index, const char *label, int value = 0) {
-  labelcpy(choices[index].label, label);
+void setChoicesHeader_R(const char *header = "") {
+  labelcpy_R(choicesHeader, header);
+}
+
+void setChoice_P(unsigned char index, PGM_P label, int value = 0) {
+  labelcpy_P(choices[index].label, label);
   choices[index].value = value;
 }
 
-void setChoiceFromString(unsigned char index, const char *label = "", int value = 0) {
-  labelcpyFromString(choices[index].label, label);
+void setChoice_R(unsigned char index, const char *label, int value = 0) {
+  labelcpy_R(choices[index].label, label);
   choices[index].value = value;
 }
 
@@ -229,12 +269,12 @@ int isCharacterAllowed(char character) {
 /* ***************************************** */
 
 
-long int inputNumber(char *prompt, long int initialUserInput, int stepSize = 1, long int min = 0, long int max = 100, char *postFix = MSG_LITTLE, char *optionalHeader = MSG_LITTLE) {
+long int inputNumber_P(PGM_P prompt, long int initialUserInput, int stepSize = 1, long int min = 0, long int max = 100, PGM_P postFix = MSG_LITTLE, PGM_P optionalHeader = MSG_LITTLE) {
   long int userInput;
   bool displayChanged = true;
-#define HEADER_Y 0
-#define PROMPT_Y 2
-#define INPUT_Y 3
+  const uint8_t headerY = 0;
+  const uint8_t promptY = 2;
+  const uint8_t inputY = 3;
 
   // Check if initialUserInput is not empty
   if (initialUserInput != -1) {
@@ -245,20 +285,76 @@ long int inputNumber(char *prompt, long int initialUserInput, int stepSize = 1, 
 
   lcd.clear();
 
-  lcd.setCursor(0, PROMPT_Y);
-  lcdPrint(prompt);
+  lcd.setCursor(0, promptY);
+  lcdPrint_P(prompt);
 
-  lcd.setCursor(0, HEADER_Y);
-  lcdPrint(optionalHeader);
+  lcd.setCursor(0, headerY);
+  lcdPrint_P(optionalHeader);
 
   while (true) {
     if (displayChanged) {
-      lcd.setCursor(0, INPUT_Y);
+      lcd.setCursor(0, inputY);
       lcd.print(userInput);
-      lcdPrint(postFix);    // Display postFix after userInput
-      lcdPrint(MSG_SPACE);  // Clear the remaining characters
-      lcdPrint(MSG_SPACE);  // Clear the remaining characters
-      lcdPrint(MSG_SPACE);  // Clear the remaining characters
+      lcdPrint_P(postFix);    // Display postFix after userInput
+      lcdPrint_P(MSG_SPACE);  // Clear the remaining characters
+      lcdPrint_P(MSG_SPACE);  // Clear the remaining characters
+      lcdPrint_P(MSG_SPACE);  // Clear the remaining characters
+
+      displayChanged = false;
+    }
+
+    analogButtonsCheck();  // This will set the global `pressedButton`
+
+    if (pressedButton == &okButton) {
+      // If OK button is pressed, return the input string
+      return userInput;
+    } else if (pressedButton == &upButton) {
+      userInput = userInput + stepSize <= max ? userInput + stepSize : userInput;
+      displayChanged = true;
+    } else if (pressedButton == &downButton) {
+      // If UP button is pressed, increment the character
+      userInput = userInput - stepSize >= min ? userInput - stepSize : userInput;
+      displayChanged = true;
+
+    } else if (pressedButton == &leftButton) {
+      return -1;
+      displayChanged = true;
+    } else {
+      // ...
+    }
+  }
+}
+
+long int inputNumber_R(const char *prompt, long int initialUserInput, int stepSize = 1, long int min = 0, long int max = 100, const char *postFix = "", const char *optionalHeader = "") {
+  long int userInput;
+  bool displayChanged = true;
+  const uint8_t headerY = 0;
+  const uint8_t promptY = 2;
+  const uint8_t inputY = 3;
+
+  // Check if initialUserInput is not empty
+  if (initialUserInput != -1) {
+    userInput = initialUserInput;
+  } else {
+    userInput = 0;
+  }
+
+  lcd.clear();
+
+  lcd.setCursor(0, promptY);
+  lcdPrint_R(prompt);
+
+  lcd.setCursor(0, headerY);
+  lcdPrint_R(optionalHeader);
+
+  while (true) {
+    if (displayChanged) {
+      lcd.setCursor(0, inputY);
+      lcd.print(userInput);
+      lcdPrint_R(postFix);    // Display postFix after userInput
+      lcdPrint_P(MSG_SPACE);  // Clear the remaining characters
+      lcdPrint_P(MSG_SPACE);  // Clear the remaining characters
+      lcdPrint_P(MSG_SPACE);  // Clear the remaining characters
 
       displayChanged = false;
     }
@@ -331,12 +427,12 @@ int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = 
         int choiceIndex = firstVisibleIndex + i;
         if (choiceIndex < howManyChoices) {
           lcd.setCursor(0, CHOICES_START_Y + i);
-          lcdPrint(MSG_SPACES);
+          lcdPrint_P(MSG_SPACES);
           lcd.setCursor(0, CHOICES_START_Y + i);
           if (choiceIndex == selectedIndex) {
             lcd.write((uint8_t)2);  // Print cursor
           } else {
-            lcdPrint(MSG_SPACE);  // Double space if no cursor
+            lcdPrint_P(MSG_SPACE);  // Double space if no cursor
           }
 
           lcd.print(choices[choiceIndex].label);
@@ -382,79 +478,130 @@ int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = 
   }
 }
 
-void lcdFlashMessage(char *message, char *message2 = MSG_LITTLE, uint16_t time = 1000) {
+void lcdFlashMessage_P(PGM_P message, PGM_P message2 = MSG_LITTLE, uint16_t time = 1000) {
   lcdClear();
   lcdSetCursor(0, 1);
-  lcdPrint(message);
+  lcdPrint_P(message);
   lcdSetCursor(0, 2);
-  lcdPrint(message2);
+  lcdPrint_P(message2);
+
+  delay(time);
+}
+
+void lcdFlashMessage_R(const char *message, const char *message2 = "", uint16_t time = 1000) {
+  lcdClear();
+  lcdSetCursor(0, 1);
+  lcdPrint_R(message);
+  lcdSetCursor(0, 2);
+  lcdPrint_R(message2);
 
   delay(time);
 }
 
 
-bool alert(char *warning = MSG_LITTLE) {
-  setChoices(MSG_OK, 1);
-  setChoicesHeader(warning);
+bool alert_P(PGM_P warning = MSG_LITTLE) {
+  setChoices_P(MSG_OK, 1);
+  setChoicesHeader_P(warning);
 
   int8_t userInput = selectChoice(1, 1);
   return 1;
 }
 
-int8_t yesOrNo(char *question, bool initialUserInput = true) {
-  setChoices(MSG_YES, 1, MSG_NO, 0);
-  setChoicesHeader(question);
+bool alert_R(const char *warning = "") {
+  setChoices_P(MSG_OK, 1);
+  setChoicesHeader_R(warning);
+
+  int8_t userInput = selectChoice(1, 1);
+  return 1;
+}
+
+int8_t yesOrNo_P(PGM_P question, bool initialUserInput = true) {
+  setChoices_P(MSG_YES, 1, MSG_NO, 0);
+  setChoicesHeader_P(question);
 
   int8_t response = selectChoice(2, initialUserInput ? 1 : 0);
   if (response == -1) {
-    lcdFlashMessage(MSG_ABORTED);
+    lcdFlashMessage_P(MSG_ABORTED);
     return response;
   }
   return response == 1 ? true : false;
 }
 
+int8_t yesOrNo_R(const char *question, bool initialUserInput = true) {
+  setChoices_P(MSG_YES, 1, MSG_NO, 0);
+  setChoicesHeader_R(question);
 
-int8_t giveOk(char *top, const char *promptText = MSG_LITTLE, const char *line2 = MSG_LITTLE, const char *line3 = MSG_LITTLE) {
-  setChoices(promptText, 1);
-  setChoicesHeader(top);
-  lcdPrint(line2, 2);
-  lcdPrint(line3, 3);
+  int8_t response = selectChoice(2, initialUserInput ? 1 : 0);
+  if (response == -1) {
+    lcdFlashMessage_P(MSG_ABORTED);
+    return response;
+  }
+  return response == 1 ? true : false;
+}
+
+int8_t giveOk_P(PGM_P top, PGM_P promptText = MSG_LITTLE, PGM_P line2 = MSG_LITTLE, PGM_P line3 = MSG_LITTLE) {
+  setChoices_P(promptText, 1);
+  setChoicesHeader_P(top);
+  lcdPrint_P(line2, 2);
+  lcdPrint_P(line3, 3);
   int8_t response = selectChoice(1, 1, true);
   if (response == -1) {
-    lcdFlashMessage(MSG_ABORTED);
+    lcdFlashMessage_P(MSG_ABORTED);
     return -1;
   }
 
   return 1;
 }
 
-void inputString(char *prompt, char *initialUserInput, char *optionalHeader = MSG_LITTLE, bool asEdit = false) {
+int8_t giveOk_R(const char *top, const char *promptText = "", const char *line2 = "", const char *line3 = "") {
+  setChoices_R(promptText, 1);
+  setChoicesHeader_R(top);
+  lcdPrint_R(line2, 2);
+  lcdPrint_R(line3, 3);
+  int8_t response = selectChoice(1, 1, true);
+  if (response == -1) {
+    lcdFlashMessage_P(MSG_ABORTED);
+    return -1;
+  }
+
+  return 1;
+}
+
+static void inputStringCommon(bool useProgmem, PGM_P promptP, const char *promptR, PGM_P optionalHeaderP, const char *optionalHeaderR, char *initialUserInput, bool asEdit) {
   uint8_t cursorPosition = 0;
   bool displayChanged = true;
   bool cursorVisible = true;
   unsigned long previousMillis = 0;
 
-#define HEADER_Y 0
-#define PROMPT_Y 2
-#define INPUT_Y 3
+  const uint8_t headerY = 0;
+  const uint8_t promptY = 2;
+  const uint8_t inputY = 3;
 
   // Check if initialUserInput is not empty
   if (!strlen(initialUserInput) > 0) {
-    labelcpy(userInputString, MSG_SPACES);
+    labelcpy_P(userInputString, MSG_SPACES);
     userInputString[0] = allowedStringCharacters[initialCharacterPosition];
   } else {
-    labelcpyFromString(userInputString, initialUserInput);
+    labelcpy_R(userInputString, initialUserInput);
     sanitizeUserInput(userInputString);
     cursorPosition = actualLength(userInputString);
   }
 
   lcd.clear();
 
-  lcd.setCursor(0, PROMPT_Y);
-  lcdPrint(prompt);
+  lcd.setCursor(0, promptY);
+  if (useProgmem) {
+    lcdPrint_P(promptP);
+  } else {
+    lcdPrint_R(promptR);
+  }
 
-  lcd.setCursor(0, HEADER_Y);
-  lcdPrint(optionalHeader);
+  lcd.setCursor(0, headerY);
+  if (useProgmem) {
+    lcdPrint_P(optionalHeaderP);
+  } else {
+    lcdPrint_R(optionalHeaderR);
+  }
 
   while (true) {
     unsigned long currentMillis = millis();
@@ -466,22 +613,22 @@ void inputString(char *prompt, char *initialUserInput, char *optionalHeader = MS
 
     if (displayChanged) {
       if (cursorVisible) {
-        lcd.setCursor(0, INPUT_Y);
+        lcd.setCursor(0, inputY);
         lcd.write((uint8_t)1);
-        lcd.setCursor(1, INPUT_Y);
+        lcd.setCursor(1, inputY);
         lcd.print(userInputString);
         if (cursorPosition > 0) {
-          lcd.setCursor(cursorPosition, INPUT_Y);
+          lcd.setCursor(cursorPosition, inputY);
           lcd.print(userInputString[cursorPosition - 1]);
         }
       } else {
-        lcd.setCursor(0, INPUT_Y);
+        lcd.setCursor(0, inputY);
         lcd.write((uint8_t)1);
-        lcd.setCursor(1, INPUT_Y);
+        lcd.setCursor(1, inputY);
         lcd.print(userInputString);
         // Print the full square instead of the character to simulate blinking cursor
         if (cursorPosition > 0) {
-          lcd.setCursor(cursorPosition, INPUT_Y);
+          lcd.setCursor(cursorPosition, inputY);
           lcd.write((uint8_t)0);  // Print custom character fullSquare
         }
       }
@@ -490,10 +637,10 @@ void inputString(char *prompt, char *initialUserInput, char *optionalHeader = MS
     analogButtonsCheck();  // This will set the global `pressedButton`
 
     if (pressedButton == &okButton) {
-      if (cursorPosition == 0) labelcpy(userInputString, MSG_STAR);
+      if (cursorPosition == 0) labelcpy_P(userInputString, MSG_STAR);
 
       // If OK button is pressed, return the input string
-      if (asEdit) labelcpyFromString(initialUserInput, userInputString);
+      if (asEdit) labelcpy_R(initialUserInput, userInputString);
       return;
     } else if (pressedButton == &downButton) {
       if (cursorPosition != 0) {
@@ -518,7 +665,7 @@ void inputString(char *prompt, char *initialUserInput, char *optionalHeader = MS
     } else if (pressedButton == &leftButton) {
       if (cursorPosition == 0) {
         // This will count as "go back", the initial value will be considered
-        labelcpyFromString(userInputString, "*");
+        labelcpy_R(userInputString, "*");
         return;
       }
       // If LEFT button is pressed, move cursor to the previous position
@@ -529,6 +676,14 @@ void inputString(char *prompt, char *initialUserInput, char *optionalHeader = MS
       // Serial.println("MEH");
     }
   }
+}
+
+void inputString_P(PGM_P prompt, char *initialUserInput, PGM_P optionalHeader = MSG_LITTLE, bool asEdit = false) {
+  inputStringCommon(true, prompt, nullptr, optionalHeader, nullptr, initialUserInput, asEdit);
+}
+
+void inputString_R(const char *prompt, char *initialUserInput, const char *optionalHeader = "", bool asEdit = false) {
+  inputStringCommon(false, nullptr, prompt, nullptr, optionalHeader, initialUserInput, asEdit);
 }
 
 void sanitizeUserInput(char *userInput) {

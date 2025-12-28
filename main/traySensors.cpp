@@ -22,13 +22,13 @@ uint8_t trayWaterLevelAsState() {
   return TRAY_DRY;
 }
 
-char* trayWaterLevelInEnglish(uint8_t trayState) {
+PGM_P trayWaterLevelInEnglish(uint8_t trayState) {
   if (trayState == TRAY_LITTLE) return MSG_TRAY_LITTLE;
   else if (trayState == TRAY_DRY) return MSG_TRAY_DRY;
   else return MSG_TRAY_UNSTATED;
 }
 
-char* trayWaterLevelInEnglishShort(uint8_t trayState) {
+PGM_P trayWaterLevelInEnglishShort(uint8_t trayState) {
   if (trayState == TRAY_LITTLE) return MSG_TRAY_LITTLE_SHORT;
   else if (trayState == TRAY_DRY) return MSG_TRAY_DRY_SHORT;
   else return MSG_TRAY_UNSTATED_SHORT;

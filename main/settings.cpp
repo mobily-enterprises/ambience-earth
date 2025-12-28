@@ -31,7 +31,7 @@ void settings() {
 
   lcdClear();
   while (choice != -1) {
-    setChoices(
+    setChoices_P(
       MSG_CAL_MOISTURE_SENSOR, 1,
       MSG_MAINTENANCE, 2);
     choice = selectChoice(2, 1);
@@ -45,7 +45,7 @@ void maintenance() {
   int8_t choice = 0;
   while (choice != -1) {
     lcdClear();
-    setChoices(
+    setChoices_P(
       MSG_TEST_PUMPS, 1,
       MSG_TEST_SENSORS, 2,
       MSG_RESET, 3
@@ -70,9 +70,9 @@ void testSensors() {
   lcdClear();
 
   lcdSetCursor(0, 0);
-  lcdPrint(MSG_TRAY_LOW_COLUMN);
+  lcdPrint_P(MSG_TRAY_LOW_COLUMN);
   lcdSetCursor(0, 3);
-  lcdPrint(MSG_SOIL_MOISTURE_COLUMN);
+  lcdPrint_P(MSG_SOIL_MOISTURE_COLUMN);
 
   setSoilSensorRealTime();
 
@@ -99,16 +99,16 @@ void testSensors() {
       // Serial.print("AH"); Serial.println(digitalRead(TRAY_SENSOR_LOW)); 
       lcdSetCursor(15, 0);
       lcdPrintNumber(trayWaterLevelLow);
-      lcdPrint(MSG_SPACE);
+      lcdPrint_P(MSG_SPACE);
 
       lcdSetCursor(10, 3);
       lcdPrintNumber(soilMoisturePercentage);
-      lcdPrint(MSG_PERCENT);
-      lcdPrint(MSG_SPACE);
+      lcdPrint_P(MSG_PERCENT);
+      lcdPrint_P(MSG_SPACE);
       lcdPrintNumber(soilMoistureReading);
 
-      lcdPrint(MSG_SPACE);
-      lcdPrint(MSG_SPACE);
+      lcdPrint_P(MSG_SPACE);
+      lcdPrint_P(MSG_SPACE);
     }
   }
 }
@@ -125,12 +125,12 @@ void wipeLogsAndResetVars() {
 void resetOnlyLogs() {
   int8_t confirmWipe;
 
-  confirmWipe = yesOrNo(MSG_SURE_QUESTION);
+  confirmWipe = yesOrNo_P(MSG_SURE_QUESTION);
   if (confirmWipe == -1) return;
 
   if (confirmWipe) {
     lcdClear();
-    lcdPrint(MSG_WIPING, 2);
+    lcdPrint_P(MSG_WIPING, 2);
     wipeLogsAndResetVars();
     createBootLogEntry();
   };
@@ -138,8 +138,8 @@ void resetOnlyLogs() {
 
 void settingsReset() {
   while (true) {
-    setChoices(MSG_RESET_ONLY_LOGS, 0, MSG_RESET_DATA, 1);
-    setChoicesHeader(MSG_RESET);
+    setChoices_P(MSG_RESET_ONLY_LOGS, 0, MSG_RESET_DATA, 1);
+    setChoicesHeader_P(MSG_RESET);
     int8_t choice = selectChoice(2, 0);
 
     if (choice == -1) return;
@@ -163,7 +163,7 @@ void runButtonsSetup() {
   uint16_t read = 1024;
 
   lcd.setCursor(0, 0);
-  lcdPrint(MSG_PRESS_UP);
+  lcdPrint_P(MSG_PRESS_UP);
   while (read > 1000) {
     read = analogRead(BUTTONS_PIN);
     debugButtonRead(read);
@@ -178,7 +178,7 @@ void runButtonsSetup() {
   delay(1000);
 
   lcd.setCursor(0, 0);
-  lcdPrint(MSG_PRESS_DOWN);
+  lcdPrint_P(MSG_PRESS_DOWN);
   read = 1024;
   while (read > 1000) {
     read = analogRead(BUTTONS_PIN);
@@ -193,7 +193,7 @@ void runButtonsSetup() {
   delay(1000);
 
   lcd.setCursor(0, 0);
-  lcdPrint(MSG_PRESS_LEFT);
+  lcdPrint_P(MSG_PRESS_LEFT);
   read = 1024;
   while (read > 1000) {
     read = analogRead(BUTTONS_PIN);
@@ -209,7 +209,7 @@ void runButtonsSetup() {
   delay(1000);
 
   lcd.setCursor(0, 0);
-  lcdPrint(MSG_PRESS_RIGHT);
+  lcdPrint_P(MSG_PRESS_RIGHT);
   read = 1024;
   while (read > 1000) {
     read = analogRead(BUTTONS_PIN);
@@ -225,7 +225,7 @@ void runButtonsSetup() {
   delay(1000);
 
   lcd.setCursor(0, 0);
-  lcdPrint(MSG_PRESS_OK);
+  lcdPrint_P(MSG_PRESS_OK);
   read = 1024;
   while (read > 1000) {
     read = analogRead(BUTTONS_PIN);
@@ -251,7 +251,7 @@ int runInitialSetup() {
   saveConfig();
 
   lcdClear();
-  lcdPrint(MSG_DONE);
+  lcdPrint_P(MSG_DONE);
 
   return 1;
 }
@@ -261,42 +261,42 @@ int calibrateSoilMoistureSensor() {
   int soaked;
   int dry;
 
-  goAhead = giveOk(MSG_MOIST_SENSOR, MSG_YES_ITS_DRY, MSG_ENSURE_SENSOR_IS, MSG_VERY_DRY);
+  goAhead = giveOk_P(MSG_MOIST_SENSOR, MSG_YES_ITS_DRY, MSG_ENSURE_SENSOR_IS, MSG_VERY_DRY);
   if (goAhead == -1) return false;
 
   setSoilSensorRealTime();
 
   lcdClear();
-  lcdPrint(MSG_DRY_COLUMN, 1);
+  lcdPrint_P(MSG_DRY_COLUMN, 1);
   for (int i = 0; i < 4; i++) {
     dry = getSoilMoisture();
     // lcdClear();
     lcdPrintNumber(dry);
-    lcdPrint(MSG_SPACE);
+    lcdPrint_P(MSG_SPACE);
     delay(900);
   }
 
   delay(2000);
 
-  goAhead = giveOk(MSG_MOIST_SENSOR, MSG_YES_ITS_SOAKED, MSG_ENSURE_SENSOR_IS, MSG_VERY_SOAKED);
+  goAhead = giveOk_P(MSG_MOIST_SENSOR, MSG_YES_ITS_SOAKED, MSG_ENSURE_SENSOR_IS, MSG_VERY_SOAKED);
   if (goAhead == -1) {
     setSoilSensorLazy();
     return false;
   }
 
   lcdClear();
-  lcdPrint(MSG_SOAKED_COLUMN, 1);
+  lcdPrint_P(MSG_SOAKED_COLUMN, 1);
   for (int i = 0; i < 4; i++) {
     soaked = getSoilMoisture();
     // lcdClear();
     lcdPrintNumber(soaked);
-    lcdPrint(MSG_SPACE);
+    lcdPrint_P(MSG_SPACE);
     delay(900);
   }
 
   setSoilSensorLazy();
 
-  goAhead = yesOrNo(MSG_SAVE_QUESTION);
+  goAhead = yesOrNo_P(MSG_SAVE_QUESTION);
   if (goAhead == -1) return;
 
   // Confirm to save
@@ -310,13 +310,13 @@ int calibrateSoilMoistureSensor() {
 }
 
 void resetData() {
-  int8_t reset = yesOrNo(MSG_SURE_QUESTION);
+  int8_t reset = yesOrNo_P(MSG_SURE_QUESTION);
 
   if (reset == -1) return;
 
   if (reset) {
     lcdClear();
-    lcdPrint(MSG_WIPING, 2);
+    lcdPrint_P(MSG_WIPING, 2);
     restoreDefaultConfig();
     saveConfig();
     wipeLogsAndResetVars();
@@ -327,7 +327,7 @@ void resetData() {
 }
 
 void activatePumps() {
-  lcdFlashMessage(MSG_DEVICE_WILL_BLINK, MSG_THREE_TIMES, 100);
+  lcdFlashMessage_P(MSG_DEVICE_WILL_BLINK, MSG_THREE_TIMES, 100);
  
   for (int i = 0; i <= 3; i++) {
     digitalWrite(PUMP_IN_DEVICE, LOW);

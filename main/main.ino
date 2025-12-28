@@ -275,7 +275,7 @@ void mainMenu() {
 
   lcd.backlight();
   do {
-    setChoices(
+    setChoices_P(
       MSG_LOGS, 1,
       MSG_SETTINGS, 2);
 
@@ -291,14 +291,14 @@ void printSoilAndWaterTrayStatus() {
   uint16_t soilMoisture = getSoilMoisture();
   uint16_t soilMoisturePercent = soilMoistureAsPercentage(soilMoisture);
  
-  lcdPrint(MSG_SOIL_NOW, 0);
-  lcdPrint(MSG_SPACE);
+  lcdPrint_P(MSG_SOIL_NOW, 0);
+  lcdPrint_P(MSG_SPACE);
   lcdPrintNumber(soilMoisturePercent);
-  lcdPrint(MSG_PERCENT);
+  lcdPrint_P(MSG_PERCENT);
  
-  lcdPrint(MSG_TRAY_NOW, 1);
-  lcdPrint(MSG_SPACE);
-  lcdPrint(trayWaterLevelInEnglish(trayWaterLevelAsState()));
+  lcdPrint_P(MSG_TRAY_NOW, 1);
+  lcdPrint_P(MSG_SPACE);
+  lcdPrint_P(trayWaterLevelInEnglish(trayWaterLevelAsState()));
 }
 
 /*  
@@ -387,12 +387,12 @@ void showLogType0() {
   lcdClear();
   // Print absolute log number (epoch-aware)
   lcd.print((unsigned long)getAbsoluteLogNumber());
-  lcdPrint(MSG_SPACE);
-  lcdPrint(MSG_LOG_TYPE_0);
-  // lcdPrint(MSG_SPACE);
+  lcdPrint_P(MSG_SPACE);
+  lcdPrint_P(MSG_LOG_TYPE_0);
+  // lcdPrint_P(MSG_SPACE);
   // lcdPrintNumber(currentLogEntry.millisStart);
-  // lcdPrint(MSG_SPACE);
-  // lcdPrint(MSG_AGO);
+  // lcdPrint_P(MSG_SPACE);
+  // lcdPrint_P(MSG_AGO);
 }
 
 void showLogType1() {
@@ -400,37 +400,37 @@ void showLogType1() {
   lcdClear();
   // Print absolute log number (epoch-aware)
   lcd.print((unsigned long)getAbsoluteLogNumber());
-  lcdPrint(MSG_SPACE);
-  lcdPrint(MSG_LOG_TYPE_1);
-  lcdPrint(MSG_SPACE);
+  lcdPrint_P(MSG_SPACE);
+  lcdPrint_P(MSG_LOG_TYPE_1);
+  lcdPrint_P(MSG_SPACE);
   lcdPrintTimePretty(currentLogEntry.millisStart);
-  lcdPrint(MSG_SPACE);
-  lcdPrint(MSG_LATER);
-  lcdPrint(MSG_SPACE);
+  lcdPrint_P(MSG_SPACE);
+  lcdPrint_P(MSG_LATER);
+  lcdPrint_P(MSG_SPACE);
 
   lcd.setCursor(0, 1);
   lcd.print("Dur:");
   lcdPrintTimeDuration(currentLogEntry.millisStart, currentLogEntry.millisEnd);
 
   lcd.setCursor(0, 2);
-  lcdPrint(MSG_S_COLUMN);
+  lcdPrint_P(MSG_S_COLUMN);
   lcdPrintNumber(currentLogEntry.soilMoistureBefore);
-  lcdPrint(MSG_PERCENT);
-  lcdPrint(MSG_DASH);
+  lcdPrint_P(MSG_PERCENT);
+  lcdPrint_P(MSG_DASH);
   lcdPrintNumber(currentLogEntry.soilMoistureAfter);
-  lcdPrint(MSG_PERCENT);
-  lcdPrint(MSG_SPACE);
+  lcdPrint_P(MSG_PERCENT);
+  lcdPrint_P(MSG_SPACE);
 
-  lcdPrint(MSG_W_COLUMN);
-  lcdPrint(trayWaterLevelInEnglishShort(currentLogEntry.trayWaterLevelBefore));
+  lcdPrint_P(MSG_W_COLUMN);
+  lcdPrint_P(trayWaterLevelInEnglishShort(currentLogEntry.trayWaterLevelBefore));
   // lcdPrintNumber(currentLogEntry.trayWaterLevelBefore);
-  lcdPrint(MSG_DASH);
-  lcdPrint(trayWaterLevelInEnglishShort(currentLogEntry.trayWaterLevelAfter));
+  lcdPrint_P(MSG_DASH);
+  lcdPrint_P(trayWaterLevelInEnglishShort(currentLogEntry.trayWaterLevelAfter));
   // lcdPrintNumber(currentLogEntry.trayWaterLevelAfter);
 
   lcd.setCursor(0, 3);
-  if (currentLogEntry.outcome == 0) lcdPrint(MSG_LOG_OUTCOME_0);
-  if (currentLogEntry.outcome == 1) lcdPrint(MSG_LOG_OUTCOME_1);
+  if (currentLogEntry.outcome == 0) lcdPrint_P(MSG_LOG_OUTCOME_0);
+  if (currentLogEntry.outcome == 1) lcdPrint_P(MSG_LOG_OUTCOME_1);
 
   // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureBefore);
   // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureAfter);
@@ -440,24 +440,24 @@ void showLogType2() {
   lcdClear();
   // Print absolute log number (epoch-aware)
   lcd.print((unsigned long)getAbsoluteLogNumber());
-  lcdPrint(MSG_SPACE);
-  lcdPrint(MSG_LOG_TYPE_2);
-  lcdPrint(MSG_SPACE);
+  lcdPrint_P(MSG_SPACE);
+  lcdPrint_P(MSG_LOG_TYPE_2);
+  lcdPrint_P(MSG_SPACE);
   lcdPrintTimePretty(currentLogEntry.millisStart);
-  lcdPrint(MSG_SPACE);
-  lcdPrint(MSG_LATER);
-  lcdPrint(MSG_SPACE);
+  lcdPrint_P(MSG_SPACE);
+  lcdPrint_P(MSG_LATER);
+  lcdPrint_P(MSG_SPACE);
 
   lcd.setCursor(0, 2);
-  lcdPrint(MSG_SOIL_MOISTURE_COLUMN);
+  lcdPrint_P(MSG_SOIL_MOISTURE_COLUMN);
   // lcdPrintNumber(soilMoistureAsPercentage(currentLogEntry.soilMoistureBefore));
   lcdPrintNumber(currentLogEntry.soilMoistureBefore);
-  lcdPrint(MSG_PERCENT);
+  lcdPrint_P(MSG_PERCENT);
 
   lcd.setCursor(0, 3);
-  lcdPrint(MSG_TRAY);
-  lcdPrint(MSG_COLUMN_SPACE);
-  lcdPrint(trayWaterLevelInEnglish(currentLogEntry.trayWaterLevelBefore));
+  lcdPrint_P(MSG_TRAY);
+  lcdPrint_P(MSG_COLUMN_SPACE);
+  lcdPrint_P(trayWaterLevelInEnglish(currentLogEntry.trayWaterLevelBefore));
   
   // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureBefore);
   // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureAfter);
@@ -471,7 +471,7 @@ void viewLogs() {
   goToLatestSlot();
 
   if (noLogs()) {
-    lcdFlashMessage(MSG_NO_LOG_ENTRIES);
+    lcdFlashMessage_P(MSG_NO_LOG_ENTRIES);
     return;
   }
 
@@ -535,13 +535,13 @@ void displayInfo1() {
 
   printSoilAndWaterTrayStatus();
 
-  lcdPrint(MSG_LAST_FEED, 2);
-  if (!millisAtEndOfLastFeed) lcdPrint(MSG_NOT_YET);
+  lcdPrint_P(MSG_LAST_FEED, 2);
+  if (!millisAtEndOfLastFeed) lcdPrint_P(MSG_NOT_YET);
   else lcdPrintTimeSince(millisAtEndOfLastFeed);
   // lcdPrintNumber(actionPreviousMillis);
 
-  lcdPrint(MSG_AVG_COLUMN, 3);
-  if (!averageMsBetweenFeeds) lcdPrint(MSG_NA);
+  lcdPrint_P(MSG_AVG_COLUMN, 3);
+  if (!averageMsBetweenFeeds) lcdPrint_P(MSG_NA);
   // else lcdPrintNumber(averageMsBetweenFeeds);
   else lcdPrintTime(averageMsBetweenFeeds);
 }
@@ -553,16 +553,16 @@ void displayInfo4() {
 
   printSoilAndWaterTrayStatus();
   pinMode(A2, INPUT);
-  lcdPrint(MSG_SOIL_NOW, 2);
-  lcdPrint(MSG_SPACE);
+  lcdPrint_P(MSG_SOIL_NOW, 2);
+  lcdPrint_P(MSG_SPACE);
   // lcdPrintNumber(soilMoisture);
-  lcdPrint(MSG_SPACE);
+  lcdPrint_P(MSG_SPACE);
   lcd.print(getSoilMoisture());
 }
 
 
 void displayInfo3() {
   lcdClear();
-  lcdPrint(MSG_NEXT_FEED, 1);
-  lcdPrint(MSG_WHEN_CONDITIONS_ALLOW, 2);
+  lcdPrint_P(MSG_NEXT_FEED, 1);
+  lcdPrint_P(MSG_WHEN_CONDITIONS_ALLOW, 2);
 }
