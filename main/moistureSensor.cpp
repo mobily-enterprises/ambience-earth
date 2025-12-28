@@ -126,18 +126,22 @@ uint16_t soilSensorOp(uint8_t op) {
 }
 
 uint8_t soilMoistureAsPercentage(uint16_t soilMoisture) {
-  uint16_t soaked = config.moistSensorCalibrationSoaked;
-  uint16_t dry = config.moistSensorCalibrationDry;
-  unsigned int delta = dry - soaked;
-  uint16_t percentage;
+  int32_t dry = config.moistSensorCalibrationDry;
+  int32_t soaked = config.moistSensorCalibrationSoaked;
+  if (dry == soaked) return 0;
 
-  unsigned int shifted = config.moistSensorCalibrationDry - soilMoisture;
+  int32_t delta;
+  int32_t shifted;
+  if (dry > soaked) {
+    delta = dry - soaked;
+    shifted = dry - soilMoisture;
+  } else {
+    delta = soaked - dry;
+    shifted = soilMoisture - dry;
+  }
 
-  if (shifted == 0 || shifted > 60000) shifted = 1;
-  else if (shifted > delta) shifted = delta;
+  if (shifted < 0) shifted = 0;
+  if (shifted > delta) shifted = delta;
 
-  percentage = (shifted * 100) / delta;
-  
-  return percentage;
+  return (uint8_t)((shifted * 100) / delta);
 }
-
