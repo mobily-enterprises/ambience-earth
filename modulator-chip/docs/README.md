@@ -36,4 +36,7 @@ Then include it in your `diagram.json`:
   { "type": "chip-modulator", "id": "mod1" }
 ```
 
+Wire VCC to a defined HIGH (5V or an enable pin). Leaving VCC unconnected can
+float and disable the output. Tie VCC to 5V if you do not need enable control.
+
 For a complete example, see [diagram.json](../diagram.json) in this folder.

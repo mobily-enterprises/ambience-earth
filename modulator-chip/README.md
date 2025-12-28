@@ -14,6 +14,9 @@ Behavior:
 - Hold time: 0.75 to 1.25 seconds at the top and bottom of the oscillation.
 - Output is clamped to 0-5V; VCC low forces output to 0V.
 
+Wire VCC to a defined HIGH (5V or an enable pin). Leaving VCC unconnected can
+float and disable the output. Tie VCC to 5V if you do not need enable control.
+
 ## Building
 
 Open the dev container and run `make`.
