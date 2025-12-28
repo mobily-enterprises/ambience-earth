@@ -188,8 +188,7 @@ void initialPinSetup() {
   pinMode(A1, OUTPUT); digitalWrite(A1, LOW);
   pinMode(A2, OUTPUT); digitalWrite(A2, LOW);
   pinMode(A3, OUTPUT); digitalWrite(A3, LOW);
-  pinMode(A4, OUTPUT); digitalWrite(A4, LOW);
-  pinMode(A5, OUTPUT); digitalWrite(A5, LOW);
+  // A4/A5 are SDA/SCL for I2C (LCD), leave them alone.
 
   pinMode(A6, INPUT_PULLUP); // Input only, set as pullup
   pinMode(A7, INPUT_PULLUP); // Analog buttons use external ladder/pull-up
