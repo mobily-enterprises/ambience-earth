@@ -3,9 +3,10 @@
 
 #include <stdint.h>
 #include <Arduino.h>
+#include "feedSlots.h"
 
 #define CONFIG_ADDRESS 0
-#define CONFIG_VERSION 1
+#define CONFIG_VERSION 2
 
 // ************************************************************
 // ** TYPE DEFINITIONS
@@ -25,7 +26,10 @@ typedef struct {
     uint16_t kbdLeft;
     uint16_t kbdRight;
     uint16_t kbdOk;
+    uint8_t feedSlotsPacked[FEED_SLOT_COUNT][FEED_SLOT_PACKED_SIZE];
 } Config;
+
+static_assert(sizeof(Config) <= 256, "Config exceeds 256-byte EEPROM region");
 
 uint8_t calculateConfigChecksum();
 bool configChecksumCorrect();
