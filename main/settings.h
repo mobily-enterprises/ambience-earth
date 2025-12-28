@@ -5,7 +5,7 @@ void settings();
 void maintenance();
 void resetOnlyLogs();
 void settingsDefaultMoistLevels();
-void settingsCalibrate();
+void settingsReset();
 int runInitialSetup();
 void runButtonsSetup();
 int readSensor(int sensor);

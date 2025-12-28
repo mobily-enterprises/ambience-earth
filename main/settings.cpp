@@ -32,11 +32,11 @@ void settings() {
   lcdClear();
   while (choice != -1) {
     setChoices(
-      MSG_CALIBRATE, 1,
+      MSG_CAL_MOISTURE_SENSOR, 1,
       MSG_MAINTENANCE, 2);
     choice = selectChoice(2, 1);
 
-    if (choice == 1) settingsCalibrate();
+    if (choice == 1 && calibrateSoilMoistureSensor()) saveConfig();
     else if (choice == 2) maintenance();
   }
 }
@@ -48,16 +48,14 @@ void maintenance() {
     setChoices(
       MSG_TEST_PUMPS, 1,
       MSG_TEST_SENSORS, 2,
-      MSG_RESET_ONLY_LOGS, 3,
-      MSG_RESET_DATA, 4
+      MSG_RESET, 3
 
     );
-    choice = selectChoice(4, 1);
+    choice = selectChoice(3, 1);
 
     if (choice == 1) activatePumps();
     else if (choice == 2) testSensors();
-    else if (choice == 3) resetOnlyLogs();
-    else if (choice == 4) resetData();
+    else if (choice == 3) settingsReset();
   }
 }
 
@@ -138,14 +136,15 @@ void resetOnlyLogs() {
   };
 }
 
-void settingsCalibrate() {
+void settingsReset() {
   while (true) {
-    setChoices(MSG_MOISTURE_SENSOR, 0);
-    setChoicesHeader(MSG_CALIBRATE);
-    int8_t choice = selectChoice(1, 0);
+    setChoices(MSG_RESET_ONLY_LOGS, 0, MSG_RESET_DATA, 1);
+    setChoicesHeader(MSG_RESET);
+    int8_t choice = selectChoice(2, 0);
 
     if (choice == -1) return;
-    if (choice == 0 && calibrateSoilMoistureSensor()) saveConfig();
+    if (choice == 0) resetOnlyLogs();
+    else if (choice == 1) resetData();
   }
 }
 

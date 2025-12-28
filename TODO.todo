@@ -1,7 +1,7 @@
 ✔ Have defaults when it turns on for keypad @done(25-12-28 08:56)
 ✔ Have defaults for calibration, do NOT ask for calibration to start with @done(25-12-28 08:56)
 ✔ Add a custom chip to make the slider oscillate so that it is more like in real life @done(25-12-28 11:00)
-☐ Rearrange menues so that it makes sense
+✔ Rearrange menues so that it makes sense @done(25-12-28 11:24)
 
 ☐ Improve sensor-fetching code, so that it flattens the input values to normal level, but still turning it on and off
 ☐ Check the input library, improve it, move messages in cpp

@@ -1,7 +1,7 @@
 #ifndef MESSAGES_H
 #define MESSAGES_H
 
-const char PROGMEM MSG_CALIBRATE[] = "Calibrate";
+const char PROGMEM MSG_CAL_MOISTURE_SENSOR[] = "Cal moisture sensor";
 const char PROGMEM MSG_MAINTENANCE[] = "Maintenance";
 const char PROGMEM MSG_YES[] = "Yes";
 const char PROGMEM MSG_NO[] = "No";
@@ -59,6 +59,7 @@ const char PROGMEM MSG_SENSOR_2_MM_WATER[] = "Sensor in 2mm water";
 const char PROGMEM MSG_LINE_IN[] = "Line in...";
 
 const char PROGMEM MSG_RESET_DATA[] = "Reset data";
+const char PROGMEM MSG_RESET[] = "Reset";
 const char PROGMEM MSG_TEST_PUMPS[] = "Test pump";
 const char PROGMEM MSG_LOGS[] = "Logs";
 const char PROGMEM MSG_SETTINGS[] = "Settings";
