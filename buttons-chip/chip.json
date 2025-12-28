@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "name": "Inverter",
-  "author": "Uri Shaked",
+  "name": "KeyLadder",
+  "author": "ambience-earth",
   "license": "MIT",
-  "docs": "https://github.com/wokwi/inverter-chip/blob/main/docs/README.md",
+  "docs": "docs/README.md",
   "pins": [
     "OUT",
     "A",

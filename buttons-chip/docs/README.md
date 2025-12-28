@@ -1,33 +1,48 @@
-# Wokwi Inverter Chip Example
+# KeyLadder Chip
 
-This is a basic custom chip for [Wokwi](https://wokwi.com/). It implements a simple inverter: the output is always opposite to the input.
+Custom chip for [Wokwi](https://wokwi.com/) that turns five momentary buttons
+into a single analog ladder output.
 
 ## Pin names
 
-| Name | Description              |
-| ---- | ------------------------ |
-| IN   | Input signal             |
-| OUT  | Output (inverted) signal |
-| GND  | Ground                   |
-| VCC  | Supply voltage           |
+| Name | Description |
+| ---- | ----------- |
+| A    | Button input (active-low) |
+| F    | Button input (active-low) |
+| E    | Button input (active-low) |
+| X    | Button input (active-low) |
+| D    | Button input (active-low) |
+| OUT  | Analog output (0-5V) |
+| VCC  | Supply (optional) |
+| GND  | Ground (optional) |
+
+## Output values
+
+ADC values at 5V:
+
+- A = 900
+- F = 700
+- E = 500
+- X = 300
+- D = 100
+- none = 1023
+
+If multiple buttons are pressed, the first match in the order above wins.
 
 ## Usage
 
-To use this chip in your project, include it as a dependency in your `diagram.json` file:
+Add the chip to your `wokwi.toml`:
 
-```json
-  "dependencies": {
-    "chip-inverter": "github:wokwi/inverter-chip@1.0.0"
-  }
+```toml
+[[chip]]
+name = "keyladder"
+binary = "dist/chip.wasm"
 ```
 
-Then, add the chip to your circuit by adding a `chip-inverter` item to the `parts` section of diagram.json:
+Then include it in your `diagram.json`:
 
 ```json
-  "parts": {
-    ...,
-    { "type": "chip-inverter", "id": "chip1" }
-  },
+  { "type": "chip-keyladder", "id": "keys" }
 ```
 
-For a complete example, see [the inverter chip test project](https://wokwi.com/projects/350946636543820370).
+For a complete example, see [diagram.json](../diagram.json) in this folder.

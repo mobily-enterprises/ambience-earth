@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: © 2022 Uri Shaked <uri@wokwi.com>
+# SPDX-FileCopyrightText: © 2025 ambience-earth
 # SPDX-License-Identifier: MIT
 
 SOURCES = src/main.c
@@ -22,4 +22,4 @@ dist/chip.json: dist chip.json
 
 .PHONY: test
 test:
-	  cd test && arduino-cli compile -e -b arduino:avr:uno blink
+	  cd test && arduino-cli compile -e -b arduino:avr:uno keyladder_test

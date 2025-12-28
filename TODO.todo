@@ -1,5 +1,5 @@
 ☐ Have defaults when it turns on for keypad
 ☐ Have defaults for calibration, do NOT ask for calibration to start with
-☐ Make the fake humidity sensor way smarter, making it oscillate
+☐ Add a custom chip to make the slider oscillate so that it is more like in real life
 ☐ Check the input library, improve it, move messages in cpp
 ☐ 
