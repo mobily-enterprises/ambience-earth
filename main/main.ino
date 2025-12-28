@@ -501,7 +501,12 @@ void viewLogs() {
 
 
 void displayInfo(uint8_t screen) {
+  static uint8_t lastScreen = 255;
+  static bool lastScreenSaver = false;
+
   if (screenSaverMode) {
+    lastScreenSaver = true;
+
     uint8_t x = random(0, 20); // Random column (0-15)
     uint8_t y = random(0, 4);  // Random row (0-3)
   
@@ -515,7 +520,16 @@ void displayInfo(uint8_t screen) {
     return;
   }
 
-  lcd.clear();
+  if (lastScreenSaver) {
+    lastScreenSaver = false;
+    lastScreen = 255;
+  }
+
+  if (screen != lastScreen) {
+    lcd.clear();
+    lastScreen = screen;
+  }
+
   switch (screen) {
     case 0: displayInfo1(); break;
     case 1: displayInfo3(); break;
@@ -548,8 +562,6 @@ void displayInfo1() {
 
 void displayInfo4() {
  
-  lcdClear();
-
   printSoilAndWaterTrayStatus();
   pinMode(A2, INPUT);
   lcdPrint_P(MSG_SOIL_NOW, 2);
@@ -561,7 +573,6 @@ void displayInfo4() {
 
 
 void displayInfo3() {
-  lcdClear();
   lcdPrint_P(MSG_NEXT_FEED, 1);
   lcdPrint_P(MSG_WHEN_CONDITIONS_ALLOW, 2);
 }
