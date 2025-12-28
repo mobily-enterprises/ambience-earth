@@ -48,6 +48,7 @@ static void chip_pin_change(void *user_data, pin_t pin, uint32_t value) {
 
 void chip_init(void) {
   chip_state_t *chip = malloc(sizeof(chip_state_t));
+  if (!chip) return;
   chip->pin_a = pin_init("A", INPUT_PULLUP);
   chip->pin_f = pin_init("F", INPUT_PULLUP);
   chip->pin_e = pin_init("E", INPUT_PULLUP);

@@ -115,6 +115,7 @@ static void update_output(void *user_data) {
 
 void chip_init(void) {
   chip_state_t *chip = malloc(sizeof(chip_state_t));
+  if (!chip) return;
   chip->pin_in = pin_init("IN", ANALOG);
   chip->pin_out = pin_init("OUT", ANALOG);
   chip->pin_vcc = pin_init("VCC", INPUT);
