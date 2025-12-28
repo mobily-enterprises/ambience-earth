@@ -471,24 +471,48 @@ int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = 
     lcdPrintLabel(&choicesHeader);
   }
 
-  while (true) {
-    
-    if (displayChanged) {
-      for (int i = 0; i < maxVisibleChoices; i++) {
-        int choiceIndex = firstVisibleIndex + i;
-        if (choiceIndex < howManyChoices) {
-          lcd.setCursor(0, choicesStartY + i);
-          lcdPrint_P(MSG_SPACES);
-          lcd.setCursor(0, choicesStartY + i);
-          if (choiceIndex == selectedIndex) {
-            lcd.write((uint8_t)2);  // Print cursor
-          } else {
-            lcdPrint_P(MSG_SPACE);  // Double space if no cursor
-          }
+  int lastSelectedIndex = -1;
+  int lastFirstVisibleIndex = -1;
 
-          lcdPrintLabel(&choices[choiceIndex].label);
+  while (true) {
+    if (displayChanged) {
+      if (firstVisibleIndex != lastFirstVisibleIndex) {
+        for (int i = 0; i < maxVisibleChoices; i++) {
+          int choiceIndex = firstVisibleIndex + i;
+          if (choiceIndex < howManyChoices) {
+            lcd.setCursor(0, choicesStartY + i);
+            lcdPrint_P(MSG_SPACES);
+            lcd.setCursor(0, choicesStartY + i);
+            if (choiceIndex == selectedIndex) {
+              lcd.write((uint8_t)2);  // Print cursor
+            } else {
+              lcdPrint_P(MSG_SPACE);
+            }
+
+            lcdPrintLabel(&choices[choiceIndex].label);
+          }
+        }
+      } else if (lastSelectedIndex != -1 && lastSelectedIndex != selectedIndex) {
+        int prevRow = lastSelectedIndex - firstVisibleIndex;
+        int nextRow = selectedIndex - firstVisibleIndex;
+        if (prevRow >= 0 && prevRow < maxVisibleChoices) {
+          lcd.setCursor(0, choicesStartY + prevRow);
+          lcdPrint_P(MSG_SPACE);
+        }
+        if (nextRow >= 0 && nextRow < maxVisibleChoices) {
+          lcd.setCursor(0, choicesStartY + nextRow);
+          lcd.write((uint8_t)2);
+        }
+      } else if (lastSelectedIndex == -1) {
+        int row = selectedIndex - firstVisibleIndex;
+        if (row >= 0 && row < maxVisibleChoices) {
+          lcd.setCursor(0, choicesStartY + row);
+          lcd.write((uint8_t)2);
         }
       }
+
+      lastSelectedIndex = selectedIndex;
+      lastFirstVisibleIndex = firstVisibleIndex;
       displayChanged = false;
     }
 
