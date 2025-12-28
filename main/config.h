@@ -12,10 +12,6 @@
 // ************************************************************
 
 typedef struct {
-  enum : int8_t { P1, S1 } what;
-} WaterSource;
-
-typedef struct {
     uint8_t checksum;
     uint8_t version;
     bool mustRunInitialSetup;
