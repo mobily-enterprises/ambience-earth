@@ -27,7 +27,7 @@ AnalogButtons analogButtons = AnalogButtons(BUTTONS_PIN, BUTTONS_PIN_MODE, BUTTO
 Button *pressedButton;
 Choice choices[10];
 
-char choicesHeader[LABEL_LENGTH + 1];
+LabelRef choicesHeader;
 
 char userInputString[LABEL_LENGTH + 1];
 
@@ -164,6 +164,10 @@ const byte rightArrow[8] = {
 };
 
 static void labelcpy_R(char *destination, const char *source) {
+  if (!source) {
+    destination[0] = '\0';
+    return;
+  }
   strncpy(destination, source, LABEL_LENGTH);
   destination[strnlen(destination, LABEL_LENGTH)] = '\0';
 }
@@ -181,21 +185,50 @@ void initLcd() {
 }
 
 static void labelcpy_P(char *destination, PGM_P source) {
+  if (!source) {
+    destination[0] = '\0';
+    return;
+  }
   strncpy_P(destination, source, LABEL_LENGTH);
   destination[strnlen_P(source, LABEL_LENGTH)] = '\0';
 }
 
+static bool label_is_empty(const LabelRef *label) {
+  if (!label || !label->ptr) return true;
+  if (label->is_progmem) return pgm_read_byte(label->ptr) == '\0';
+  return label->ptr[0] == '\0';
+}
+
+static void lcdPrintLabel(const LabelRef *label) {
+  if (!label || !label->ptr) return;
+  if (label->is_progmem) {
+    lcdPrint_P((PGM_P)label->ptr);
+  } else {
+    lcdPrint_R(label->ptr);
+  }
+}
+
 void setChoices_P(PGM_P label0 = MSG_LITTLE, int value0 = 0, PGM_P label1 = MSG_LITTLE, int value1 = 0, PGM_P label2 = MSG_LITTLE, int value2 = 0, PGM_P label3 = MSG_LITTLE, int value3 = 0, PGM_P label4 = MSG_LITTLE, int value4 = 0, PGM_P label5 = MSG_LITTLE, int value5 = 0, PGM_P label6 = MSG_LITTLE, int value6 = 0, PGM_P label7 = MSG_LITTLE, int value7 = 0, PGM_P label8 = MSG_LITTLE, int value8 = 0, PGM_P label9 = MSG_LITTLE, int value9 = 0) {
-  labelcpy_P(choices[0].label, label0);
-  labelcpy_P(choices[1].label, label1);
-  labelcpy_P(choices[2].label, label2);
-  labelcpy_P(choices[3].label, label3);
-  labelcpy_P(choices[4].label, label4);
-  labelcpy_P(choices[5].label, label5);
-  labelcpy_P(choices[6].label, label6);
-  labelcpy_P(choices[7].label, label7);
-  labelcpy_P(choices[8].label, label8);
-  labelcpy_P(choices[9].label, label9);
+  choices[0].label.ptr = (const char *)label0;
+  choices[0].label.is_progmem = 1;
+  choices[1].label.ptr = (const char *)label1;
+  choices[1].label.is_progmem = 1;
+  choices[2].label.ptr = (const char *)label2;
+  choices[2].label.is_progmem = 1;
+  choices[3].label.ptr = (const char *)label3;
+  choices[3].label.is_progmem = 1;
+  choices[4].label.ptr = (const char *)label4;
+  choices[4].label.is_progmem = 1;
+  choices[5].label.ptr = (const char *)label5;
+  choices[5].label.is_progmem = 1;
+  choices[6].label.ptr = (const char *)label6;
+  choices[6].label.is_progmem = 1;
+  choices[7].label.ptr = (const char *)label7;
+  choices[7].label.is_progmem = 1;
+  choices[8].label.ptr = (const char *)label8;
+  choices[8].label.is_progmem = 1;
+  choices[9].label.ptr = (const char *)label9;
+  choices[9].label.is_progmem = 1;
 
   choices[0].value = value0;
   choices[1].value = value1;
@@ -210,16 +243,26 @@ void setChoices_P(PGM_P label0 = MSG_LITTLE, int value0 = 0, PGM_P label1 = MSG_
 }
 
 void setChoices_R(const char *label0 = "", int value0 = 0, const char *label1 = "", int value1 = 0, const char *label2 = "", int value2 = 0, const char *label3 = "", int value3 = 0, const char *label4 = "", int value4 = 0, const char *label5 = "", int value5 = 0, const char *label6 = "", int value6 = 0, const char *label7 = "", int value7 = 0, const char *label8 = "", int value8 = 0, const char *label9 = "", int value9 = 0) {
-  labelcpy_R(choices[0].label, label0);
-  labelcpy_R(choices[1].label, label1);
-  labelcpy_R(choices[2].label, label2);
-  labelcpy_R(choices[3].label, label3);
-  labelcpy_R(choices[4].label, label4);
-  labelcpy_R(choices[5].label, label5);
-  labelcpy_R(choices[6].label, label6);
-  labelcpy_R(choices[7].label, label7);
-  labelcpy_R(choices[8].label, label8);
-  labelcpy_R(choices[9].label, label9);
+  choices[0].label.ptr = label0;
+  choices[0].label.is_progmem = 0;
+  choices[1].label.ptr = label1;
+  choices[1].label.is_progmem = 0;
+  choices[2].label.ptr = label2;
+  choices[2].label.is_progmem = 0;
+  choices[3].label.ptr = label3;
+  choices[3].label.is_progmem = 0;
+  choices[4].label.ptr = label4;
+  choices[4].label.is_progmem = 0;
+  choices[5].label.ptr = label5;
+  choices[5].label.is_progmem = 0;
+  choices[6].label.ptr = label6;
+  choices[6].label.is_progmem = 0;
+  choices[7].label.ptr = label7;
+  choices[7].label.is_progmem = 0;
+  choices[8].label.ptr = label8;
+  choices[8].label.is_progmem = 0;
+  choices[9].label.ptr = label9;
+  choices[9].label.is_progmem = 0;
 
   choices[0].value = value0;
   choices[1].value = value1;
@@ -234,20 +277,24 @@ void setChoices_R(const char *label0 = "", int value0 = 0, const char *label1 = 
 }
 
 void setChoicesHeader_P(PGM_P header = MSG_LITTLE) {
-  labelcpy_P(choicesHeader, header);
+  choicesHeader.ptr = (const char *)header;
+  choicesHeader.is_progmem = 1;
 }
 
 void setChoicesHeader_R(const char *header = "") {
-  labelcpy_R(choicesHeader, header);
+  choicesHeader.ptr = header;
+  choicesHeader.is_progmem = 0;
 }
 
 void setChoice_P(unsigned char index, PGM_P label, int value = 0) {
-  labelcpy_P(choices[index].label, label);
+  choices[index].label.ptr = (const char *)label;
+  choices[index].label.is_progmem = 1;
   choices[index].value = value;
 }
 
 void setChoice_R(unsigned char index, const char *label, int value = 0) {
-  labelcpy_R(choices[index].label, label);
+  choices[index].label.ptr = label;
+  choices[index].label.is_progmem = 0;
   choices[index].value = value;
 }
 
@@ -383,21 +430,23 @@ long int inputNumber_R(const char *prompt, long int initialUserInput, int stepSi
 
 void resetChoicesAndHeader() {
   for (int i = 0; i < 10; i++) {
-    choices[i].label[0] = '\0';
+    choices[i].label.ptr = nullptr;
+    choices[i].label.is_progmem = 0;
     choices[i].value = 0;
   }
 
-  choicesHeader[0] = '\0';
+  choicesHeader.ptr = nullptr;
+  choicesHeader.is_progmem = 0;
 }
 
 int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = false) {
   int selectedIndex = 0;      // Default selection is the first choice
   int firstVisibleIndex = 0;  // Index of the first choice visible on the screen
   bool displayChanged = true;
-  unsigned long previousMillis = 0;
-#define HEADER_Y 0
-#define MAX_VISIBLE_CHOICES (choicesHeader[0] != '\0' ? 3 : 4)  // Maximum number of choices visible on the screen at a time
-#define CHOICES_START_Y (choicesHeader[0] != '\0' ? 1 : 0)      // Adjust CHOICES_START_Y based on whether optionalHeader is provided or not
+  const uint8_t headerY = 0;
+  const bool hasHeader = !label_is_empty(&choicesHeader);
+  const uint8_t maxVisibleChoices = hasHeader ? 3 : 4;
+  const uint8_t choicesStartY = hasHeader ? 1 : 0;
 
   if (!doNotClear) lcd.clear();
 
@@ -410,32 +459,32 @@ int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = 
   }
 
   // Adjust the starting visible index if the selected index is outside the first page's range
-  if (selectedIndex >= MAX_VISIBLE_CHOICES) {
-    firstVisibleIndex = selectedIndex - MAX_VISIBLE_CHOICES + 1;
+  if (selectedIndex >= maxVisibleChoices) {
+    firstVisibleIndex = selectedIndex - maxVisibleChoices + 1;
   }
 
 
-  if (choicesHeader[0] != '\0') {
-    lcd.setCursor(0, HEADER_Y);
-    lcd.print(choicesHeader);
+  if (hasHeader) {
+    lcd.setCursor(0, headerY);
+    lcdPrintLabel(&choicesHeader);
   }
 
   while (true) {
     
     if (displayChanged) {
-      for (int i = 0; i < MAX_VISIBLE_CHOICES; i++) {
+      for (int i = 0; i < maxVisibleChoices; i++) {
         int choiceIndex = firstVisibleIndex + i;
         if (choiceIndex < howManyChoices) {
-          lcd.setCursor(0, CHOICES_START_Y + i);
+          lcd.setCursor(0, choicesStartY + i);
           lcdPrint_P(MSG_SPACES);
-          lcd.setCursor(0, CHOICES_START_Y + i);
+          lcd.setCursor(0, choicesStartY + i);
           if (choiceIndex == selectedIndex) {
             lcd.write((uint8_t)2);  // Print cursor
           } else {
             lcdPrint_P(MSG_SPACE);  // Double space if no cursor
           }
 
-          lcd.print(choices[choiceIndex].label);
+          lcdPrintLabel(&choices[choiceIndex].label);
         }
       }
       displayChanged = false;
@@ -456,7 +505,7 @@ int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = 
       if (selectedIndex >= howManyChoices) {
         selectedIndex = 0;  // Wrap around to the first option
         firstVisibleIndex = 0;
-      } else if (selectedIndex >= firstVisibleIndex + MAX_VISIBLE_CHOICES) {
+      } else if (selectedIndex >= firstVisibleIndex + maxVisibleChoices) {
         firstVisibleIndex++;
       }
       displayChanged = true;
@@ -465,7 +514,7 @@ int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = 
       selectedIndex--;
       if (selectedIndex < 0) {
         selectedIndex = howManyChoices - 1;  // Wrap around to the last option
-        firstVisibleIndex = max(0, howManyChoices - MAX_VISIBLE_CHOICES);
+        firstVisibleIndex = max(0, howManyChoices - maxVisibleChoices);
       } else if (selectedIndex < firstVisibleIndex) {
         firstVisibleIndex--;
       }

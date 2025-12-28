@@ -17,8 +17,13 @@ void initializeButtons();
 // ****************************************
 // **         USER INPUT                 **
 // ****************************************
+struct LabelRef {
+  const char *ptr;
+  uint8_t is_progmem;
+};
+
 struct Choice {
-  char label[LABEL_LENGTH + 1];
+  LabelRef label;
   int value;
 };
 
