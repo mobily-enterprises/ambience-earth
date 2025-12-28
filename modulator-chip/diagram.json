@@ -4,17 +4,18 @@
   "editor": "wokwi",
   "parts": [
     { "type": "wokwi-arduino-uno", "id": "uno", "top": -57, "left": -0.6, "attrs": {} },
-    { "type": "chip-modulator", "id": "keys", "top": -94.98, "left": 292.8, "attrs": {} },
+    { "type": "chip-modulator", "id": "mod1", "top": -94.98, "left": 292.8, "attrs": {} },
     { "type": "wokwi-slide-potentiometer", "id": "pot1", "top": 80, "left": 420, "attrs": { "value": "512", "travelLength": "60", "label": "Input" } }
   ],
   "connections": [
-    [ "uno:5V", "keys:VCC", "red", [ "v28.7", "h234.5", "v-240" ] ],
-    [ "keys:GND", "uno:GND.1", "black", [ "h30.61", "v259.2", "h-259.2" ] ],
+    [ "uno:5V", "mod1:VCC", "red", [ "v28.7", "h234.5", "v-240" ] ],
+    [ "mod1:GND", "uno:GND.1", "black", [ "h30.61", "v259.2", "h-259.2" ] ],
 
     [ "uno:5V", "pot1:VCC", "red", [] ],
     [ "uno:GND.1", "pot1:GND", "black", [] ],
-    [ "pot1:SIG", "keys:IN", "green", [] ],
+    [ "pot1:SIG", "mod1:IN", "green", [] ],
 
-    [ "keys:OUT", "uno:A0", "green", [] ]
+    [ "pot1:SIG", "uno:A1", "green", [] ],
+    [ "mod1:OUT", "uno:A0", "green", [] ]
   ]
 }

@@ -4,3 +4,4 @@
 ☐ Improve sensor-fetching code, so that it flattens the input values to normal level, but still turning it on and off
 ☐ Check the input library, improve it, move messages in cpp
 
+

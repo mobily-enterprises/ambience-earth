@@ -1,7 +1,7 @@
 [wokwi]
 version = 1
-elf = 'test/keyladder_test/build/arduino.avr.uno/keyladder_test.ino.elf'
-firmware = 'test/keyladder_test/build/arduino.avr.uno/keyladder_test.ino.hex'
+elf = 'test/modulator_test/build/arduino.avr.uno/modulator_test.ino.elf'
+firmware = 'test/modulator_test/build/arduino.avr.uno/modulator_test.ino.hex'
 
 [[chip]]
 name = 'modulator'

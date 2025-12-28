@@ -1,21 +1,18 @@
-# KeyLadder Chip
+# Modulator Chip
 
-Custom [Wokwi](https://wokwi.com/) chip that converts five momentary buttons into
-a single analog ladder output.
+Custom [Wokwi](https://wokwi.com/) chip that applies a slow oscillation to an
+analog input signal and outputs the modulated voltage.
 
 The source code lives in [src/main.c](src/main.c), and the pin list is defined
 in [chip.json](chip.json).
 
-Output mapping (ADC @ 5V):
+Behavior:
 
-- A = 900
-- F = 700
-- E = 500
-- X = 300
-- D = 100
-- none = 1023
-
-When multiple buttons are held, priority is A -> F -> E -> X -> D.
+- Sine-wave modulation around the input value.
+- Depth: random per cycle, 5% to 7% of the current input value.
+- Period: random per cycle, 20 to 35 seconds for a full up/down cycle.
+- Hold time: 1.5 to 2.5 seconds at the top and bottom of the oscillation.
+- Output is clamped to 0-5V; VCC low forces output to 0V.
 
 ## Building
 
@@ -24,8 +21,8 @@ Open the dev container and run `make`.
 ## Testing
 
 Use the included [diagram.json](diagram.json) and [wokwi.toml](wokwi.toml).
-The test sketch [test/keyladder_test/keyladder_test.ino](test/keyladder_test/keyladder_test.ino) prints the analog
-value and detected button over Serial. Build the test firmware with `make test`.
+The test sketch [test/modulator_test/modulator_test.ino](test/modulator_test/modulator_test.ino) prints the raw input
+value (A1) and modulated output (A0) over Serial. Build the test firmware with `make test`.
 
 ## License
 

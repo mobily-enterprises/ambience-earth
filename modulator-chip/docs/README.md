@@ -1,33 +1,24 @@
-# KeyLadder Chip
+# Modulator Chip
 
-Custom chip for [Wokwi](https://wokwi.com/) that turns five momentary buttons
-into a single analog ladder output.
+Custom chip for [Wokwi](https://wokwi.com/) that applies a slow oscillation to
+an analog input signal and outputs the modulated voltage.
 
 ## Pin names
 
 | Name | Description |
 | ---- | ----------- |
-| A    | Button input (active-low) |
-| F    | Button input (active-low) |
-| E    | Button input (active-low) |
-| X    | Button input (active-low) |
-| D    | Button input (active-low) |
+| IN   | Analog input (0-5V) |
 | OUT  | Analog output (0-5V) |
-| VCC  | Supply (optional) |
+| VCC  | Enable (active-high) |
 | GND  | Ground (optional) |
 
-## Output values
+## Behavior
 
-ADC values at 5V:
-
-- A = 900
-- F = 700
-- E = 500
-- X = 300
-- D = 100
-- none = 1023
-
-If multiple buttons are pressed, the first match in the order above wins.
+- Sine-wave modulation around the input value.
+- Depth: random per cycle, 5% to 7% of the current input value.
+- Period: random per cycle, 20 to 35 seconds for a full up/down cycle.
+- Hold time: 1.5 to 2.5 seconds at the top and bottom of the oscillation.
+- Output is clamped to 0-5V; VCC low forces output to 0V.
 
 ## Usage
 
@@ -35,14 +26,14 @@ Add the chip to your `wokwi.toml`:
 
 ```toml
 [[chip]]
-name = "keyladder"
+name = "modulator"
 binary = "dist/chip.wasm"
 ```
 
 Then include it in your `diagram.json`:
 
 ```json
-  { "type": "chip-keyladder", "id": "keys" }
+  { "type": "chip-modulator", "id": "mod1" }
 ```
 
 For a complete example, see [diagram.json](../diagram.json) in this folder.
