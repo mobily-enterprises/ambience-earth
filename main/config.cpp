@@ -61,10 +61,10 @@ void setConfigChecksum() {
 
 void restoreDefaultConfig() {
   config.checksum = 0;
-  config.mustRunInitialSetup = true;
+  config.mustRunInitialSetup = false;
 
-  config.moistSensorCalibrationSoaked = 400;
-  config.moistSensorCalibrationDry = 780;
+  config.moistSensorCalibrationSoaked = 200;
+  config.moistSensorCalibrationDry = 500;
 
   config.minFeedInterval = 1000L * 60 * 30;
   //config.minFeedIntervalMoistOverride = 65;

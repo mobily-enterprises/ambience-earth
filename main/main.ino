@@ -66,8 +66,8 @@ void setup() {
   }
 
   if (config.mustRunInitialSetup) {
-    runButtonsSetup();
-    while (!runInitialSetup());
+    config.mustRunInitialSetup = false;
+    saveConfig();
   }
 
   // runButtonsSetup();
