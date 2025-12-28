@@ -10,6 +10,7 @@
 #include "settings.h"
 #include "logs.h"
 #include <LiquidCrystal_I2C.h>
+#include <avr/pgmspace.h>
 
 /* YOU ARE HERE
   Adjust logging of tray and moisture, BOTH in the hourly one AND in the feed log
@@ -286,19 +287,44 @@ void mainMenu() {
   } while (choice != -1);
 }
 
+static void lcdPrintSpaces(uint8_t count) {
+  while (count--) lcd.print(' ');
+}
 
-void printSoilAndWaterTrayStatus() {
+static void lcdPrintPadded_P(PGM_P message, uint8_t width) {
+  lcdPrint_P(message);
+  uint8_t len = strlen_P(message);
+  if (len < width) lcdPrintSpaces(width - len);
+}
+
+void printSoilAndWaterTrayStatus(bool fullRedraw) {
+  static const uint8_t kSoilValueCol = 10;
+  static const uint8_t kTrayValueCol = 6;
+  static const uint8_t kTrayFieldWidth = DISPLAY_COLUMNS - kTrayValueCol;
+
   uint16_t soilMoisture = getSoilMoisture();
   uint16_t soilMoisturePercent = soilMoistureAsPercentage(soilMoisture);
+  uint8_t trayState = trayWaterLevelAsState();
  
-  lcdPrint_P(MSG_SOIL_NOW, 0);
-  lcdPrint_P(MSG_SPACE);
-  lcdPrintNumber(soilMoisturePercent);
-  lcdPrint_P(MSG_PERCENT);
- 
-  lcdPrint_P(MSG_TRAY_NOW, 1);
-  lcdPrint_P(MSG_SPACE);
-  lcdPrint_P(trayWaterLevelInEnglish(trayWaterLevelAsState()));
+  if (fullRedraw) {
+    lcdSetCursor(0, 0);
+    lcdPrint_P(MSG_SOIL_NOW);
+    lcdPrint_P(MSG_SPACE);
+
+    lcdSetCursor(0, 1);
+    lcdPrint_P(MSG_TRAY_NOW);
+    lcdPrint_P(MSG_SPACE);
+  }
+
+  lcdSetCursor(kSoilValueCol, 0);
+  if (soilMoisturePercent < 100) lcd.print(' ');
+  if (soilMoisturePercent < 10) lcd.print(' ');
+  lcd.print(soilMoisturePercent);
+  lcd.print('%');
+
+  lcdSetCursor(kTrayValueCol, 1);
+  PGM_P trayLabel = trayWaterLevelInEnglish(trayState);
+  lcdPrintPadded_P(trayLabel, kTrayFieldWidth);
 }
 
 /*  
@@ -504,6 +530,7 @@ void viewLogs() {
 void displayInfo(uint8_t screen) {
   static uint8_t lastScreen = 255;
   static bool lastScreenSaver = false;
+  bool fullRedraw = false;
 
   if (screenSaverMode) {
     lastScreenSaver = true;
@@ -529,51 +556,68 @@ void displayInfo(uint8_t screen) {
   if (screen != lastScreen) {
     lcd.clear();
     lastScreen = screen;
+    fullRedraw = true;
   }
 
   switch (screen) {
-    case 0: displayInfo1(); break;
-    case 1: displayInfo3(); break;
-    case 2: displayInfo4(); break;
+    case 0: displayInfo1(fullRedraw); break;
+    case 1: displayInfo3(fullRedraw); break;
+    case 2: displayInfo4(fullRedraw); break;
   }
 }
 
 
-void displayInfo1() {
-  uint16_t soilMoisture;
-  uint8_t soilMoisturePercent;
-  uint8_t trayWaterLevelPercent;
+void displayInfo1(bool fullRedraw) {
+  static const uint8_t kLastFeedValueCol = 11;
+  static const uint8_t kAvgValueCol = 14;
+  static const uint8_t kLastFeedFieldWidth = DISPLAY_COLUMNS - kLastFeedValueCol;
+  static const uint8_t kAvgFieldWidth = DISPLAY_COLUMNS - kAvgValueCol;
 
-  uint16_t trayWaterLevel;
-  bool trayIsFull;
+  printSoilAndWaterTrayStatus(fullRedraw);
 
-  printSoilAndWaterTrayStatus();
+  if (fullRedraw) {
+    lcdPrint_P(MSG_LAST_FEED, 2);
+    lcdPrint_P(MSG_AVG_COLUMN, 3);
+  }
 
-  lcdPrint_P(MSG_LAST_FEED, 2);
-  if (!millisAtEndOfLastFeed) lcdPrint_P(MSG_NOT_YET);
+  lcdSetCursor(kLastFeedValueCol, 2);
+  lcdPrintSpaces(kLastFeedFieldWidth);
+  lcdSetCursor(kLastFeedValueCol, 2);
+  if (!millisAtEndOfLastFeed) lcdPrintPadded_P(MSG_NOT_YET, kLastFeedFieldWidth);
   else lcdPrintTimeSince(millisAtEndOfLastFeed);
   // lcdPrintNumber(actionPreviousMillis);
 
-  lcdPrint_P(MSG_AVG_COLUMN, 3);
-  if (!averageMsBetweenFeeds) lcdPrint_P(MSG_NA);
+  lcdSetCursor(kAvgValueCol, 3);
+  lcdPrintSpaces(kAvgFieldWidth);
+  lcdSetCursor(kAvgValueCol, 3);
+  if (!averageMsBetweenFeeds) lcdPrintPadded_P(MSG_NA, kAvgFieldWidth);
   // else lcdPrintNumber(averageMsBetweenFeeds);
   else lcdPrintTime(averageMsBetweenFeeds);
 }
 
 
-void displayInfo4() {
+void displayInfo4(bool fullRedraw) {
+  static const uint8_t kSoilValueCol = 10;
+  static const uint8_t kRawFieldWidth = 4;
  
-  printSoilAndWaterTrayStatus();
+  printSoilAndWaterTrayStatus(fullRedraw);
   pinMode(A2, INPUT);
-  lcdPrint_P(MSG_SOIL_NOW, 2);
-  lcdPrint_P(MSG_SPACE);
-  // lcdPrintNumber(soilMoisture);
-  lcdPrint_P(MSG_SPACE);
+
+  if (fullRedraw) {
+    lcdSetCursor(0, 2);
+    lcdPrint_P(MSG_SOIL_NOW);
+    lcdPrint_P(MSG_SPACE);
+  }
+
+  lcdSetCursor(kSoilValueCol, 2);
+  lcdPrintSpaces(kRawFieldWidth);
+  lcdSetCursor(kSoilValueCol, 2);
   lcd.print(getSoilMoisture());
 }
 
 
-void displayInfo3() {
+void displayInfo3(bool fullRedraw) {
+  if (!fullRedraw) return;
   lcdPrint_P(MSG_NEXT_FEED, 1);
   lcdPrint_P(MSG_WHEN_CONDITIONS_ALLOW, 2);
 }
