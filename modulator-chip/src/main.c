@@ -16,6 +16,7 @@ typedef struct {
   float period;
   float hold_remaining;
   uint32_t rng;
+  int last_millivolts;
 } chip_state_t;
 
 static const float kPi = 3.1415927f;
@@ -78,11 +79,10 @@ static void update_output(void *user_data) {
   if (modulated < 0.0f) modulated = 0.0f;
   if (modulated > 5.0f) modulated = 5.0f;
 
-  static int last_millivolts = -1;
   int millivolts = (int)(volts * 1000.0f + 0.5f);
-  if (millivolts != last_millivolts) {
+  if (millivolts != chip->last_millivolts) {
     printf("in=%.3fV\n", volts);
-    last_millivolts = millivolts;
+    chip->last_millivolts = millivolts;
   }
 
   pin_dac_write(chip->pin_out, modulated);
@@ -122,6 +122,7 @@ void chip_init(void) {
   chip->hold_remaining = 0.0f;
   chip->rng = (uint32_t)get_sim_nanos();
   if (chip->rng == 0) chip->rng = 1;
+  chip->last_millivolts = -1;
   choose_cycle(chip);
 
   const timer_config_t timer_config = {
