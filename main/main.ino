@@ -193,7 +193,7 @@ void initialPinSetup() {
   // A4/A5 are SDA/SCL for I2C (LCD), leave them alone.
 
   pinMode(A6, INPUT_PULLUP); // Input only, set as pullup
-  pinMode(A7, INPUT_PULLUP); // Analog buttons use external ladder/pull-up
+  pinMode(BUTTONS_PIN, BUTTONS_PIN_MODE); // Analog buttons ladder input
 }
 
 void createBootLogEntry() {
