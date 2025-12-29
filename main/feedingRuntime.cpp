@@ -123,8 +123,9 @@ static void stopFeed(FeedStopReason reason, unsigned long now) {
   session.pumpOn = false;
 
   uint8_t trayAfter = trayWaterLevelAsState();
-  uint8_t soilAfterPercent = soilMoistureAsPercentage(soilSensorGetRealtimeAvg());
-  setSoilSensorLazy();
+  uint16_t realtimeAvg = soilSensorGetRealtimeAvg();
+  uint8_t soilAfterPercent = soilMoistureAsPercentage(realtimeAvg);
+  setSoilSensorLazySeed(realtimeAvg);
 
   clearLogEntry((void *)&newLogEntry);
   newLogEntry.entryType = 1;

@@ -18,7 +18,7 @@ const char PROGMEM MSG_TRAY_LITTLE_SHORT[] = "wtr";
 const char PROGMEM MSG_TRAY_UNSTATED_SHORT[] = "?";
 
 const char PROGMEM MSG_TRAY_DRY[] = "dry";
-const char PROGMEM MSG_TRAY_LITTLE[] = "water in tray";
+const char PROGMEM MSG_TRAY_LITTLE[] = "w/water";
 const char PROGMEM MSG_TRAY_UNSTATED[] = "unstated";
 
 const char PROGMEM MSG_SOIL_WHEN_DRY[] = "Dry means";
@@ -79,10 +79,10 @@ const char PROGMEM MSG_START_CONDITIONS[] = "Start feed when...";
 const char PROGMEM MSG_END_CONDITIONS[] = "Stop feed when...";
 const char PROGMEM MSG_FEED_OVERRIDES[] = "Feed overrides";
 const char PROGMEM MSG_WINDOW[] = "Set feeding time";
-const char PROGMEM MSG_MOIST_BELOW[] = "Moisture lower than";
+const char PROGMEM MSG_MOIST_BELOW[] = "Set moisture level";
 const char PROGMEM MSG_MOIST_TARGET[] = "Moisture reached";
-const char PROGMEM MSG_MIN_SINCE[] = "Min time between";
-const char PROGMEM MSG_MIN_RUNTIME[] = "Set min duration";
+const char PROGMEM MSG_MIN_SINCE[] = "Minimum time between";
+const char PROGMEM MSG_MIN_RUNTIME[] = "Set minimum duration";
 const char PROGMEM MSG_MAX_RUNTIME[] = "Set max duration";
 const char PROGMEM MSG_RUNOFF_REQUIRED[] = "Runoff present";
 const char PROGMEM MSG_SECONDS[] = "s";
@@ -94,10 +94,10 @@ const char PROGMEM MSG_HOUR[] = "Hour";
 const char PROGMEM MSG_MINUTE[] = "Minute";
 const char PROGMEM MSG_ENABLE_SLOT[] = "Slot on?";
 const char PROGMEM MSG_ENABLE_WINDOW[] = "Time is";
-const char PROGMEM MSG_ENABLE_MOIST_BELOW[] = "Moisture lower than";
-const char PROGMEM MSG_ENABLE_MIN_SINCE[] = "Min time between";
+const char PROGMEM MSG_ENABLE_MOIST_BELOW[] = "Set moisture level";
+const char PROGMEM MSG_ENABLE_MIN_SINCE[] = "Minimum time between";
 const char PROGMEM MSG_ENABLE_MOIST_TARGET[] = "Moisture reached";
-const char PROGMEM MSG_ENABLE_MIN_RUNTIME[] = "Feed min duration";
+const char PROGMEM MSG_ENABLE_MIN_RUNTIME[] = "Feed minimum duration";
 const char PROGMEM MSG_OK_EDIT_BACK[] = "OK=Edit Left=Back";
 
 const char PROGMEM MSG_TINY_BIT_OF_WATER[] = "TINY bit of water";

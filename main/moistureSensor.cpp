@@ -1,8 +1,6 @@
 #include "moistureSensor.h"
 
 #include <Arduino.h>
-#include <string.h>
-
 #include "config.h"
 
 extern Config config;
@@ -40,19 +38,12 @@ static bool realtimeSeeded = false;
 static uint32_t windowSum = 0;
 static uint32_t windowPercentSum = 0;
 static uint16_t windowCount = 0;
-static uint8_t windowSampleCount = 0;
-static uint8_t windowSamples[SENSOR_WINDOW_MAX_SAMPLES];
-static uint8_t lastWindowSamples[SENSOR_WINDOW_MAX_SAMPLES];
-static uint8_t lastWindowSampleCount = 0;
 static uint8_t windowMinPercent = 0;
 static uint8_t windowMaxPercent = 0;
 static uint8_t windowMinHold = 0;
 static uint8_t windowMaxHold = 0;
 static bool windowMinConfirmed = false;
 static bool windowMaxConfirmed = false;
-static uint8_t lastWindowMinPercent = 0;
-static uint8_t lastWindowMaxPercent = 0;
-static uint8_t lastWindowAvgPercent = 0;
 
 static void sensorPowerOn() {
   if (sensorPowered) return;
@@ -83,7 +74,6 @@ static void resetWindowAccum() {
   windowSum = 0;
   windowPercentSum = 0;
   windowCount = 0;
-  windowSampleCount = 0;
   windowMinPercent = 100;
   windowMaxPercent = 0;
   windowMinHold = 0;
@@ -96,14 +86,6 @@ static void finalizeWindow() {
   if (windowCount == 0) return;
 
   lazyValue = (uint16_t)(windowSum / windowCount);
-  lastWindowAvgPercent = (uint8_t)(windowPercentSum / windowCount);
-
-  lastWindowSampleCount = windowSampleCount;
-  if (lastWindowSampleCount > 0) {
-    memcpy(lastWindowSamples, windowSamples, lastWindowSampleCount);
-  }
-  lastWindowMinPercent = windowMinPercent;
-  lastWindowMaxPercent = windowMaxPercent;
 }
 
 static void resetRealtimeFilter(uint16_t seed) {
@@ -193,10 +175,6 @@ void initMoistureSensor() {
   readMode = READ_MODE_LAZY;
   lazyState = LAZY_STATE_IDLE;
   nextWindowAt = millis();
-  lastWindowSampleCount = 0;
-  lastWindowMinPercent = 0;
-  lastWindowMaxPercent = 0;
-  lastWindowAvgPercent = 0;
 
   sensorPowerOn();
   delay(SENSOR_STABILIZATION_TIME);
@@ -216,6 +194,11 @@ uint16_t getSoilMoisture() {
 }
 
 void setSoilSensorLazy() {
+  soilSensorOp(2);
+}
+
+void setSoilSensorLazySeed(uint16_t seed) {
+  lazyValue = seed;
   soilSensorOp(2);
 }
 
@@ -240,27 +223,6 @@ uint16_t soilSensorGetRealtimeAvg() {
 
 uint16_t soilSensorGetRealtimeRaw() {
   return realtimeRaw;
-}
-
-uint8_t soilSensorGetLastWindowSampleCount() {
-  return lastWindowSampleCount;
-}
-
-uint8_t soilSensorGetLastWindowSample(uint8_t index) {
-  if (index >= lastWindowSampleCount) return 0;
-  return lastWindowSamples[index];
-}
-
-uint8_t soilSensorGetLastWindowMinPercent() {
-  return lastWindowMinPercent;
-}
-
-uint8_t soilSensorGetLastWindowMaxPercent() {
-  return lastWindowMaxPercent;
-}
-
-uint8_t soilSensorGetLastWindowAvgPercent() {
-  return lastWindowAvgPercent;
 }
 
 uint16_t soilSensorOp(uint8_t op) {
@@ -299,10 +261,6 @@ uint16_t soilSensorOp(uint8_t op) {
             windowSum += raw;
             windowPercentSum += percent;
             windowCount++;
-
-            if (windowSampleCount < SENSOR_WINDOW_MAX_SAMPLES) {
-              windowSamples[windowSampleCount++] = percent;
-            }
 
             if (percent < windowMinPercent) {
               windowMinPercent = percent;
