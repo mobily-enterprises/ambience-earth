@@ -78,20 +78,11 @@ void restoreDefaultConfig() {
   config.moistSensorCalibrationSoaked = 0;
   config.moistSensorCalibrationDry = 1024;
 
-#ifdef WOKWI_SIM
-  // Wokwi keyladder defaults: E=500, X=300, A=900, F=700, D=100
-  config.kbdUp = 500;
-  config.kbdDown = 300;
-  config.kbdLeft = 900;
-  config.kbdRight = 100;
-  config.kbdOk = 700;
-#else
   config.kbdUp = 0;
   config.kbdDown = 0;
   config.kbdLeft = 0;
   config.kbdRight = 0;
   config.kbdOk = 0;
-#endif
 
   memset(config.feedSlotsPacked, 0, sizeof(config.feedSlotsPacked));
 

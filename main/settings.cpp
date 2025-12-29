@@ -15,7 +15,7 @@
 extern LiquidCrystal_I2C lcd;
 
 extern Config config;
-extern double averageMsBetweenFeeds;
+extern unsigned long averageMsBetweenFeeds;
 extern unsigned long int millisAtEndOfLastFeed;
 
 extern Button upButton;
@@ -649,17 +649,6 @@ void settingsReset() {
   }
 }
 
-static void debugButtonRead(uint16_t readValue) {
-  static unsigned long lastDebugMillis = 0;
-  const unsigned long interval = 250;
-  const unsigned long now = millis();
-
-  if (now - lastDebugMillis < interval) return;
-  lastDebugMillis = now;
-
-  (void)readValue;
-}
-
 void runButtonsSetup() {
   uint16_t read = 1024;
 
@@ -667,11 +656,11 @@ void runButtonsSetup() {
   lcdPrint_P(MSG_PRESS_UP);
   while (read > 1000) {
     read = analogRead(BUTTONS_PIN);
-    debugButtonRead(read);
     if (read < 1000) {
       delay(100);
       read = analogRead(BUTTONS_PIN);
       config.kbdUp = read;
+      lcdPrintNumber(read, 1);
       break;
     }
   }
@@ -683,11 +672,11 @@ void runButtonsSetup() {
   read = 1024;
   while (read > 1000) {
     read = analogRead(BUTTONS_PIN);
-    debugButtonRead(read);
     if (read < 1000) {
       delay(100);
       read = analogRead(BUTTONS_PIN);
       config.kbdDown = read;
+      lcdPrintNumber(read, 1);
       break;
     }
   }
@@ -698,11 +687,11 @@ void runButtonsSetup() {
   read = 1024;
   while (read > 1000) {
     read = analogRead(BUTTONS_PIN);
-    debugButtonRead(read);
     if (read < 1000) {
       delay(100);
       read = analogRead(BUTTONS_PIN);
       config.kbdLeft = read;
+      lcdPrintNumber(read, 1);
       break;
     }
   }
@@ -714,11 +703,11 @@ void runButtonsSetup() {
   read = 1024;
   while (read > 1000) {
     read = analogRead(BUTTONS_PIN);
-    debugButtonRead(read);
     if (read < 1000) {
       delay(100);
       read = analogRead(BUTTONS_PIN);
       config.kbdRight = read;
+      lcdPrintNumber(read, 1);
       break;
     }
   }
@@ -730,11 +719,11 @@ void runButtonsSetup() {
   read = 1024;
   while (read > 1000) {
     read = analogRead(BUTTONS_PIN);
-    debugButtonRead(read);
     if (read < 1000) {
       delay(100);
       read = analogRead(BUTTONS_PIN);
       config.kbdOk = read;
+      lcdPrintNumber(read, 1);
       break;
     }
   }

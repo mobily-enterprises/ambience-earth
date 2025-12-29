@@ -41,7 +41,7 @@ const unsigned long actionInterval = 2000;  // Interval in milliseconds (1000 mi
 // const unsigned long actionInterval = 2000;  // Interval in milliseconds (1000 milliseconds = 1 second)
 unsigned long actionPreviousMillis = 0;
 
-double averageMsBetweenFeeds = 0.0;
+unsigned long averageMsBetweenFeeds = 0;
 unsigned long int millisAtEndOfLastFeed = 0;
 unsigned long lastButtonPressTime = 0;
 bool screenSaverMode = false;
@@ -81,17 +81,18 @@ void setup() {
     config.kbdLeft = 900;
     config.kbdRight = 100;
     config.kbdOk = 700;
-    saveConfig();
   }
 
   if (config.flags & CONFIG_FLAG_MUST_RUN_INITIAL_SETUP) {
     config.flags &= static_cast<uint8_t>(~CONFIG_FLAG_MUST_RUN_INITIAL_SETUP);
-    saveConfig();
   }
 #else
-  if (config.flags & CONFIG_FLAG_MUST_RUN_INITIAL_SETUP) {
+  if ((config.flags & CONFIG_FLAG_MUST_RUN_INITIAL_SETUP) ||
+      (config.kbdUp == 500 && config.kbdDown == 300 && config.kbdLeft == 900 &&
+       config.kbdRight == 100 && config.kbdOk == 700)) {
     runButtonsSetup();
-    while (!runInitialSetup());
+    config.flags &= static_cast<uint8_t>(~CONFIG_FLAG_MUST_RUN_INITIAL_SETUP);
+    saveConfig();
   }
 #endif
 
