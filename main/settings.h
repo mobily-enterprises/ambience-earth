@@ -2,7 +2,6 @@
 #define SETTINGS_H
 
 void settings();
-void maintenance();
 void resetOnlyLogs();
 void settingsDefaultMoistLevels();
 void settingsReset();

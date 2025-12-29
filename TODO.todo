@@ -8,7 +8,7 @@
 
 TODO:
 X Fix showing info of slot
-Improve time input
-Define proper steps and values for input
+X Improve time input (date/time)
+X Write the actual feeding function!
 
-Write the actual feeding function!
+Define proper steps and values for input

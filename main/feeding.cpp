@@ -266,6 +266,78 @@ static void buildFeedSummaryLine(char *out, const FeedSlot *slot) {
   *p = '\0';
 }
 
+static void drawTimeEntryLine(uint8_t hour, uint8_t minute, bool blinkOn, bool editHour) {
+  char timeStr[6];
+  formatTime(timeStr, static_cast<uint16_t>(hour) * 60u + minute);
+
+  lcdClearLine(2);
+  lcdSetCursor(0, 2);
+  lcdPrint_P(PSTR("Time "));
+  lcd.print(timeStr);
+
+  if (!blinkOn) {
+    uint8_t col = editHour ? 5 : 8;
+    lcdSetCursor(col, 2);
+    lcd.write((uint8_t)0);
+    lcdSetCursor(col + 1, 2);
+    lcd.write((uint8_t)0);
+  }
+}
+
+static bool inputTimeWithHeader(PGM_P header, PGM_P prompt, uint16_t initialMinutes, uint16_t *outMinutes) {
+  if (!outMinutes) return false;
+
+  uint8_t hour = initialMinutes / 60;
+  uint8_t minute = initialMinutes % 60;
+  bool editHour = true;
+  bool cursorVisible = true;
+  bool displayChanged = true;
+  unsigned long lastBlinkAt = 0;
+
+  lcdClear();
+  lcdPrint_P(header, 0);
+  lcdPrint_P(prompt, 1);
+  lcdClearLine(3);
+
+  while (true) {
+    unsigned long now = millis();
+    if (now - lastBlinkAt >= 500) {
+      cursorVisible = !cursorVisible;
+      lastBlinkAt = now;
+      displayChanged = true;
+    }
+
+    if (displayChanged) {
+      drawTimeEntryLine(hour, minute, cursorVisible, editHour);
+      displayChanged = false;
+    }
+
+    analogButtonsCheck();
+
+    if (pressedButton == &upButton) {
+      if (editHour) hour = static_cast<uint8_t>((hour + 1) % 24);
+      else minute = static_cast<uint8_t>((minute + 1) % 60);
+      displayChanged = true;
+    } else if (pressedButton == &downButton) {
+      if (editHour) hour = static_cast<uint8_t>((hour + 23) % 24);
+      else minute = static_cast<uint8_t>((minute + 59) % 60);
+      displayChanged = true;
+    } else if (pressedButton == &rightButton || pressedButton == &okButton) {
+      if (editHour) {
+        editHour = false;
+        displayChanged = true;
+      } else {
+        *outMinutes = static_cast<uint16_t>(hour) * 60u + minute;
+        return true;
+      }
+    } else if (pressedButton == &leftButton) {
+      if (editHour) return false;
+      editHour = true;
+      displayChanged = true;
+    }
+  }
+}
+
 static bool showSlotSummary(uint8_t slotIndex, const FeedSlot *slot) {
   char line[LABEL_LENGTH + 1];
   const uint8_t slotNumber = slotIndex + 1;
@@ -307,39 +379,12 @@ static bool editTimeWindow(FeedSlot *slot) {
     return true;
   }
 
-  char header[LABEL_LENGTH + 1];
-  char timeStr[6];
-  char prompt[LABEL_LENGTH + 1];
-  char emptyPostfix[1] = { '\0' };
+  uint16_t newStartMinute = slot->startMinute;
+  if (!inputTimeWithHeader(MSG_START_CONDITIONS, MSG_WINDOW, slot->startMinute, &newStartMinute)) {
+    return false;
+  }
 
-  uint8_t startHour = slot->startMinute / 60;
-  uint8_t startMinute = slot->startMinute % 60;
-
-  header[0] = '\0';
-  append_P(header, MSG_START_CONDITIONS);
-
-  formatTime(timeStr, slot->startMinute);
-  prompt[0] = '\0';
-  char *p = append_P(prompt, PSTR("Time "));
-  p = append_R(p, timeStr);
-  *p++ = ' ';
-  append_P(p, MSG_HOUR);
-
-  long int hour = inputNumber_R(prompt, startHour, 1, 0, 23, emptyPostfix, header);
-  if (hour < 0) return false;
-
-  uint16_t newStartMinute = static_cast<uint16_t>(hour * 60 + startMinute);
-  formatTime(timeStr, newStartMinute);
-  prompt[0] = '\0';
-  p = append_P(prompt, PSTR("Time "));
-  p = append_R(p, timeStr);
-  *p++ = ' ';
-  append_P(p, MSG_MINUTE);
-
-  long int minute = inputNumber_R(prompt, startMinute, 1, 0, 59, emptyPostfix, header);
-  if (minute < 0) return false;
-
-  slot->startMinute = static_cast<uint16_t>(hour * 60 + minute);
+  slot->startMinute = newStartMinute;
   setSlotFlag(slot, FEED_SLOT_HAS_TIME_WINDOW, true);
   return true;
 }

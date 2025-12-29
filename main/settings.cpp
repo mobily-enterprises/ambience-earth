@@ -7,6 +7,7 @@
 #include "messages.h"
 #include "moistureSensor.h"
 #include "pumps.h"
+#include "rtc.h"
 #include "settings.h"
 #include "traySensors.h"
 #include "ui.h"
@@ -88,6 +89,138 @@ struct PumpTask {
 
 static CalTask calTask = {};
 static PumpTask pumpTask = {};
+
+static void printTwoDigits(uint8_t value) {
+  if (value < 10) lcd.print('0');
+  lcd.print(value);
+}
+
+static void drawDateTimeInput(uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint8_t year,
+                              uint8_t field, bool blinkOn) {
+  lcdClearLine(0);
+  lcdSetCursor(0, 0);
+  lcdPrint_P(MSG_SET_TIME_DATE);
+
+  lcdClearLine(1);
+  lcdSetCursor(0, 1);
+  lcdPrint_P(PSTR("Time "));
+  printTwoDigits(hour);
+  lcd.print(':');
+  printTwoDigits(minute);
+
+  lcdClearLine(2);
+  lcdSetCursor(0, 2);
+  lcdPrint_P(PSTR("Date "));
+  printTwoDigits(day);
+  lcd.print('/');
+  printTwoDigits(month);
+  lcd.print('/');
+  printTwoDigits(year);
+
+  lcdClearLine(3);
+
+  if (!blinkOn) {
+    uint8_t row = (field < 2) ? 1 : 2;
+    uint8_t col = 0;
+    switch (field) {
+      case 0: col = 5; break;
+      case 1: col = 8; break;
+      case 2: col = 5; break;
+      case 3: col = 8; break;
+      case 4: col = 11; break;
+      default: col = 5; break;
+    }
+    lcdSetCursor(col, row);
+    lcd.write((uint8_t)0);
+    lcdSetCursor(col + 1, row);
+    lcd.write((uint8_t)0);
+  }
+}
+
+static bool inputDateTime(uint8_t *hour, uint8_t *minute, uint8_t *day, uint8_t *month, uint8_t *year) {
+  if (!hour || !minute || !day || !month || !year) return false;
+
+  uint8_t field = 0;
+  bool cursorVisible = true;
+  bool displayChanged = true;
+  unsigned long lastBlinkAt = 0;
+
+  while (true) {
+    unsigned long now = millis();
+    if (now - lastBlinkAt >= 500) {
+      cursorVisible = !cursorVisible;
+      lastBlinkAt = now;
+      displayChanged = true;
+    }
+
+    if (displayChanged) {
+      drawDateTimeInput(*hour, *minute, *day, *month, *year, field, cursorVisible);
+      displayChanged = false;
+    }
+
+    analogButtonsCheck();
+
+    if (pressedButton == &upButton) {
+      switch (field) {
+        case 0: *hour = static_cast<uint8_t>((*hour + 1) % 24); break;
+        case 1: *minute = static_cast<uint8_t>((*minute + 1) % 60); break;
+        case 2: *day = (*day >= 31) ? 1 : static_cast<uint8_t>(*day + 1); break;
+        case 3: *month = (*month >= 12) ? 1 : static_cast<uint8_t>(*month + 1); break;
+        case 4: *year = (*year >= 99) ? 0 : static_cast<uint8_t>(*year + 1); break;
+      }
+      displayChanged = true;
+    } else if (pressedButton == &downButton) {
+      switch (field) {
+        case 0: *hour = (*hour == 0) ? 23 : static_cast<uint8_t>(*hour - 1); break;
+        case 1: *minute = (*minute == 0) ? 59 : static_cast<uint8_t>(*minute - 1); break;
+        case 2: *day = (*day <= 1) ? 31 : static_cast<uint8_t>(*day - 1); break;
+        case 3: *month = (*month <= 1) ? 12 : static_cast<uint8_t>(*month - 1); break;
+        case 4: *year = (*year == 0) ? 99 : static_cast<uint8_t>(*year - 1); break;
+      }
+      displayChanged = true;
+    } else if (pressedButton == &rightButton || pressedButton == &okButton) {
+      if (field < 4) {
+        field++;
+        displayChanged = true;
+      } else {
+        return true;
+      }
+    } else if (pressedButton == &leftButton) {
+      if (field == 0) return false;
+      field--;
+      displayChanged = true;
+    }
+  }
+}
+
+static void setTimeAndDate() {
+  uint8_t hour = 0;
+  uint8_t minute = 0;
+  uint8_t day = 1;
+  uint8_t month = 1;
+  uint8_t year = 26;
+
+  if (rtcReadDateTime(&hour, &minute, &day, &month, &year)) {
+    if (hour > 23) hour = 0;
+    if (minute > 59) minute = 0;
+    bool dateUnset = (month == 0 || month > 12 || day == 0 || day > 31);
+    if (!dateUnset && year == 0 && month == 1 && day == 1) dateUnset = true;
+    if (dateUnset) {
+      day = 1;
+      month = 1;
+      year = 26;
+    }
+  } else {
+    day = 1;
+    month = 1;
+    year = 26;
+  }
+
+  if (!inputDateTime(&hour, &minute, &day, &month, &year)) return;
+  if (rtcSetDateTime(hour, minute, 0, day, month, year)) {
+    lcdFlashMessage_P(MSG_DONE);
+  }
+}
 
 static void drawOkPrompt(PGM_P header, PGM_P prompt, PGM_P line2, PGM_P line3) {
   lcdClear();
@@ -487,38 +620,24 @@ void settings() {
   lcdClear();
   while (choice != -1) {
     setChoices_P(
-      MSG_CAL_MOISTURE_SENSOR, 1,
-      MSG_MAINTENANCE, 2);
-    choice = selectChoice(2, 1);
+      MSG_SET_TIME_DATE, 1,
+      MSG_CAL_MOISTURE_SENSOR, 2,
+      MSG_TEST_PUMPS, 3,
+      MSG_TEST_SENSORS, 4,
+      MSG_RESET, 5);
+    choice = selectChoice(5, 1);
 
-    if (choice == 1) {
+    if (choice == 1) setTimeAndDate();
+    else if (choice == 2) {
       startCalibrationTask();
       return;
-    } else if (choice == 2) {
-      maintenance();
-      if (uiTaskActive()) return;
     }
-  }
-}
-
-void maintenance() {
-  int8_t choice = 0;
-  while (choice != -1) {
-    lcdClear();
-    setChoices_P(
-      MSG_TEST_PUMPS, 1,
-      MSG_TEST_SENSORS, 2,
-      MSG_RESET, 3
-
-    );
-    choice = selectChoice(3, 1);
-
-    if (choice == 1) {
+    else if (choice == 3) {
       startPumpTestTask();
       return;
     }
-    else if (choice == 2) testSensors();
-    else if (choice == 3) settingsReset();
+    else if (choice == 4) testSensors();
+    else if (choice == 5) settingsReset();
   }
 }
 

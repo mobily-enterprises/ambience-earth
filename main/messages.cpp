@@ -1,7 +1,7 @@
 #include "messages.h"
 
 const char PROGMEM MSG_CAL_MOISTURE_SENSOR[] = "Cal moisture sensor";
-const char PROGMEM MSG_MAINTENANCE[] = "Maintenance";
+const char PROGMEM MSG_SET_TIME_DATE[] = "Set time and date";
 const char PROGMEM MSG_YES[] = "Yes";
 const char PROGMEM MSG_NO[] = "No";
 const char PROGMEM MSG_OK[] = "OK";

@@ -28,7 +28,7 @@ static const char *detectButton(int reading) {
 }
 
 void setup() {
-  Serial.begin(115200);
+  // Serial.begin(115200);
   pinMode(kLedPin, OUTPUT);
 }
 
@@ -46,9 +46,5 @@ void loop() {
     lastPrint = millis();
     lastReading = reading;
     lastLabel = label;
-    Serial.print("A0=");
-    Serial.print(reading);
-    Serial.print(" button=");
-    Serial.println(label);
   }
 }

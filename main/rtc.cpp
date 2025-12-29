@@ -10,6 +10,10 @@ uint8_t bcdToDec(uint8_t value) {
   return static_cast<uint8_t>((value >> 4) * 10 + (value & 0x0F));
 }
 
+uint8_t decToBcd(uint8_t value) {
+  return static_cast<uint8_t>(((value / 10) << 4) | (value % 10));
+}
+
 uint8_t decodeHour(uint8_t value) {
   if (value & 0x40) {
     uint8_t hour = bcdToDec(value & 0x1F);
@@ -64,4 +68,33 @@ bool rtcReadMinutesAndDay(uint16_t *minutesOfDay, uint16_t *dayKey) {
     *dayKey = makeDayKey(year, month, day);
   }
   return true;
+}
+
+bool rtcReadDateTime(uint8_t *hour, uint8_t *minute, uint8_t *day, uint8_t *month, uint8_t *year) {
+  uint8_t data[7];
+  if (!readRegisters(0x00, data, sizeof(data))) return false;
+
+  if (minute) *minute = bcdToDec(data[1] & 0x7F);
+  if (hour) *hour = decodeHour(data[2]);
+  if (day) *day = bcdToDec(data[4] & 0x3F);
+  if (month) *month = bcdToDec(data[5] & 0x1F);
+  if (year) *year = bcdToDec(data[6]);
+  return true;
+}
+
+bool rtcSetDateTime(uint8_t hour, uint8_t minute, uint8_t second, uint8_t day, uint8_t month, uint8_t year) {
+  if (hour > 23 || minute > 59 || second > 59) return false;
+  if (day == 0 || day > 31) return false;
+  if (month == 0 || month > 12) return false;
+
+  Wire.beginTransmission(kRtcAddress);
+  Wire.write((uint8_t)0x00);
+  Wire.write(decToBcd(second));
+  Wire.write(decToBcd(minute));
+  Wire.write(decToBcd(hour));
+  Wire.write((uint8_t)0x01);  // Day of week (unused)
+  Wire.write(decToBcd(day));
+  Wire.write(decToBcd(month));
+  Wire.write(decToBcd(year));
+  return Wire.endTransmission() == 0;
 }

@@ -4,7 +4,7 @@
 #include <avr/pgmspace.h>
 
 extern const char PROGMEM MSG_CAL_MOISTURE_SENSOR[];
-extern const char PROGMEM MSG_MAINTENANCE[];
+extern const char PROGMEM MSG_SET_TIME_DATE[];
 extern const char PROGMEM MSG_YES[];
 extern const char PROGMEM MSG_NO[];
 extern const char PROGMEM MSG_OK[];

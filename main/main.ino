@@ -48,7 +48,6 @@ bool screenSaverMode = false;
 static bool forceDisplayRedraw = false;
 
 void setup() {
-  Serial.begin(115200);  // Initialize serial communication at 9600 baud rate
   randomSeed(analogRead(A6));
   initLcd();
   initRtc();
@@ -323,6 +322,35 @@ static void lcdPrintPadded_P(PGM_P message, uint8_t width) {
   if (len < width) lcdPrintSpaces(width - len);
 }
 
+static bool getRtcTimeString(char *out) {
+  static unsigned long lastReadAt = 0;
+  static uint16_t cachedMinutes = 0;
+  static bool cachedValid = false;
+
+  unsigned long now = millis();
+  if (!cachedValid || now - lastReadAt >= 1000) {
+    uint16_t minutes = 0;
+    uint16_t dayKey = 0;
+    cachedValid = rtcReadMinutesAndDay(&minutes, &dayKey);
+    if (cachedValid) {
+      cachedMinutes = minutes;
+      lastReadAt = now;
+    }
+  }
+
+  if (!cachedValid) return false;
+
+  uint8_t hour = cachedMinutes / 60;
+  uint8_t minute = cachedMinutes % 60;
+  out[0] = static_cast<char>('0' + (hour / 10));
+  out[1] = static_cast<char>('0' + (hour % 10));
+  out[2] = ':';
+  out[3] = static_cast<char>('0' + (minute / 10));
+  out[4] = static_cast<char>('0' + (minute % 10));
+  out[5] = '\0';
+  return true;
+}
+
 void printSoilAndWaterTrayStatus(bool fullRedraw) {
   static const uint8_t kSoilValueCol = 10;
   static const uint8_t kTrayValueCol = 6;
@@ -351,6 +379,12 @@ void printSoilAndWaterTrayStatus(bool fullRedraw) {
   lcdSetCursor(kTrayValueCol, 1);
   PGM_P trayLabel = trayWaterLevelInEnglish(trayState);
   lcdPrintPadded_P(trayLabel, kTrayFieldWidth);
+
+  char timeStr[6];
+  if (getRtcTimeString(timeStr)) {
+    lcdSetCursor(DISPLAY_COLUMNS - 5, 1);
+    lcd.print(timeStr);
+  }
 }
 
 /*  
