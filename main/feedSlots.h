@@ -22,7 +22,7 @@ typedef struct {
   uint16_t startMinute;
   uint8_t moistureBelow;
   uint8_t moistureTarget;
-  uint16_t minSinceLastMinutes;
+  uint16_t minGapMinutes;
   uint8_t minRuntime5s;
   uint8_t maxRuntime5s;
   uint8_t pulseOn5s;
@@ -37,7 +37,7 @@ typedef struct {
  *   Bits  0-10 : startMinute (0-1439)
  *   Bits 11-17 : moistureBelow (0-100)
  *   Bits 18-24 : moistureTarget (0-100)
- *   Bits 25-36 : minSinceLastMinutes (0-4095)
+ *   Bits 25-36 : minGapMinutes (0-4095)
  *   Bits 37-42 : minRuntime5s (0-48)        [5-second ticks]
  *   Bits 43-49 : maxRuntime5s (0-120)       [5-second ticks]
  *   Bits 50-53 : pulseOn5s (0-12)           [5-second ticks]

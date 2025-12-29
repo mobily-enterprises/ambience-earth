@@ -75,8 +75,8 @@ void restoreDefaultConfig() {
   config.flags |= CONFIG_FLAG_MUST_RUN_INITIAL_SETUP;
 #endif
 
-  config.moistSensorCalibrationSoaked = 200;
-  config.moistSensorCalibrationDry = 500;
+  config.moistSensorCalibrationSoaked = 0;
+  config.moistSensorCalibrationDry = 1024;
 
 #ifdef WOKWI_SIM
   // Wokwi keyladder defaults: E=500, X=300, A=900, F=700, D=100

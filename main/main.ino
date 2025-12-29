@@ -23,7 +23,7 @@
 
 extern LiquidCrystal_I2C lcd;
 uint8_t screenCounter = 0;
-const uint8_t kScreenCount = 4;
+const uint8_t kScreenCount = 3;
 
 extern Config config;
 
@@ -628,8 +628,7 @@ void displayInfo(uint8_t screen) {
   switch (screen) {
     case 0: displayInfo1(fullRedraw); break;
     case 1: displayInfo3(fullRedraw); break;
-    case 2: displayInfo4(fullRedraw); break;
-    case 3: displayInfoChart(fullRedraw); break;
+    case 2: displayInfoChart(fullRedraw); break;
   }
 }
 
@@ -662,25 +661,6 @@ void displayInfo1(bool fullRedraw) {
   else lcdPrintTime(averageMsBetweenFeeds);
 }
 
-
-void displayInfo4(bool fullRedraw) {
-  static const uint8_t kSoilValueCol = 10;
-  static const uint8_t kRawFieldWidth = 4;
- 
-  printSoilAndWaterTrayStatus(fullRedraw);
-  pinMode(A2, INPUT);
-
-  if (fullRedraw) {
-    lcdSetCursor(0, 2);
-    lcdPrint_P(MSG_SOIL_NOW);
-    lcdPrint_P(MSG_SPACE);
-  }
-
-  lcdSetCursor(kSoilValueCol, 2);
-  lcdPrintSpaces(kRawFieldWidth);
-  lcdSetCursor(kSoilValueCol, 2);
-  lcd.print(getSoilMoisture());
-}
 
 
 void displayInfo3(bool fullRedraw) {

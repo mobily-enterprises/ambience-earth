@@ -42,7 +42,7 @@ void packFeedSlot(uint8_t out[FEED_SLOT_PACKED_SIZE], const FeedSlot *slot) {
   writeBits(out, kBitStartMinute, 11, slot->startMinute);
   writeBits(out, kBitMoistureBelow, 7, slot->moistureBelow);
   writeBits(out, kBitMoistureTarget, 7, slot->moistureTarget);
-  writeBits(out, kBitMinSince, 12, slot->minSinceLastMinutes);
+  writeBits(out, kBitMinSince, 12, slot->minGapMinutes);
   writeBits(out, kBitMinRuntime, 6, slot->minRuntime5s);
   writeBits(out, kBitMaxRuntime, 7, slot->maxRuntime5s);
   writeBits(out, kBitPulseOn, 4, slot->pulseOn5s);
@@ -56,7 +56,7 @@ void unpackFeedSlot(FeedSlot *slot, const uint8_t in[FEED_SLOT_PACKED_SIZE]) {
   slot->startMinute = static_cast<uint16_t>(readBits(in, kBitStartMinute, 11));
   slot->moistureBelow = static_cast<uint8_t>(readBits(in, kBitMoistureBelow, 7));
   slot->moistureTarget = static_cast<uint8_t>(readBits(in, kBitMoistureTarget, 7));
-  slot->minSinceLastMinutes = static_cast<uint16_t>(readBits(in, kBitMinSince, 12));
+  slot->minGapMinutes = static_cast<uint16_t>(readBits(in, kBitMinSince, 12));
   slot->minRuntime5s = static_cast<uint8_t>(readBits(in, kBitMinRuntime, 6));
   slot->maxRuntime5s = static_cast<uint8_t>(readBits(in, kBitMaxRuntime, 7));
   slot->pulseOn5s = static_cast<uint8_t>(readBits(in, kBitPulseOn, 4));

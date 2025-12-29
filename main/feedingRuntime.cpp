@@ -201,8 +201,8 @@ static bool startConditionsMet(uint8_t slotIndex, const FeedSlot *slot) {
 
   if (!timeOk && !moistureOk) return false;
 
-  if (slotFlag(slot, FEED_SLOT_HAS_MIN_SINCE) && millisAtEndOfLastFeed) {
-    unsigned long minDelayMs = (unsigned long)slot->minSinceLastMinutes * 60000UL;
+  if (slot->minGapMinutes > 0 && millisAtEndOfLastFeed) {
+    unsigned long minDelayMs = (unsigned long)slot->minGapMinutes * 60000UL;
     if ((millis() - millisAtEndOfLastFeed) < minDelayMs) return false;
   }
 

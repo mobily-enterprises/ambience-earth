@@ -834,6 +834,14 @@ int8_t yesOrNo_R(const char *question, bool initialUserInput = true) {
   return response == 1 ? true : false;
 }
 
+int8_t yesOrNo_P_NoAbort(PGM_P question, bool initialUserInput = true) {
+  setChoices_P(MSG_YES, 1, MSG_NO, 0);
+  setChoicesHeader_P(question);
+
+  int8_t response = selectChoice(2, initialUserInput ? 1 : 0);
+  return response == 1 ? true : (response == 0 ? 0 : -1);
+}
+
 int8_t giveOk_P(PGM_P top, PGM_P promptText = MSG_LITTLE, PGM_P line2 = MSG_LITTLE, PGM_P line3 = MSG_LITTLE) {
   setChoices_P(promptText, 1);
   setChoicesHeader_P(top);

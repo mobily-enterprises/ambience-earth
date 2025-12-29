@@ -59,7 +59,6 @@ static int8_t promptYesNoWithHeader(PGM_P header, PGM_P question, bool initialYe
       return yesSelected ? 1 : 0;
     }
     if (pressedButton == &leftButton) {
-      lcdFlashMessage_P(MSG_ABORTED);
       return -1;
     }
     if (pressedButton == &upButton || pressedButton == &downButton) {
@@ -204,9 +203,8 @@ static void buildStartSummaryLine(char *out, const FeedSlot *slot) {
     p = append_P(p, PSTR("N/A"));
   } else {
     if (hasTime) {
-      char start[5];
-      formatTimeCompact(start, slot->startMinute);
-      *p++ = '@';
+      char start[6];
+      formatTime(start, slot->startMinute);
       p = append_R(p, start);
       if (hasMoist) *p++ = ' ';
     }
@@ -245,7 +243,7 @@ static void buildFeedSummaryLine(char *out, const FeedSlot *slot) {
   char *p = out;
   bool hasMinRuntime = slotFlag(slot, FEED_SLOT_HAS_MIN_RUNTIME);
   bool hasMaxRuntime = slot->maxRuntime5s > 0;
-  bool hasGap = slotFlag(slot, FEED_SLOT_HAS_MIN_SINCE);
+  bool tightGap = slot->minGapMinutes >= 1000;
 
   if (hasMaxRuntime || hasMinRuntime) {
     uint16_t minSeconds = hasMinRuntime ? ticksToSeconds(slot->minRuntime5s) : 0;
@@ -257,12 +255,10 @@ static void buildFeedSummaryLine(char *out, const FeedSlot *slot) {
     *p++ = 's';
   }
 
-  if (hasGap) {
-    if (p != out) *p++ = ' ';
-    p = append_P(p, PSTR("Gap:"));
-    p = appendNumber(p, slot->minSinceLastMinutes);
-    *p++ = 'm';
-  }
+  if (p != out && !tightGap) *p++ = ' ';
+  p = append_P(p, PSTR("D:"));
+  p = appendNumber(p, slot->minGapMinutes);
+  *p++ = 'm';
   *p = '\0';
 }
 
@@ -329,8 +325,12 @@ static bool editMoistureBelow(FeedSlot *slot) {
     return true;
   }
 
-  long int percent = inputNumber_P(MSG_MOIST_BELOW, slot->moistureBelow, 1, 0, 100, MSG_PERCENT, MSG_START_CONDITIONS);
+  uint8_t initial = slot->moistureBelow;
+  if (!slotFlag(slot, FEED_SLOT_HAS_MOISTURE_BELOW)) initial = 50;
+  if (initial > 100) initial = 100;
+  long int percent = inputNumber_P(MSG_MOIST_BELOW, initial, 5, 0, 100, MSG_PERCENT, MSG_START_CONDITIONS);
   if (percent < 0) return false;
+  if (percent > 100) percent = 100;
 
   slot->moistureBelow = static_cast<uint8_t>(percent);
   setSlotFlag(slot, FEED_SLOT_HAS_MOISTURE_BELOW, true);
@@ -338,17 +338,13 @@ static bool editMoistureBelow(FeedSlot *slot) {
 }
 
 static bool editMinBetweenFeeds(FeedSlot *slot) {
-  int8_t enable = promptYesNoWithHeader(MSG_FEED_OVERRIDES, MSG_MIN_SINCE, slotFlag(slot, FEED_SLOT_HAS_MIN_SINCE));
-  if (enable == -1) return false;
-  if (!enable) {
-    setSlotFlag(slot, FEED_SLOT_HAS_MIN_SINCE, false);
-    return true;
-  }
-
-  long int minutes = inputNumber_P(MSG_MIN_SINCE, slot->minSinceLastMinutes, 1, 0, 4095, MSG_MINUTES, MSG_FEED_OVERRIDES);
+  uint16_t initial = slot->minGapMinutes;
+  if (initial > 4095) initial = 4095;
+  long int minutes = inputNumber_P(MSG_MIN_SINCE, initial, 20, 0, 4095, MSG_MINUTES, MSG_FEED_OVERRIDES);
   if (minutes < 0) return false;
+  if (minutes > 4095) minutes = 4095;
 
-  slot->minSinceLastMinutes = static_cast<uint16_t>(minutes);
+  slot->minGapMinutes = static_cast<uint16_t>(minutes);
   setSlotFlag(slot, FEED_SLOT_HAS_MIN_SINCE, true);
   return true;
 }
@@ -361,8 +357,12 @@ static bool editMoistureTarget(FeedSlot *slot) {
     return true;
   }
 
-  long int percent = inputNumber_P(MSG_MOIST_TARGET, slot->moistureTarget, 1, 0, 100, MSG_PERCENT, MSG_END_CONDITIONS);
+  uint8_t initial = slot->moistureTarget;
+  if (!slotFlag(slot, FEED_SLOT_HAS_MOISTURE_TARGET)) initial = 50;
+  if (initial > 100) initial = 100;
+  long int percent = inputNumber_P(MSG_MOIST_TARGET, initial, 5, 0, 100, MSG_PERCENT, MSG_END_CONDITIONS);
   if (percent < 0) return false;
+  if (percent > 100) percent = 100;
 
   slot->moistureTarget = static_cast<uint8_t>(percent);
   setSlotFlag(slot, FEED_SLOT_HAS_MOISTURE_TARGET, true);
@@ -377,7 +377,12 @@ static bool editMinRuntime(FeedSlot *slot) {
     return true;
   }
 
-  long int seconds = inputNumber_P(MSG_MIN_RUNTIME, ticksToSeconds(slot->minRuntime5s), kTickSeconds,
+  long int initialSeconds = ticksToSeconds(slot->minRuntime5s);
+  if (initialSeconds < kTickSeconds) initialSeconds = kTickSeconds;
+  if (initialSeconds > ticksToSeconds(kMaxMinRuntimeTicks)) {
+    initialSeconds = ticksToSeconds(kMaxMinRuntimeTicks);
+  }
+  long int seconds = inputNumber_P(MSG_MIN_RUNTIME, initialSeconds, kTickSeconds,
                                    kTickSeconds, ticksToSeconds(kMaxMinRuntimeTicks), MSG_SECONDS, MSG_FEED_OVERRIDES);
   if (seconds < 0) return false;
 
@@ -390,7 +395,18 @@ static bool editMinRuntime(FeedSlot *slot) {
 static bool editMaxRuntime(FeedSlot *slot) {
   long int initialSeconds = ticksToSeconds(slot->maxRuntime5s);
   if (initialSeconds <= 0) initialSeconds = 60;
-  long int seconds = inputNumber_P(MSG_MAX_RUNTIME, initialSeconds, kTickSeconds, kTickSeconds,
+  if (initialSeconds < kTickSeconds) initialSeconds = kTickSeconds;
+  if (initialSeconds > ticksToSeconds(kMaxMaxRuntimeTicks)) {
+    initialSeconds = ticksToSeconds(kMaxMaxRuntimeTicks);
+  }
+  uint16_t minBound = kTickSeconds;
+  if (slotFlag(slot, FEED_SLOT_HAS_MIN_RUNTIME)) {
+    minBound = ticksToSeconds(slot->minRuntime5s);
+    if (minBound < kTickSeconds) minBound = kTickSeconds;
+  }
+  if (initialSeconds < minBound) initialSeconds = minBound;
+
+  long int seconds = inputNumber_P(MSG_MAX_RUNTIME, initialSeconds, 15, minBound,
                                    ticksToSeconds(kMaxMaxRuntimeTicks), MSG_SECONDS, MSG_FEED_OVERRIDES);
   if (seconds < 0) return false;
 
@@ -406,50 +422,137 @@ static bool editRunoffRequired(FeedSlot *slot) {
   return true;
 }
 
+enum SlotStepAction : uint8_t {
+  STEP_NEXT = 0,
+  STEP_BACK,
+  STEP_ABORT,
+  STEP_SAVE
+};
+
+static SlotStepAction editPulseSettings(FeedSlot *slot) {
+  if (!slotFlag(slot, FEED_SLOT_PULSED)) return STEP_NEXT;
+
+  long int onSeconds = ticksToSeconds(slot->pulseOn5s);
+  long int offSeconds = ticksToSeconds(slot->pulseOff5s);
+  if (onSeconds <= 0) onSeconds = 20;
+  if (offSeconds <= 0) offSeconds = 60;
+  if (onSeconds > ticksToSeconds(kMaxPulseOnTicks)) onSeconds = ticksToSeconds(kMaxPulseOnTicks);
+  if (offSeconds > ticksToSeconds(kMaxPulseOffTicks)) offSeconds = ticksToSeconds(kMaxPulseOffTicks);
+
+  long int newOn = inputNumber_P(MSG_PULSE_ON, onSeconds, kTickSeconds, kTickSeconds,
+                                 ticksToSeconds(kMaxPulseOnTicks), MSG_SECONDS, MSG_STYLE);
+  if (newOn < 0) return STEP_BACK;
+
+  long int newOff = inputNumber_P(MSG_PULSE_OFF, offSeconds, kTickSeconds, kTickSeconds,
+                                  ticksToSeconds(kMaxPulseOffTicks), MSG_SECONDS, MSG_STYLE);
+  if (newOff < 0) return STEP_BACK;
+
+  uint16_t clampedOn = clampSeconds(newOn, kTickSeconds, ticksToSeconds(kMaxPulseOnTicks));
+  uint16_t clampedOff = clampSeconds(newOff, kTickSeconds, ticksToSeconds(kMaxPulseOffTicks));
+  slot->pulseOn5s = secondsToTicks(clampedOn, kMaxPulseOnTicks);
+  slot->pulseOff5s = secondsToTicks(clampedOff, kMaxPulseOffTicks);
+  return STEP_NEXT;
+}
+
 static bool editSlotSequence(FeedSlot *slot) {
-  int8_t enable = yesOrNo_P(MSG_ENABLE_SLOT, slotFlag(slot, FEED_SLOT_ENABLED));
-  if (enable == -1) return false;
-  setSlotFlag(slot, FEED_SLOT_ENABLED, enable);
+  enum Step : uint8_t {
+    STEP_ENABLE = 0,
+    STEP_STYLE,
+    STEP_PULSE,
+    STEP_START_TIME,
+    STEP_START_MOIST,
+    STEP_STOP_MOIST,
+    STEP_STOP_RUNOFF,
+    STEP_MIN_RUNTIME,
+    STEP_MAX_RUNTIME,
+    STEP_MIN_BETWEEN,
+    STEP_CONFIRM
+  };
 
-  setChoices_P(MSG_CONTINUOUS, 0, MSG_PULSED, 1);
-  setChoicesHeader_P(MSG_STYLE);
-  int8_t style = selectChoice(2, slotFlag(slot, FEED_SLOT_PULSED) ? 1 : 0);
-  if (style == -1) return false;
-  setSlotFlag(slot, FEED_SLOT_PULSED, style == 1);
+  uint8_t step = STEP_ENABLE;
 
-  if (slotFlag(slot, FEED_SLOT_PULSED)) {
-    long int onSeconds = ticksToSeconds(slot->pulseOn5s);
-    long int offSeconds = ticksToSeconds(slot->pulseOff5s);
-    if (onSeconds <= 0) onSeconds = 20;
-    if (offSeconds <= 0) offSeconds = 60;
+  while (true) {
+    SlotStepAction action = STEP_NEXT;
 
-    long int newOn = inputNumber_P(MSG_PULSE_ON, onSeconds, kTickSeconds, kTickSeconds,
-                                   ticksToSeconds(kMaxPulseOnTicks), MSG_SECONDS, MSG_STYLE);
-    if (newOn < 0) return false;
+    switch (step) {
+      case STEP_ENABLE: {
+        int8_t enable = yesOrNo_P(MSG_ENABLE_SLOT, slotFlag(slot, FEED_SLOT_ENABLED));
+        if (enable == -1) action = STEP_BACK;
+        else {
+          setSlotFlag(slot, FEED_SLOT_ENABLED, enable);
+          action = STEP_NEXT;
+        }
+        break;
+      }
+      case STEP_STYLE: {
+        setChoices_P(MSG_CONTINUOUS, 0, MSG_PULSED, 1);
+        setChoicesHeader_P(MSG_STYLE);
+        int8_t style = selectChoice(2, slotFlag(slot, FEED_SLOT_PULSED) ? 1 : 0);
+        if (style == -1) action = STEP_BACK;
+        else {
+          setSlotFlag(slot, FEED_SLOT_PULSED, style == 1);
+          action = STEP_NEXT;
+        }
+        break;
+      }
+      case STEP_PULSE:
+        action = editPulseSettings(slot);
+        break;
+      case STEP_START_TIME:
+        action = editTimeWindow(slot) ? STEP_NEXT : STEP_BACK;
+        break;
+      case STEP_START_MOIST:
+        action = editMoistureBelow(slot) ? STEP_NEXT : STEP_BACK;
+        break;
+      case STEP_STOP_MOIST:
+        action = editMoistureTarget(slot) ? STEP_NEXT : STEP_BACK;
+        break;
+      case STEP_STOP_RUNOFF:
+        action = editRunoffRequired(slot) ? STEP_NEXT : STEP_BACK;
+        break;
+      case STEP_MIN_RUNTIME:
+        action = editMinRuntime(slot) ? STEP_NEXT : STEP_BACK;
+        break;
+      case STEP_MAX_RUNTIME:
+        action = editMaxRuntime(slot) ? STEP_NEXT : STEP_BACK;
+        break;
+      case STEP_MIN_BETWEEN:
+        action = editMinBetweenFeeds(slot) ? STEP_NEXT : STEP_BACK;
+        break;
+      case STEP_CONFIRM: {
+        int8_t confirmSave = yesOrNo_P_NoAbort(MSG_SAVE_QUESTION);
+        if (confirmSave == -1) action = STEP_BACK;
+        else if (confirmSave == 0) action = STEP_ABORT;
+        else action = STEP_SAVE;
+        break;
+      }
+      default:
+        action = STEP_ABORT;
+        break;
+    }
 
-    long int newOff = inputNumber_P(MSG_PULSE_OFF, offSeconds, kTickSeconds, kTickSeconds,
-                                    ticksToSeconds(kMaxPulseOffTicks), MSG_SECONDS, MSG_STYLE);
-    if (newOff < 0) return false;
-
-    uint16_t clampedOn = clampSeconds(newOn, kTickSeconds, ticksToSeconds(kMaxPulseOnTicks));
-    uint16_t clampedOff = clampSeconds(newOff, kTickSeconds, ticksToSeconds(kMaxPulseOffTicks));
-    slot->pulseOn5s = secondsToTicks(clampedOn, kMaxPulseOnTicks);
-    slot->pulseOff5s = secondsToTicks(clampedOff, kMaxPulseOffTicks);
+    if (action == STEP_NEXT) {
+      if (step == STEP_CONFIRM) return true;
+      uint8_t next = static_cast<uint8_t>(step + 1);
+      while (next == STEP_PULSE && !slotFlag(slot, FEED_SLOT_PULSED)) {
+        next = static_cast<uint8_t>(next + 1);
+      }
+      step = next;
+      continue;
+    }
+    if (action == STEP_BACK) {
+      if (step == STEP_ENABLE) return false;
+      uint8_t prev = static_cast<uint8_t>(step - 1);
+      while (prev == STEP_PULSE && !slotFlag(slot, FEED_SLOT_PULSED)) {
+        if (prev == STEP_ENABLE) break;
+        prev = static_cast<uint8_t>(prev - 1);
+      }
+      step = prev;
+      continue;
+    }
+    if (action == STEP_SAVE) return true;
+    if (action == STEP_ABORT) return false;
   }
-
-  if (!editTimeWindow(slot)) return false;
-  if (!editMoistureBelow(slot)) return false;
-
-  if (!editMoistureTarget(slot)) return false;
-  if (!editRunoffRequired(slot)) return false;
-
-  if (!editMinRuntime(slot)) return false;
-  if (!editMaxRuntime(slot)) return false;
-  if (!editMinBetweenFeeds(slot)) return false;
-
-  int8_t confirmSave = yesOrNo_P(MSG_SAVE_QUESTION);
-  if (confirmSave == -1) return false;
-  return confirmSave == 1;
 }
 
 static void viewFeedSlot(uint8_t slotIndex) {

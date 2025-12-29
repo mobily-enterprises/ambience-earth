@@ -30,6 +30,7 @@ struct Choice {
 void initLcd();
 int8_t yesOrNo_P(PGM_P question, bool initialUserInput = true);
 int8_t yesOrNo_R(const char* question, bool initialUserInput = true);
+int8_t yesOrNo_P_NoAbort(PGM_P question, bool initialUserInput = true);
 bool alert_P(PGM_P question = MSG_LITTLE);
 bool alert_R(const char* question = "");
 int8_t giveOk_P(PGM_P top, PGM_P promptText = MSG_LITTLE, PGM_P line2 = MSG_LITTLE, PGM_P line3 = MSG_LITTLE);
