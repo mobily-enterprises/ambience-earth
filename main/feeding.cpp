@@ -307,8 +307,10 @@ static bool editTimeWindow(FeedSlot *slot) {
     return true;
   }
 
-  uint16_t newStartMinute = slot->startMinute;
-  if (!inputTimeWithHeader(MSG_START_CONDITIONS, MSG_WINDOW, slot->startMinute, &newStartMinute)) {
+  uint16_t initialStart = slot->startMinute;
+  if (initialStart > 1439) initialStart = 1439;
+  uint16_t newStartMinute = initialStart;
+  if (!inputTimeWithHeader(MSG_START_CONDITIONS, MSG_WINDOW, initialStart, &newStartMinute)) {
     return false;
   }
 

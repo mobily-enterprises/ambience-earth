@@ -669,10 +669,12 @@ void displayInfo3(bool fullRedraw) {
   lcdPrint_P(MSG_WHEN_CONDITIONS_ALLOW, 2);
 }
 
-void displayInfoChart(bool fullRedraw) {
-  static const char kSparkLevels[] = " .:-=+*#%@";
-  static const uint8_t kSparkLevelCount = sizeof(kSparkLevels) - 1;
+static uint8_t barChar(uint8_t level) {
+  if (level == 0) return ' ';
+  return static_cast<uint8_t>(3 + level); // 1-4 -> custom chars 4-7
+}
 
+void displayInfoChart(bool fullRedraw) {
   uint8_t count = soilSensorGetLastWindowSampleCount();
 
   if (count == 0) {
@@ -700,7 +702,8 @@ void displayInfoChart(bool fullRedraw) {
   lcdPrintPercent3(maxP);
   lcdPrintSpaces(DISPLAY_COLUMNS - 17);
 
-  char line[DISPLAY_COLUMNS + 1];
+  uint8_t topLine[DISPLAY_COLUMNS];
+  uint8_t bottomLine[DISPLAY_COLUMNS];
   uint8_t range = maxP - minP;
   if (range < 5) range = 5;
 
@@ -718,24 +721,32 @@ void displayInfoChart(bool fullRedraw) {
     }
     uint8_t avg = n ? (uint8_t)(sum / n) : 0;
 
-    uint8_t level;
-    if (avg <= minP) level = 0;
-    else if (avg >= maxP) level = kSparkLevelCount - 1;
-    else level = (uint8_t)((uint32_t)(avg - minP) * (kSparkLevelCount - 1) / range);
+    uint8_t height;
+    if (avg <= minP) height = 0;
+    else if (avg >= maxP) height = 8;
+    else height = (uint8_t)(((uint16_t)(avg - minP) * 8 + (range - 1)) / range);
+    if (height > 8) height = 8;
 
-    line[col] = kSparkLevels[level];
+    uint8_t bottom = height > 4 ? 4 : height;
+    uint8_t top = height > 4 ? static_cast<uint8_t>(height - 4) : 0;
+    topLine[col] = barChar(top);
+    bottomLine[col] = barChar(bottom);
   }
-  line[DISPLAY_COLUMNS] = '\0';
 
   lcdSetCursor(0, 1);
-  lcd.print(line);
+  for (uint8_t col = 0; col < DISPLAY_COLUMNS; col++) {
+    lcd.write(topLine[col]);
+  }
 
   lcdSetCursor(0, 2);
+  for (uint8_t col = 0; col < DISPLAY_COLUMNS; col++) {
+    lcd.write(bottomLine[col]);
+  }
+
+  lcdSetCursor(0, 3);
   lcd.print(F("Avg:"));
   lcdPrintPercent3(avgP);
   lcd.print(F(" Now:"));
   lcdPrintPercent3(nowP);
   lcdPrintSpaces(DISPLAY_COLUMNS - 17);
-
-  if (fullRedraw) lcdClearLine(3);
 }

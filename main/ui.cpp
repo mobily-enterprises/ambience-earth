@@ -199,6 +199,50 @@ const byte sensorDot[8] = {
   B00000
 };
 
+const byte barLevel1[8] = {
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B11111,
+  B11111
+};
+
+const byte barLevel2[8] = {
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B11111,
+  B11111,
+  B11111,
+  B11111
+};
+
+const byte barLevel3[8] = {
+  B00000,
+  B00000,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111
+};
+
+const byte barLevel4[8] = {
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111
+};
+
 static void labelcpy_R(char *destination, const char *source) {
   if (!source) {
     destination[0] = '\0';
@@ -217,6 +261,10 @@ void initLcd() {
   lcd.createChar(1, leftArrow);
   lcd.createChar(2, rightArrow);
   lcd.createChar(3, sensorDot);
+  lcd.createChar(4, barLevel1);
+  lcd.createChar(5, barLevel2);
+  lcd.createChar(6, barLevel3);
+  lcd.createChar(7, barLevel4);
 
   resetChoicesAndHeader();
 }
