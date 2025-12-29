@@ -23,7 +23,7 @@
 
 extern LiquidCrystal_I2C lcd;
 uint8_t screenCounter = 0;
-const uint8_t kScreenCount = 3;
+const uint8_t kScreenCount = 2;
 
 extern Config config;
 
@@ -46,6 +46,9 @@ unsigned long int millisAtEndOfLastFeed = 0;
 unsigned long lastButtonPressTime = 0;
 bool screenSaverMode = false;
 static bool forceDisplayRedraw = false;
+
+static void displayFeedingStatus(bool fullRedraw);
+
 
 void setup() {
   randomSeed(analogRead(A6));
@@ -627,13 +630,23 @@ void displayInfo(uint8_t screen) {
 
   switch (screen) {
     case 0: displayInfo1(fullRedraw); break;
-    case 1: displayInfo3(fullRedraw); break;
-    case 2: displayInfoChart(fullRedraw); break;
+    case 1: displayInfoChart(fullRedraw); break;
   }
 }
 
 
 void displayInfo1(bool fullRedraw) {
+  static bool lastFeeding = false;
+  bool feedingNow = feedingIsActive();
+  if (feedingNow != lastFeeding) {
+    lcd.clear();
+    fullRedraw = true;
+    lastFeeding = feedingNow;
+  }
+  if (feedingNow) {
+    displayFeedingStatus(fullRedraw);
+    return;
+  }
   static const uint8_t kLastFeedValueCol = 11;
   static const uint8_t kAvgValueCol = 14;
   static const uint8_t kLastFeedFieldWidth = DISPLAY_COLUMNS - kLastFeedValueCol;
@@ -661,13 +674,59 @@ void displayInfo1(bool fullRedraw) {
   else lcdPrintTime(averageMsBetweenFeeds);
 }
 
+static void displayFeedingStatus(bool fullRedraw) {
+  FeedStatus status;
+  if (!feedingGetStatus(&status)) return;
 
+  if (fullRedraw) {
+    lcdClearLine(0);
+    lcdSetCursor(0, 0);
+    lcd.print(F("Feeding S"));
+    lcd.print(status.slotIndex + 1);
+    lcd.print(' ');
+    lcd.print(status.pulsed ? F("pulse") : F("cont"));
 
-void displayInfo3(bool fullRedraw) {
-  if (!fullRedraw) return;
-  lcdPrint_P(MSG_NEXT_FEED, 1);
-  lcdPrint_P(MSG_WHEN_CONDITIONS_ALLOW, 2);
+    lcdClearLine(2);
+    lcdSetCursor(0, 2);
+    lcd.print(F("Stop:"));
+    bool anyStop = false;
+    if (status.hasMoistureTarget) {
+      lcd.print(F(" M>"));
+      lcd.print(status.moistureTarget);
+      lcd.print('%');
+      anyStop = true;
+    }
+    if (status.runoffRequired) {
+      if (anyStop) lcd.print(' ');
+      lcd.print(F("Runoff"));
+      anyStop = true;
+    }
+    if (!anyStop) lcd.print(F(" N/A"));
+
+    lcdClearLine(3);
+    lcdSetCursor(0, 3);
+    lcd.print(F("Min:"));
+    if (status.hasMinRuntime) lcd.print(status.minRuntimeSeconds);
+    else lcd.print('-');
+    lcd.print(F("s Max:"));
+    lcd.print(status.maxRuntimeSeconds);
+    lcd.print('s');
+  }
+
+  lcdClearLine(1);
+  lcdSetCursor(0, 1);
+  lcd.print(F("Pump:"));
+  lcd.print(status.pumpOn ? F("ON") : F("OFF"));
+  lcd.print(F(" Mst:"));
+  if (status.moistureReady) {
+    lcd.print(status.moisturePercent);
+    lcd.print('%');
+  } else {
+    lcd.print(F("--%"));
+  }
 }
+
+
 
 static uint8_t barChar(uint8_t level) {
   if (level == 0) return ' ';

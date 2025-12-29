@@ -54,6 +54,10 @@ static uint32_t ticksToMs(uint8_t ticks) {
   return static_cast<uint32_t>(ticks) * kTickSeconds * 1000UL;
 }
 
+static uint16_t ticksToSeconds(uint8_t ticks) {
+  return static_cast<uint16_t>(ticks) * kTickSeconds;
+}
+
 static void clampSlotDurations(FeedSlot *slot) {
   if (slot->maxRuntime5s == 0) slot->maxRuntime5s = 1;
   if (slotFlag(slot, FEED_SLOT_PULSED)) {
@@ -238,4 +242,28 @@ void feedingTick() {
 
 bool feedingIsActive() {
   return session.active;
+}
+
+bool feedingGetStatus(FeedStatus *outStatus) {
+  if (!outStatus) return false;
+
+  if (!session.active) {
+    memset(outStatus, 0, sizeof(*outStatus));
+    return false;
+  }
+
+  outStatus->active = true;
+  outStatus->slotIndex = session.slotIndex;
+  outStatus->pumpOn = session.pumpOn;
+  outStatus->pulsed = slotFlag(&session.slot, FEED_SLOT_PULSED);
+  outStatus->moistureReady = soilSensorRealtimeReady();
+  outStatus->moisturePercent = soilMoistureAsPercentage(getSoilMoisture());
+  outStatus->hasMoistureTarget = slotFlag(&session.slot, FEED_SLOT_HAS_MOISTURE_TARGET);
+  outStatus->moistureTarget = session.slot.moistureTarget;
+  outStatus->runoffRequired = slotFlag(&session.slot, FEED_SLOT_RUNOFF_REQUIRED);
+  outStatus->hasMinRuntime = slotFlag(&session.slot, FEED_SLOT_HAS_MIN_RUNTIME);
+  outStatus->minRuntimeSeconds = ticksToSeconds(session.slot.minRuntime5s);
+  outStatus->maxRuntimeSeconds = ticksToSeconds(session.slot.maxRuntime5s);
+  outStatus->elapsedSeconds = (uint16_t)((millis() - session.startMillis) / 1000UL);
+  return true;
 }

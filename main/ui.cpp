@@ -38,10 +38,10 @@ Button rightButton;
 Button okButton;
 
 void initializeButtons() {
-    upButton = Button(config.kbdUp, &upClick);
+    upButton = Button(config.kbdUp, &upClick, nullptr, BUTTONS_HOLD_DURATION_MS, BUTTONS_HOLD_INTERVAL_MS);
     leftButton = Button(config.kbdLeft, &leftClick);
     rightButton = Button(config.kbdRight, &rightClick);
-    downButton = Button(config.kbdDown, &downClick); 
+    downButton = Button(config.kbdDown, &downClick, nullptr, BUTTONS_HOLD_DURATION_MS, BUTTONS_HOLD_INTERVAL_MS);
     okButton = Button(config.kbdOk, &okClick);
 
     analogButtons.add(upButton);

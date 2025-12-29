@@ -113,7 +113,14 @@ static void setTimeAndDate() {
     year = 26;
   }
 
-  if (!inputDateTime_P(MSG_SET_TIME_DATE, &hour, &minute, &day, &month, &year)) return;
+  if (!inputDateTime_P(MSG_SET_TIME_DATE, &hour, &minute, &day, &month, &year)) {
+    lcdFlashMessage_P(MSG_ABORTED);
+    return;
+  }
+
+  int8_t save = yesOrNo_P(MSG_SAVE_QUESTION);
+  if (save != 1) return;
+
   if (rtcSetDateTime(hour, minute, 0, day, month, year)) {
     lcdFlashMessage_P(MSG_DONE);
   }

@@ -11,6 +11,8 @@
 #define BUTTONS_PIN_MODE INPUT_PULLUP  // Use internal pull-up for the analog ladder
 #define BUTTONS_DEBOUNCE_MULTIPLIER 2  // Set debounce frequency multiplier
 #define BUTTONS_ANALOG_MARGIN 20       // Set analog value margin
+#define BUTTONS_HOLD_DURATION_MS 300   // Delay before auto-repeat starts
+#define BUTTONS_HOLD_INTERVAL_MS 80    // Auto-repeat interval while held
 
 void initializeButtons();
 
