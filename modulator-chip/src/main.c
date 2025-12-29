@@ -75,7 +75,8 @@ static void update_output(void *user_data) {
   float sine = sin_approx(chip->phase);
   if (sine > 1.0f) sine = 1.0f;
   if (sine < -1.0f) sine = -1.0f;
-  float modulated = volts + (volts * chip->depth * sine);
+  const float kMaxVolts = 5.0f;
+  float modulated = volts + (kMaxVolts * chip->depth * sine);
   if (modulated < 0.0f) modulated = 0.0f;
   if (modulated > 5.0f) modulated = 5.0f;
 
