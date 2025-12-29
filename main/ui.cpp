@@ -221,6 +221,42 @@ void initLcd() {
   resetChoicesAndHeader();
 }
 
+static void printTwoDigits(uint8_t value) {
+  if (value < 10) lcd.print('0');
+  lcd.print(value);
+}
+
+static void drawTwoDigitsAt(uint8_t col, uint8_t row, uint8_t value) {
+  lcdSetCursor(col, row);
+  printTwoDigits(value);
+}
+
+static void drawBlinkAt(uint8_t col, uint8_t row, bool blinkOn) {
+  if (blinkOn) return;
+  lcdSetCursor(col, row);
+  lcd.write((uint8_t)0);
+  lcdSetCursor(col + 1, row);
+  lcd.write((uint8_t)0);
+}
+
+static void drawTimeEntryFrame(PGM_P header, PGM_P prompt, uint8_t row) {
+  lcdClear();
+  lcdPrint_P(header, 0);
+  lcdPrint_P(prompt, 1);
+  lcdClearLine(row);
+  lcdSetCursor(0, row);
+  lcdPrint_P(PSTR("Time "));
+  lcdSetCursor(7, row);
+  lcd.print(':');
+  lcdClearLine(3);
+}
+
+static void drawTimeEntryLine(uint8_t hour, uint8_t minute, uint8_t row, bool blinkOn, bool editHour) {
+  drawTwoDigitsAt(5, row, hour);
+  drawTwoDigitsAt(8, row, minute);
+  drawBlinkAt(editHour ? 5 : 8, row, blinkOn);
+}
+
 static void labelcpy_P(char *destination, PGM_P source) {
   if (!source) {
     destination[0] = '\0';
@@ -463,6 +499,153 @@ long int inputNumber_R(const char *prompt, long int initialUserInput, int stepSi
       displayChanged = true;
     } else {
       // ...
+    }
+  }
+}
+
+bool inputTime_P(PGM_P header, PGM_P prompt, uint16_t initialMinutes, uint16_t *outMinutes) {
+  if (!outMinutes) return false;
+
+  uint8_t hour = initialMinutes / 60;
+  uint8_t minute = initialMinutes % 60;
+  bool editHour = true;
+  bool cursorVisible = true;
+  bool displayChanged = true;
+  unsigned long lastBlinkAt = 0;
+  const uint8_t timeRow = 2;
+
+  drawTimeEntryFrame(header, prompt, timeRow);
+
+  while (true) {
+    unsigned long now = millis();
+    if (now - lastBlinkAt >= 500) {
+      cursorVisible = !cursorVisible;
+      lastBlinkAt = now;
+      displayChanged = true;
+    }
+
+    if (displayChanged) {
+      drawTimeEntryLine(hour, minute, timeRow, cursorVisible, editHour);
+      displayChanged = false;
+    }
+
+    analogButtonsCheck();
+
+    if (pressedButton == &upButton) {
+      if (editHour) hour = static_cast<uint8_t>((hour + 1) % 24);
+      else minute = static_cast<uint8_t>((minute + 1) % 60);
+      displayChanged = true;
+    } else if (pressedButton == &downButton) {
+      if (editHour) hour = static_cast<uint8_t>((hour + 23) % 24);
+      else minute = static_cast<uint8_t>((minute + 59) % 60);
+      displayChanged = true;
+    } else if (pressedButton == &rightButton || pressedButton == &okButton) {
+      if (editHour) {
+        editHour = false;
+        displayChanged = true;
+      } else {
+        *outMinutes = static_cast<uint16_t>(hour) * 60u + minute;
+        return true;
+      }
+    } else if (pressedButton == &leftButton) {
+      if (editHour) return false;
+      editHour = true;
+      displayChanged = true;
+    }
+  }
+}
+
+static void drawDateTimeFrame(PGM_P header) {
+  lcdClear();
+  lcdPrint_P(header, 0);
+  lcdSetCursor(0, 1);
+  lcdPrint_P(PSTR("Time "));
+  lcdSetCursor(7, 1);
+  lcd.print(':');
+  lcdSetCursor(0, 2);
+  lcdPrint_P(PSTR("Date "));
+  lcdSetCursor(7, 2);
+  lcd.print('/');
+  lcdSetCursor(10, 2);
+  lcd.print('/');
+  lcdClearLine(3);
+}
+
+static void drawDateTimeValues(uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint8_t year,
+                               uint8_t field, bool blinkOn) {
+  drawTwoDigitsAt(5, 1, hour);
+  drawTwoDigitsAt(8, 1, minute);
+  drawTwoDigitsAt(5, 2, day);
+  drawTwoDigitsAt(8, 2, month);
+  drawTwoDigitsAt(11, 2, year);
+
+  uint8_t row = (field < 2) ? 1 : 2;
+  uint8_t col = 5;
+  switch (field) {
+    case 0: col = 5; break;
+    case 1: col = 8; break;
+    case 2: col = 5; break;
+    case 3: col = 8; break;
+    case 4: col = 11; break;
+    default: col = 5; break;
+  }
+  drawBlinkAt(col, row, blinkOn);
+}
+
+bool inputDateTime_P(PGM_P header, uint8_t *hour, uint8_t *minute, uint8_t *day, uint8_t *month, uint8_t *year) {
+  if (!hour || !minute || !day || !month || !year) return false;
+
+  uint8_t field = 0;
+  bool cursorVisible = true;
+  bool displayChanged = true;
+  unsigned long lastBlinkAt = 0;
+
+  drawDateTimeFrame(header);
+
+  while (true) {
+    unsigned long now = millis();
+    if (now - lastBlinkAt >= 500) {
+      cursorVisible = !cursorVisible;
+      lastBlinkAt = now;
+      displayChanged = true;
+    }
+
+    if (displayChanged) {
+      drawDateTimeValues(*hour, *minute, *day, *month, *year, field, cursorVisible);
+      displayChanged = false;
+    }
+
+    analogButtonsCheck();
+
+    if (pressedButton == &upButton) {
+      switch (field) {
+        case 0: *hour = static_cast<uint8_t>((*hour + 1) % 24); break;
+        case 1: *minute = static_cast<uint8_t>((*minute + 1) % 60); break;
+        case 2: *day = (*day >= 31) ? 1 : static_cast<uint8_t>(*day + 1); break;
+        case 3: *month = (*month >= 12) ? 1 : static_cast<uint8_t>(*month + 1); break;
+        case 4: *year = (*year >= 99) ? 0 : static_cast<uint8_t>(*year + 1); break;
+      }
+      displayChanged = true;
+    } else if (pressedButton == &downButton) {
+      switch (field) {
+        case 0: *hour = (*hour == 0) ? 23 : static_cast<uint8_t>(*hour - 1); break;
+        case 1: *minute = (*minute == 0) ? 59 : static_cast<uint8_t>(*minute - 1); break;
+        case 2: *day = (*day <= 1) ? 31 : static_cast<uint8_t>(*day - 1); break;
+        case 3: *month = (*month <= 1) ? 12 : static_cast<uint8_t>(*month - 1); break;
+        case 4: *year = (*year == 0) ? 99 : static_cast<uint8_t>(*year - 1); break;
+      }
+      displayChanged = true;
+    } else if (pressedButton == &rightButton || pressedButton == &okButton) {
+      if (field < 4) {
+        field++;
+        displayChanged = true;
+      } else {
+        return true;
+      }
+    } else if (pressedButton == &leftButton) {
+      if (field == 0) return false;
+      field--;
+      displayChanged = true;
     }
   }
 }

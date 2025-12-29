@@ -48,6 +48,8 @@ void setChoice_R(unsigned char index, const char *label, int value=0);
 
 long int inputNumber_P(PGM_P prompt, long int initialUserInput, int stepSize, long int min = 0, long int max = 100, PGM_P postFix = MSG_LITTLE, PGM_P optionalHeader = MSG_LITTLE);
 long int inputNumber_R(const char *prompt, long int initialUserInput, int stepSize, long int min = 0, long int max = 100, const char *postFix = "", const char *optionalHeader = "");
+bool inputTime_P(PGM_P header, PGM_P prompt, uint16_t initialMinutes, uint16_t *outMinutes);
+bool inputDateTime_P(PGM_P header, uint8_t *hour, uint8_t *minute, uint8_t *day, uint8_t *month, uint8_t *year);
 
 void inputString_P(PGM_P prompt, char *initialUserInput, PGM_P optionalHeader = MSG_LITTLE, bool asEdit = false);
 void inputString_R(const char *prompt, char *initialUserInput, const char *optionalHeader = "", bool asEdit = false);

@@ -90,109 +90,6 @@ struct PumpTask {
 static CalTask calTask = {};
 static PumpTask pumpTask = {};
 
-static void printTwoDigits(uint8_t value) {
-  if (value < 10) lcd.print('0');
-  lcd.print(value);
-}
-
-static void drawDateTimeInput(uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint8_t year,
-                              uint8_t field, bool blinkOn) {
-  lcdClearLine(0);
-  lcdSetCursor(0, 0);
-  lcdPrint_P(MSG_SET_TIME_DATE);
-
-  lcdClearLine(1);
-  lcdSetCursor(0, 1);
-  lcdPrint_P(PSTR("Time "));
-  printTwoDigits(hour);
-  lcd.print(':');
-  printTwoDigits(minute);
-
-  lcdClearLine(2);
-  lcdSetCursor(0, 2);
-  lcdPrint_P(PSTR("Date "));
-  printTwoDigits(day);
-  lcd.print('/');
-  printTwoDigits(month);
-  lcd.print('/');
-  printTwoDigits(year);
-
-  lcdClearLine(3);
-
-  if (!blinkOn) {
-    uint8_t row = (field < 2) ? 1 : 2;
-    uint8_t col = 0;
-    switch (field) {
-      case 0: col = 5; break;
-      case 1: col = 8; break;
-      case 2: col = 5; break;
-      case 3: col = 8; break;
-      case 4: col = 11; break;
-      default: col = 5; break;
-    }
-    lcdSetCursor(col, row);
-    lcd.write((uint8_t)0);
-    lcdSetCursor(col + 1, row);
-    lcd.write((uint8_t)0);
-  }
-}
-
-static bool inputDateTime(uint8_t *hour, uint8_t *minute, uint8_t *day, uint8_t *month, uint8_t *year) {
-  if (!hour || !minute || !day || !month || !year) return false;
-
-  uint8_t field = 0;
-  bool cursorVisible = true;
-  bool displayChanged = true;
-  unsigned long lastBlinkAt = 0;
-
-  while (true) {
-    unsigned long now = millis();
-    if (now - lastBlinkAt >= 500) {
-      cursorVisible = !cursorVisible;
-      lastBlinkAt = now;
-      displayChanged = true;
-    }
-
-    if (displayChanged) {
-      drawDateTimeInput(*hour, *minute, *day, *month, *year, field, cursorVisible);
-      displayChanged = false;
-    }
-
-    analogButtonsCheck();
-
-    if (pressedButton == &upButton) {
-      switch (field) {
-        case 0: *hour = static_cast<uint8_t>((*hour + 1) % 24); break;
-        case 1: *minute = static_cast<uint8_t>((*minute + 1) % 60); break;
-        case 2: *day = (*day >= 31) ? 1 : static_cast<uint8_t>(*day + 1); break;
-        case 3: *month = (*month >= 12) ? 1 : static_cast<uint8_t>(*month + 1); break;
-        case 4: *year = (*year >= 99) ? 0 : static_cast<uint8_t>(*year + 1); break;
-      }
-      displayChanged = true;
-    } else if (pressedButton == &downButton) {
-      switch (field) {
-        case 0: *hour = (*hour == 0) ? 23 : static_cast<uint8_t>(*hour - 1); break;
-        case 1: *minute = (*minute == 0) ? 59 : static_cast<uint8_t>(*minute - 1); break;
-        case 2: *day = (*day <= 1) ? 31 : static_cast<uint8_t>(*day - 1); break;
-        case 3: *month = (*month <= 1) ? 12 : static_cast<uint8_t>(*month - 1); break;
-        case 4: *year = (*year == 0) ? 99 : static_cast<uint8_t>(*year - 1); break;
-      }
-      displayChanged = true;
-    } else if (pressedButton == &rightButton || pressedButton == &okButton) {
-      if (field < 4) {
-        field++;
-        displayChanged = true;
-      } else {
-        return true;
-      }
-    } else if (pressedButton == &leftButton) {
-      if (field == 0) return false;
-      field--;
-      displayChanged = true;
-    }
-  }
-}
-
 static void setTimeAndDate() {
   uint8_t hour = 0;
   uint8_t minute = 0;
@@ -216,7 +113,7 @@ static void setTimeAndDate() {
     year = 26;
   }
 
-  if (!inputDateTime(&hour, &minute, &day, &month, &year)) return;
+  if (!inputDateTime_P(MSG_SET_TIME_DATE, &hour, &minute, &day, &month, &year)) return;
   if (rtcSetDateTime(hour, minute, 0, day, month, year)) {
     lcdFlashMessage_P(MSG_DONE);
   }
