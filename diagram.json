@@ -5,6 +5,7 @@
   "parts": [
     { "type": "wokwi-arduino-nano", "id": "nano", "top": -40, "left": -120, "attrs": {} },
     { "type": "wokwi-lcd2004", "id": "lcd1", "top": -170, "left": 220, "attrs": { "pins": "i2c", "i2cAddress": "0x27" } },
+    { "type": "wokwi-ds1307", "id": "rtc1", "top": -170, "left": 620, "attrs": { "label": "RTC" } },
     { "type": "wokwi-slide-potentiometer", "id": "soilPot", "top": 70, "left": 420, "attrs": { "value": "512", "travelLength": "60", "label": "Soil" } },
     { "type": "chip-modulator", "id": "mod1", "top": 150, "left": 430, "attrs": {} },
     { "type": "wokwi-slide-switch", "id": "trayLow", "top": 80, "left": 120, "attrs": { "label": "Tray Low" } },
@@ -21,6 +22,11 @@
     ["nano:GND.1", "lcd1:GND", "#333333", ["v0"]],
     ["nano:A4", "lcd1:SDA", "#2e5a2e", ["v0"]],
     ["nano:A5", "lcd1:SCL", "#2e5a2e", ["v0"]],
+
+    ["nano:5V", "rtc1:VCC", "#5a2e2e", ["v0"]],
+    ["nano:GND.1", "rtc1:GND", "#333333", ["v0"]],
+    ["nano:A4", "rtc1:SDA", "#2e5a2e", ["v0"]],
+    ["nano:A5", "rtc1:SCL", "#2e5a2e", ["v0"]],
 
     ["nano:12", "soilPot:VCC", "#5a2e2e", ["v0"]],
     ["nano:GND.2", "soilPot:GND", "#333333", ["v0"]],

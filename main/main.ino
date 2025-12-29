@@ -10,6 +10,7 @@
 #include "settings.h"
 #include "feeding.h"
 #include "logs.h"
+#include "rtc.h"
 #include <LiquidCrystal_I2C.h>
 #include <avr/pgmspace.h>
 
@@ -50,6 +51,7 @@ void setup() {
   Serial.begin(115200);  // Initialize serial communication at 9600 baud rate
   randomSeed(analogRead(A6));
   initLcd();
+  initRtc();
 
   extern LiquidCrystal_I2C lcd;
 
@@ -105,6 +107,7 @@ void setup() {
 
 
 void loop() {
+  feedingTick();
   unsigned long currentMillis = millis();
   if (!uiTaskActive() && millis() - lastButtonPressTime > SCREENSAVER_TRIGGER_TIME) screenSaverModeOn();
 

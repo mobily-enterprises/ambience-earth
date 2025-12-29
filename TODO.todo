@@ -11,14 +11,4 @@ X Fix showing info of slot
 Improve time input
 Define proper steps and values for input
 
-
-* Start conditions:
-Time is: 2 (one byte for the hour and one for the minutes)
-Moisture lower than: 
-Time since last feed:
-
-* End condition:
-Moisture has reached:
-Go on for at least:
-Go on for at the most:
-Runoff present:
+Write the actual feeding function!
