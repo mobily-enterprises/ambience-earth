@@ -159,8 +159,6 @@ extern const char PROGMEM MSG_LOG_TYPE_0[];
 extern const char PROGMEM MSG_LOG_TYPE_1[];
 extern const char PROGMEM MSG_LOG_TYPE_2[];
 
-extern const char PROGMEM MSG_LOG_OUTCOME_0[];
-extern const char PROGMEM MSG_LOG_OUTCOME_1[];
 
 extern const char PROGMEM MSG_NEXT_FEED[];
 extern const char PROGMEM MSG_LAST_FEED[];

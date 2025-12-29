@@ -4,21 +4,48 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 
-#define LOG_FORMAT_VERSION 1
+#define LOG_FORMAT_VERSION 2
+
+enum LogStopReason : uint8_t {
+  LOG_STOP_NONE = 0,
+  LOG_STOP_MOISTURE = 1,
+  LOG_STOP_RUNOFF = 2,
+  LOG_STOP_MAX_RUNTIME = 3
+};
+
+enum LogStartReason : uint8_t {
+  LOG_START_NONE = 0,
+  LOG_START_TIME = 1,
+  LOG_START_MOISTURE = 2
+};
+
+enum LogFlags : uint8_t {
+  LOG_FLAG_PULSED = 1u << 0
+};
 
 typedef struct {
-  unsigned int seq : 8;
+  uint8_t seq;
+  uint8_t entryType : 3;
+  uint8_t stopReason : 3;
+  uint8_t startReason : 2;
+  uint8_t slotIndex : 4;
+  uint8_t flags : 4;
+  uint8_t trayWaterLevelBefore;
+  uint8_t trayWaterLevelAfter;
+  uint8_t soilMoistureBefore;
+  uint8_t soilMoistureAfter;
+  uint8_t startYear;
+  uint8_t startMonth;
+  uint8_t startDay;
+  uint8_t startHour;
+  uint8_t startMinute;
+  uint8_t endYear;
+  uint8_t endMonth;
+  uint8_t endDay;
+  uint8_t endHour;
+  uint8_t endMinute;
   unsigned long millisStart;
   unsigned long millisEnd;
-  unsigned int entryType : 3;
-  unsigned int actionId : 3;
-  unsigned int trayWaterLevelBefore : 7;
-  unsigned int soilMoistureBefore : 7;
-  bool topFeed : 1;
-  unsigned int outcome : 4;
-  unsigned int trayWaterLevelAfter : 7;
-  unsigned int soilMoistureAfter : 7;
-  unsigned int padding1 : 11;
 } LogEntry;
 
 void readLogEntry(int16_t slot = -1);

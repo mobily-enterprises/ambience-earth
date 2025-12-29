@@ -13,10 +13,6 @@ void downClick();
 void leftClick();
 void rightClick();
 void okClick();
-void sanitizeUserInput(char *userInput);
-int actualLength(const char *str);
-char getNextCharacter(char currentChar);
-char getPreviousCharacter(char currentChar);
 extern Config config;
 
 LiquidCrystal_I2C lcd = LiquidCrystal_I2C(0x27, 20, 4);
@@ -28,8 +24,6 @@ Button *pressedButton;
 Choice choices[10];
 
 LabelRef choicesHeader;
-
-char userInputString[LABEL_LENGTH + 1];
 
 Button upButton;
 Button leftButton;
@@ -149,10 +143,6 @@ void lcdPrintNumber(int number, int8_t y) {
 
 void lcdSetCursor(uint8_t x, uint8_t y) {
   lcd.setCursor(x, y);
-}
-
-char *getUserInputString() {
-  return userInputString;
 }
 
 
@@ -421,18 +411,6 @@ void setChoice_R(unsigned char index, const char *label, int value = 0) {
   choices[index].value = value;
 }
 
-
-static const char allowedStringCharacters[] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-int initialCharacterPosition = 1;
-
-int isCharacterAllowed(char character) {
-  for (int i = 0; allowedStringCharacters[i]; ++i) {
-    if (allowedStringCharacters[i] == character) {
-      return i;  // Return the index if character is found
-    }
-  }
-  return -1;  // Return -1 if character is not found
-}
 
 /* ***************************************** */
 /* *     LOW LEVEL UI FUNCTIONS              */
@@ -916,166 +894,4 @@ int8_t giveOk_R(const char *top, const char *promptText = "", const char *line2 
   }
 
   return 1;
-}
-
-static void inputStringCommon(bool useProgmem, PGM_P promptP, const char *promptR, PGM_P optionalHeaderP, const char *optionalHeaderR, char *initialUserInput, bool asEdit) {
-  uint8_t cursorPosition = 0;
-  bool displayChanged = true;
-  bool cursorVisible = true;
-  unsigned long previousMillis = 0;
-
-  const uint8_t headerY = 0;
-  const uint8_t promptY = 2;
-  const uint8_t inputY = 3;
-
-  // Check if initialUserInput is not empty
-  if (!strlen(initialUserInput) > 0) {
-    labelcpy_P(userInputString, MSG_SPACES);
-    userInputString[0] = allowedStringCharacters[initialCharacterPosition];
-  } else {
-    labelcpy_R(userInputString, initialUserInput);
-    sanitizeUserInput(userInputString);
-    cursorPosition = actualLength(userInputString);
-  }
-
-  lcd.clear();
-
-  lcd.setCursor(0, promptY);
-  if (useProgmem) {
-    lcdPrint_P(promptP);
-  } else {
-    lcdPrint_R(promptR);
-  }
-
-  lcd.setCursor(0, headerY);
-  if (useProgmem) {
-    lcdPrint_P(optionalHeaderP);
-  } else {
-    lcdPrint_R(optionalHeaderR);
-  }
-
-  while (true) {
-    unsigned long currentMillis = millis();
-    if (currentMillis - previousMillis >= 500) {  // Cursor blinking interval (500 milliseconds)
-      cursorVisible = !cursorVisible;             // Toggle cursor visibility
-      previousMillis = currentMillis;             // Update previousMillis
-      displayChanged = true;                      // Update display flag for cursor change
-    }
-
-    if (displayChanged) {
-      if (cursorVisible) {
-        lcd.setCursor(0, inputY);
-        lcd.write((uint8_t)1);
-        lcd.setCursor(1, inputY);
-        lcd.print(userInputString);
-        if (cursorPosition > 0) {
-          lcd.setCursor(cursorPosition, inputY);
-          lcd.print(userInputString[cursorPosition - 1]);
-        }
-      } else {
-        lcd.setCursor(0, inputY);
-        lcd.write((uint8_t)1);
-        lcd.setCursor(1, inputY);
-        lcd.print(userInputString);
-        // Print the full square instead of the character to simulate blinking cursor
-        if (cursorPosition > 0) {
-          lcd.setCursor(cursorPosition, inputY);
-          lcd.write((uint8_t)0);  // Print custom character fullSquare
-        }
-      }
-      displayChanged = false;
-    }
-    analogButtonsCheck();  // This will set the global `pressedButton`
-
-    if (pressedButton == &okButton) {
-      if (cursorPosition == 0) labelcpy_P(userInputString, MSG_STAR);
-
-      // If OK button is pressed, return the input string
-      if (asEdit) labelcpy_R(initialUserInput, userInputString);
-      return;
-    } else if (pressedButton == &downButton) {
-      if (cursorPosition != 0) {
-        // If UP button is pressed, increment the character
-        userInputString[cursorPosition - 1] = getNextCharacter(userInputString[cursorPosition - 1]);
-        displayChanged = true;
-      }
-    } else if (pressedButton == &upButton) {
-      if (cursorPosition != 0) {
-        // If DOWN button is pressed, decrement the character
-        userInputString[cursorPosition - 1] = getPreviousCharacter(userInputString[cursorPosition - 1]);
-        displayChanged = true;
-      }
-    } else if (pressedButton == &rightButton) {
-      // If RIGHT button is pressed, move cursor to the next position
-      cursorPosition++;
-      // If cursor reaches beyond the display width, wrap around to 0
-      if (cursorPosition >= DISPLAY_COLUMNS) {
-        cursorPosition = 0;
-      }
-      displayChanged = true;
-    } else if (pressedButton == &leftButton) {
-      if (cursorPosition == 0) {
-        // This will count as "go back", the initial value will be considered
-        labelcpy_R(userInputString, "*");
-        return;
-      }
-      // If LEFT button is pressed, move cursor to the previous position
-      cursorPosition--;
-
-      displayChanged = true;
-    } else {
-      // Serial.println("MEH");
-    }
-  }
-}
-
-void inputString_P(PGM_P prompt, char *initialUserInput, PGM_P optionalHeader = MSG_LITTLE, bool asEdit = false) {
-  inputStringCommon(true, prompt, nullptr, optionalHeader, nullptr, initialUserInput, asEdit);
-}
-
-void inputString_R(const char *prompt, char *initialUserInput, const char *optionalHeader = "", bool asEdit = false) {
-  inputStringCommon(false, nullptr, prompt, nullptr, optionalHeader, initialUserInput, asEdit);
-}
-
-void sanitizeUserInput(char *userInput) {
-
-  // Convert all characters to uppercase
-  for (char *ptr = userInput; *ptr; ++ptr) *ptr = toupper(*ptr);
-
-  // Replace characters not in allowedStringCharacters with spaces
-  for (size_t i = 0; i < strlen(userInput); ++i) {
-    if (isCharacterAllowed(userInput[i]) == -1) {
-      userInput[i] = ' ';
-    }
-  }
-}
-
-char getNextCharacter(char currentChar) {
-  int index = isCharacterAllowed(currentChar);
-  if (index == -1) {
-    // Character not found in the list
-    return allowedStringCharacters[initialCharacterPosition];
-  }
-  // Increment index with wrap-around
-  index = (index + 1) % strlen(allowedStringCharacters);
-  return allowedStringCharacters[index];
-}
-
-char getPreviousCharacter(char currentChar) {
-  int index = isCharacterAllowed(currentChar);
-  if (index == -1) {
-    // Character not found in the list
-    return allowedStringCharacters[initialCharacterPosition];
-  }
-  // Decrement index with wrap-around
-  index = (index - 1 + strlen(allowedStringCharacters)) % strlen(allowedStringCharacters);
-  return allowedStringCharacters[index];
-}
-
-int actualLength(const char *str) {
-  int length = strlen(str);
-  for (int i = length - 1; i >= 0; i--) {
-    if (str[i] != ' ') return i + 1;
-  }
-  return 0;
 }

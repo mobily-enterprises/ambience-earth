@@ -172,11 +172,33 @@ void maybeLogValues() {
       clearLogEntry((void *)&newLogEntry);
       newLogEntry.entryType = 2;  // VALUES
       newLogEntry.millisStart = millis();
-      newLogEntry.actionId = 0;
+      newLogEntry.stopReason = LOG_STOP_NONE;
+      newLogEntry.startReason = LOG_START_NONE;
+      newLogEntry.slotIndex = 0;
+      newLogEntry.flags = 0;
       newLogEntry.soilMoistureBefore = soilMoisture;
       newLogEntry.trayWaterLevelBefore = trayState;
-      newLogEntry.topFeed = 0;
-      newLogEntry.outcome = 0;
+      newLogEntry.trayWaterLevelAfter = 0;
+      newLogEntry.soilMoistureAfter = 0;
+      uint8_t hour = 0, minute = 0, day = 0, month = 0, year = 0;
+      if (rtcReadDateTime(&hour, &minute, &day, &month, &year)) {
+        newLogEntry.startYear = year;
+        newLogEntry.startMonth = month;
+        newLogEntry.startDay = day;
+        newLogEntry.startHour = hour;
+        newLogEntry.startMinute = minute;
+      } else {
+        newLogEntry.startYear = 0;
+        newLogEntry.startMonth = 0;
+        newLogEntry.startDay = 0;
+        newLogEntry.startHour = 0;
+        newLogEntry.startMinute = 0;
+      }
+      newLogEntry.endYear = 0;
+      newLogEntry.endMonth = 0;
+      newLogEntry.endDay = 0;
+      newLogEntry.endHour = 0;
+      newLogEntry.endMinute = 0;
       writeLogEntry((void *)&newLogEntry);
   }
 }
@@ -219,12 +241,33 @@ void createBootLogEntry() {
   newLogEntry.millisStart = 0;
   newLogEntry.millisEnd = millis();
   newLogEntry.entryType = 0;  // BOOTED UP
-  newLogEntry.actionId = 7;   // NOT RELEVANT
+  newLogEntry.stopReason = LOG_STOP_NONE;
+  newLogEntry.startReason = LOG_START_NONE;
+  newLogEntry.slotIndex = 0;
+  newLogEntry.flags = 0;
   newLogEntry.soilMoistureBefore = soilMoistureBefore;
   newLogEntry.soilMoistureAfter = 0;
+  newLogEntry.trayWaterLevelBefore = 0;
   newLogEntry.trayWaterLevelAfter = 0;
-  newLogEntry.topFeed = 0;
-  newLogEntry.outcome = 0;
+  uint8_t hour = 0, minute = 0, day = 0, month = 0, year = 0;
+  if (rtcReadDateTime(&hour, &minute, &day, &month, &year)) {
+    newLogEntry.startYear = year;
+    newLogEntry.startMonth = month;
+    newLogEntry.startDay = day;
+    newLogEntry.startHour = hour;
+    newLogEntry.startMinute = minute;
+  } else {
+    newLogEntry.startYear = 0;
+    newLogEntry.startMonth = 0;
+    newLogEntry.startDay = 0;
+    newLogEntry.startHour = 0;
+    newLogEntry.startMinute = 0;
+  }
+  newLogEntry.endYear = 0;
+  newLogEntry.endMonth = 0;
+  newLogEntry.endDay = 0;
+  newLogEntry.endHour = 0;
+  newLogEntry.endMinute = 0;
 
   // Serial.println("Writing initial boot entry...");
   writeLogEntry((void *)&newLogEntry);
@@ -398,10 +441,7 @@ void printSoilAndWaterTrayStatus(bool fullRedraw) {
 */
 
 
-void lcdPrintTime(unsigned long milliseconds) {
-
-  // Calculate the total number of minutes and hours
-  unsigned long totalMinutes = milliseconds / 1000 / 60;
+static void lcdPrintHoursMinutes(unsigned long totalMinutes) {
   unsigned long minutes = totalMinutes % 60;
   unsigned long hours = totalMinutes / 60;
 
@@ -415,61 +455,41 @@ void lcdPrintTime(unsigned long milliseconds) {
   lcd.print('m');
 }
 
+void lcdPrintTime(unsigned long milliseconds) {
+  lcdPrintHoursMinutes(milliseconds / 1000 / 60);
+}
 
 void lcdPrintTimeSince(unsigned long milliseconds) {
-  // Calculate elapsed time in milliseconds
   unsigned long elapsedMillis = millis() - milliseconds;
-
-  // Calculate the total number of minutes and hours
-  unsigned long totalMinutes = elapsedMillis / 1000 / 60;
-  unsigned long minutes = totalMinutes % 60;
-  unsigned long hours = totalMinutes / 60;
-
-  if (hours) {
-    lcd.print(hours);
-    lcd.print('h');
-  }
-
-  lcd.print(minutes);
-  lcd.print('m');
+  lcdPrintHoursMinutes(elapsedMillis / 1000 / 60);
 }
 
 
-void lcdPrintTimePretty(unsigned long milliseconds) {
-  // Calculate elapsed time in milliseconds
-  unsigned long elapsedMillis = milliseconds;
+static void lcdPrintTwoDigits(uint8_t value) {
+  if (value < 10) lcd.print('0');
+  lcd.print(value);
+}
 
-  // Calculate the total number of minutes and hours
-  unsigned long totalMinutes = elapsedMillis / 1000 / 60;
-  unsigned long minutes = totalMinutes % 60;
-  unsigned long hours = totalMinutes / 60;
-
-  if (hours) {
-    lcd.print(hours);
-    lcd.print('h');
+static void lcdPrintDateTime(uint8_t day, uint8_t month, uint8_t year, uint8_t hour, uint8_t minute) {
+  if (!day || !month) {
+    lcd.print(F("--/--/-- --:--"));
+    return;
   }
-
-  lcd.print(minutes);
-  lcd.print('m');
+  lcdPrintTwoDigits(day);
+  lcd.print('/');
+  lcdPrintTwoDigits(month);
+  lcd.print('/');
+  lcdPrintTwoDigits(year);
+  lcd.print(' ');
+  lcdPrintTwoDigits(hour);
+  lcd.print(':');
+  lcdPrintTwoDigits(minute);
 }
 
 
 void lcdPrintTimeDuration(unsigned long start, unsigned long finish) {
-  // Calculate elapsed time in milliseconds
   unsigned long elapsedMillis = finish - start;
-
-  // Calculate the total number of minutes and hours
-  unsigned long totalMinutes = elapsedMillis / 1000 / 60;
-  unsigned long minutes = totalMinutes % 60;
-  unsigned long hours = totalMinutes / 60;
-
-  if (hours) {
-    lcd.print(hours);
-    lcd.print('h');
-  }
-
-  lcd.print(minutes);
-  lcd.print('m');
+  lcdPrintHoursMinutes(elapsedMillis / 1000 / 60);
 }
 
 void showLogType0() {
@@ -478,52 +498,54 @@ void showLogType0() {
   lcd.print((unsigned long)getAbsoluteLogNumber());
   lcdPrint_P(MSG_SPACE);
   lcdPrint_P(MSG_LOG_TYPE_0);
-  // lcdPrint_P(MSG_SPACE);
-  // lcdPrintNumber(currentLogEntry.millisStart);
-  // lcdPrint_P(MSG_SPACE);
-  // lcdPrint_P(MSG_AGO);
+  lcd.setCursor(0, 1);
+  lcd.print(F("At "));
+  lcdPrintDateTime(currentLogEntry.startDay, currentLogEntry.startMonth, currentLogEntry.startYear,
+                   currentLogEntry.startHour, currentLogEntry.startMinute);
+  lcd.setCursor(0, 2);
+  lcd.print(F("Soil:"));
+  lcd.print(currentLogEntry.soilMoistureBefore);
+  lcd.print('%');
 }
 
 void showLogType1() {
-  // Feed log entry (entryType = 1); shown when feeding logic is reintroduced.
-  lcdClear();
   lcdClear();
   // Print absolute log number (epoch-aware)
   lcd.print((unsigned long)getAbsoluteLogNumber());
   lcdPrint_P(MSG_SPACE);
   lcdPrint_P(MSG_LOG_TYPE_1);
   lcdPrint_P(MSG_SPACE);
-  lcdPrintTimePretty(currentLogEntry.millisStart);
-  lcdPrint_P(MSG_SPACE);
-  lcdPrint_P(MSG_LATER);
-  lcdPrint_P(MSG_SPACE);
+  lcd.print('S');
+  lcd.print(currentLogEntry.slotIndex + 1);
 
   lcd.setCursor(0, 1);
-  lcd.print("Dur:");
-  lcdPrintTimeDuration(currentLogEntry.millisStart, currentLogEntry.millisEnd);
+  lcd.print(F("Start "));
+  lcdPrintDateTime(currentLogEntry.startDay, currentLogEntry.startMonth, currentLogEntry.startYear,
+                   currentLogEntry.startHour, currentLogEntry.startMinute);
 
   lcd.setCursor(0, 2);
-  lcdPrint_P(MSG_S_COLUMN);
-  lcdPrintNumber(currentLogEntry.soilMoistureBefore);
-  lcdPrint_P(MSG_PERCENT);
-  lcdPrint_P(MSG_DASH);
-  lcdPrintNumber(currentLogEntry.soilMoistureAfter);
-  lcdPrint_P(MSG_PERCENT);
-  lcdPrint_P(MSG_SPACE);
-
-  lcdPrint_P(MSG_W_COLUMN);
-  lcdPrint_P(trayWaterLevelInEnglishShort(currentLogEntry.trayWaterLevelBefore));
-  // lcdPrintNumber(currentLogEntry.trayWaterLevelBefore);
-  lcdPrint_P(MSG_DASH);
-  lcdPrint_P(trayWaterLevelInEnglishShort(currentLogEntry.trayWaterLevelAfter));
-  // lcdPrintNumber(currentLogEntry.trayWaterLevelAfter);
+  lcd.print(F("Dur:"));
+  lcdPrintTimeDuration(currentLogEntry.millisStart, currentLogEntry.millisEnd);
+  lcd.print(F(" Stop:"));
+  switch (currentLogEntry.stopReason) {
+    case LOG_STOP_MOISTURE: lcd.print(F("Mst")); break;
+    case LOG_STOP_RUNOFF: lcd.print(F("Run")); break;
+    case LOG_STOP_MAX_RUNTIME: lcd.print(F("Max")); break;
+    default: lcd.print(F("---")); break;
+  }
 
   lcd.setCursor(0, 3);
-  if (currentLogEntry.outcome == 0) lcdPrint_P(MSG_LOG_OUTCOME_0);
-  if (currentLogEntry.outcome == 1) lcdPrint_P(MSG_LOG_OUTCOME_1);
+  lcd.print(F("M:"));
+  lcdPrintNumber(currentLogEntry.soilMoistureBefore);
+  lcd.print('-');
+  lcdPrintNumber(currentLogEntry.soilMoistureAfter);
+  lcd.print('%');
+  lcd.print(' ');
 
-  // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureBefore);
-  // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureAfter);
+  lcd.print(F("W:"));
+  lcdPrint_P(trayWaterLevelInEnglishShort(currentLogEntry.trayWaterLevelBefore));
+  lcd.print('-');
+  lcdPrint_P(trayWaterLevelInEnglishShort(currentLogEntry.trayWaterLevelAfter));
 }
 
 void showLogType2() {
@@ -532,15 +554,13 @@ void showLogType2() {
   lcd.print((unsigned long)getAbsoluteLogNumber());
   lcdPrint_P(MSG_SPACE);
   lcdPrint_P(MSG_LOG_TYPE_2);
-  lcdPrint_P(MSG_SPACE);
-  lcdPrintTimePretty(currentLogEntry.millisStart);
-  lcdPrint_P(MSG_SPACE);
-  lcdPrint_P(MSG_LATER);
-  lcdPrint_P(MSG_SPACE);
+  lcd.setCursor(0, 1);
+  lcd.print(F("At "));
+  lcdPrintDateTime(currentLogEntry.startDay, currentLogEntry.startMonth, currentLogEntry.startYear,
+                   currentLogEntry.startHour, currentLogEntry.startMinute);
 
   lcd.setCursor(0, 2);
   lcdPrint_P(MSG_SOIL_MOISTURE_COLUMN);
-  // lcdPrintNumber(soilMoistureAsPercentage(currentLogEntry.soilMoistureBefore));
   lcdPrintNumber(currentLogEntry.soilMoistureBefore);
   lcdPrint_P(MSG_PERCENT);
 

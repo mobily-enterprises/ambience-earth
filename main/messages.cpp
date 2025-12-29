@@ -156,8 +156,6 @@ const char PROGMEM MSG_LOG_TYPE_0[] = "BootUp";
 const char PROGMEM MSG_LOG_TYPE_1[] = "Feed";
 const char PROGMEM MSG_LOG_TYPE_2[] = "Values";
 
-const char PROGMEM MSG_LOG_OUTCOME_0[] = "Success";
-const char PROGMEM MSG_LOG_OUTCOME_1[] = "Interrupted";
 
 const char PROGMEM MSG_NEXT_FEED[] = "Next feed: ";
 const char PROGMEM MSG_LAST_FEED[] = "Last feed: ";
