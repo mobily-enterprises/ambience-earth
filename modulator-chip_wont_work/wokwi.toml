@@ -1,8 +1,0 @@
-[wokwi]
-version = 1
-elf = 'test/modulator_test/build/arduino.avr.uno/modulator_test.ino.elf'
-firmware = 'test/modulator_test/build/arduino.avr.uno/modulator_test.ino.hex'
-
-[[chip]]
-name = 'modulator'
-binary = 'dist/chip.wasm'
