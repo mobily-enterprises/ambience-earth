@@ -675,10 +675,11 @@ static uint8_t barChar(uint8_t level) {
 }
 
 void displayInfoChart(bool fullRedraw) {
+  static bool emptyDrawn = false;
   uint8_t count = soilSensorGetLastWindowSampleCount();
 
   if (count == 0) {
-    if (fullRedraw) {
+    if (fullRedraw || !emptyDrawn) {
       lcdSetCursor(0, 0);
       lcd.print(F("Moisture chart"));
       lcdClearLine(1);
@@ -686,9 +687,11 @@ void displayInfoChart(bool fullRedraw) {
       lcdClearLine(3);
       lcdSetCursor(0, 2);
       lcd.print(F("No data yet"));
+      emptyDrawn = true;
     }
     return;
   }
+  emptyDrawn = false;
 
   uint8_t minP = soilSensorGetLastWindowMinPercent();
   uint8_t maxP = soilSensorGetLastWindowMaxPercent();
@@ -722,9 +725,15 @@ void displayInfoChart(bool fullRedraw) {
     uint8_t avg = n ? (uint8_t)(sum / n) : 0;
 
     uint8_t height;
-    if (avg <= minP) height = 0;
-    else if (avg >= maxP) height = 8;
-    else height = (uint8_t)(((uint16_t)(avg - minP) * 8 + (range - 1)) / range);
+    if (maxP == minP) {
+      height = 4;
+    } else if (avg <= minP) {
+      height = 0;
+    } else if (avg >= maxP) {
+      height = 8;
+    } else {
+      height = (uint8_t)(((uint16_t)(avg - minP) * 8 + (range - 1)) / range);
+    }
     if (height > 8) height = 8;
 
     uint8_t bottom = height > 4 ? 4 : height;
