@@ -15,11 +15,13 @@
 #define SENSOR_FEED_DEADBAND_PERCENT 7
 #define SENSOR_FEED_RISE_MS 2000UL
 #define SENSOR_FEED_DROP_MS 1000UL
-#define SENSOR_WINDOW_MIN_DURATION 10000UL
-#define SENSOR_EXTREME_RANGE_MIN 4
-#define SENSOR_EXTREME_HYSTERESIS 1
-#define SENSOR_EXTREME_HOLD_SAMPLES 4
 
+struct SoilSensorWindowStats {
+  uint16_t minRaw;
+  uint16_t maxRaw;
+  uint16_t avgRaw;
+  uint16_t count;
+};
 
 /*
   FEEDING MODE API (USE THIS IN FEED LOGIC):
@@ -39,6 +41,9 @@ bool soilSensorRealtimeReady();
 uint16_t soilSensorGetRealtimeAvg();
 uint16_t soilSensorGetRealtimeRaw();
 uint16_t soilSensorOp(uint8_t op);
+void soilSensorWindowStart();
+bool soilSensorWindowTick(SoilSensorWindowStats *out);
+uint16_t soilSensorWindowLastRaw();
 
 void initMoistureSensor();
 uint8_t soilMoistureAsPercentage(uint16_t soilMosture);

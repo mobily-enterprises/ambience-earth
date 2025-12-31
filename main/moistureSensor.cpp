@@ -5,6 +5,8 @@
 
 extern Config config;
 
+// Eventually, buy this: https://www.opensprinkler.com.au/product/smt50/
+
 enum ReadMode : uint8_t {
   READ_MODE_LAZY = 0,
   READ_MODE_REALTIME = 1
@@ -16,11 +18,17 @@ enum LazyState : uint8_t {
   LAZY_STATE_SAMPLING
 };
 
+enum WindowOwner : uint8_t {
+  WINDOW_OWNER_LAZY = 0,
+  WINDOW_OWNER_CALIBRATION
+};
+
 static uint16_t lazyValue = 0;
 static uint16_t realtimeRaw = 0;
 static float realtimeAvg = 0.0f;
 static ReadMode readMode = READ_MODE_LAZY;
 static LazyState lazyState = LAZY_STATE_IDLE;
+static WindowOwner windowOwner = WINDOW_OWNER_LAZY;
 static bool sensorPowered = false;
 
 static unsigned long sensorOnTime = 0;
@@ -36,14 +44,10 @@ static bool realtimeFallActive = false;
 static bool realtimeSeeded = false;
 
 static uint32_t windowSum = 0;
-static uint32_t windowPercentSum = 0;
 static uint16_t windowCount = 0;
-static uint8_t windowMinPercent = 0;
-static uint8_t windowMaxPercent = 0;
-static uint8_t windowMinHold = 0;
-static uint8_t windowMaxHold = 0;
-static bool windowMinConfirmed = false;
-static bool windowMaxConfirmed = false;
+static uint16_t windowMinRaw = 0;
+static uint16_t windowMaxRaw = 0;
+static uint16_t windowLastRaw = 0;
 
 static void sensorPowerOn() {
   if (sensorPowered) return;
@@ -72,20 +76,85 @@ static uint16_t readMedian3() {
 
 static void resetWindowAccum() {
   windowSum = 0;
-  windowPercentSum = 0;
   windowCount = 0;
-  windowMinPercent = 100;
-  windowMaxPercent = 0;
-  windowMinHold = 0;
-  windowMaxHold = 0;
-  windowMinConfirmed = false;
-  windowMaxConfirmed = false;
+  windowMinRaw = 0xFFFF;
+  windowMaxRaw = 0;
+  windowLastRaw = 0;
 }
 
-static void finalizeWindow() {
-  if (windowCount == 0) return;
+static void finalizeWindow(SoilSensorWindowStats *out) {
+  if (windowCount == 0) {
+    if (out) {
+      out->minRaw = 0;
+      out->maxRaw = 0;
+      out->avgRaw = 0;
+      out->count = 0;
+    }
+    return;
+  }
 
-  lazyValue = (uint16_t)(windowSum / windowCount);
+  uint16_t avg = (uint16_t)(windowSum / windowCount);
+  lazyValue = avg;
+  if (out) {
+    out->minRaw = windowMinRaw;
+    out->maxRaw = windowMaxRaw;
+    out->avgRaw = avg;
+    out->count = windowCount;
+  }
+}
+
+static void startWindow(WindowOwner owner) {
+  windowOwner = owner;
+  readMode = READ_MODE_LAZY;
+  lazyState = LAZY_STATE_WARMING;
+  windowStartAt = 0;
+  nextSampleAt = 0;
+  windowLastRaw = 0;
+  sensorPowerOn();
+  sensorOnTime = millis();
+}
+
+static bool tickWindow(SoilSensorWindowStats *out) {
+  if (lazyState == LAZY_STATE_IDLE) return false;
+
+  unsigned long now = millis();
+  switch (lazyState) {
+    case LAZY_STATE_WARMING:
+      if (now - sensorOnTime >= SENSOR_STABILIZATION_TIME) {
+        windowStartAt = now;
+        nextSampleAt = now;
+        resetWindowAccum();
+        lazyState = LAZY_STATE_SAMPLING;
+      }
+      break;
+
+    case LAZY_STATE_SAMPLING:
+      if (now >= nextSampleAt) {
+        uint16_t raw = readMedian3();
+        windowLastRaw = raw;
+        windowSum += raw;
+        windowCount++;
+        if (raw < windowMinRaw) windowMinRaw = raw;
+        if (raw > windowMaxRaw) windowMaxRaw = raw;
+        nextSampleAt = now + SENSOR_SAMPLE_INTERVAL;
+      }
+
+      if (now - windowStartAt >= SENSOR_WINDOW_DURATION) {
+        finalizeWindow(out);
+        sensorPowerOff();
+        lazyState = LAZY_STATE_IDLE;
+        if (windowOwner == WINDOW_OWNER_LAZY) {
+          nextWindowAt = now + SENSOR_SLEEP_INTERVAL;
+        }
+        return true;
+      }
+      break;
+
+    default:
+      break;
+  }
+
+  return false;
 }
 
 static void resetRealtimeFilter(uint16_t seed) {
@@ -174,11 +243,14 @@ void initMoistureSensor() {
   sensorPowerOff();
   readMode = READ_MODE_LAZY;
   lazyState = LAZY_STATE_IDLE;
+  windowOwner = WINDOW_OWNER_LAZY;
   nextWindowAt = millis();
+  resetWindowAccum();
 
   sensorPowerOn();
   delay(SENSOR_STABILIZATION_TIME);
   lazyValue = readMedian3();
+  windowLastRaw = lazyValue;
   sensorPowerOff();
   realtimeRaw = lazyValue;
   realtimeAvg = (float)lazyValue;
@@ -225,6 +297,22 @@ uint16_t soilSensorGetRealtimeRaw() {
   return realtimeRaw;
 }
 
+void soilSensorWindowStart() {
+  sensorPowerOff();
+  lazyState = LAZY_STATE_IDLE;
+  realtimeSeeded = false;
+  startWindow(WINDOW_OWNER_CALIBRATION);
+}
+
+bool soilSensorWindowTick(SoilSensorWindowStats *out) {
+  if (windowOwner != WINDOW_OWNER_CALIBRATION) return false;
+  return tickWindow(out);
+}
+
+uint16_t soilSensorWindowLastRaw() {
+  return windowLastRaw;
+}
+
 uint16_t soilSensorOp(uint8_t op) {
   switch (op) {
     case 0: { // Tick lazy state machine
@@ -233,79 +321,14 @@ uint16_t soilSensorOp(uint8_t op) {
         return soilSensorGetRealtimeAvg();
       }
 
-      const unsigned long now = millis();
+      if (windowOwner != WINDOW_OWNER_LAZY) return lazyValue;
 
-      switch (lazyState) {
-        case LAZY_STATE_IDLE:
-          if (now >= nextWindowAt) {
-            sensorPowerOn();
-            sensorOnTime = now;
-            lazyState = LAZY_STATE_WARMING;
-          }
-          break;
-
-        case LAZY_STATE_WARMING:
-          if (now - sensorOnTime >= SENSOR_STABILIZATION_TIME) {
-            windowStartAt = now;
-            nextSampleAt = now;
-            resetWindowAccum();
-            lazyState = LAZY_STATE_SAMPLING;
-          }
-          break;
-
-        case LAZY_STATE_SAMPLING:
-          if (now >= nextSampleAt) {
-            uint16_t raw = readMedian3();
-            uint8_t percent = soilMoistureAsPercentage(raw);
-
-            windowSum += raw;
-            windowPercentSum += percent;
-            windowCount++;
-
-            if (percent < windowMinPercent) {
-              windowMinPercent = percent;
-              windowMinHold = 1;
-              windowMinConfirmed = false;
-            } else if (!windowMinConfirmed) {
-              if (percent <= windowMinPercent + SENSOR_EXTREME_HYSTERESIS) {
-                if (windowMinHold < 255) windowMinHold++;
-                if (windowMinHold >= SENSOR_EXTREME_HOLD_SAMPLES) {
-                  windowMinConfirmed = true;
-                }
-              } else {
-                windowMinHold = 0;
-              }
-            }
-
-            if (percent > windowMaxPercent) {
-              windowMaxPercent = percent;
-              windowMaxHold = 1;
-              windowMaxConfirmed = false;
-            } else if (!windowMaxConfirmed) {
-              if (percent + SENSOR_EXTREME_HYSTERESIS >= windowMaxPercent) {
-                if (windowMaxHold < 255) windowMaxHold++;
-                if (windowMaxHold >= SENSOR_EXTREME_HOLD_SAMPLES) {
-                  windowMaxConfirmed = true;
-                }
-              } else {
-                windowMaxHold = 0;
-              }
-            }
-
-            nextSampleAt = now + SENSOR_SAMPLE_INTERVAL;
-          }
-
-          bool rangeOk = (windowMaxPercent >= (uint8_t)(windowMinPercent + SENSOR_EXTREME_RANGE_MIN));
-          bool extremesOk = windowMinConfirmed && windowMaxConfirmed && rangeOk;
-          bool minWindowOk = (now - windowStartAt >= SENSOR_WINDOW_MIN_DURATION);
-
-          if ((extremesOk && minWindowOk) || (now - windowStartAt >= SENSOR_WINDOW_DURATION)) {
-            finalizeWindow();
-            sensorPowerOff();
-            lazyState = LAZY_STATE_IDLE;
-            nextWindowAt = now + SENSOR_SLEEP_INTERVAL;
-          }
-          break;
+      if (lazyState == LAZY_STATE_IDLE) {
+        if (millis() >= nextWindowAt) {
+          startWindow(WINDOW_OWNER_LAZY);
+        }
+      } else {
+        tickWindow(nullptr);
       }
 
       return lazyValue;
@@ -322,6 +345,7 @@ uint16_t soilSensorOp(uint8_t op) {
     case 2: { // Set lazy mode
       readMode = READ_MODE_LAZY;
       lazyState = LAZY_STATE_IDLE;
+      windowOwner = WINDOW_OWNER_LAZY;
       sensorPowerOff();
       nextWindowAt = millis();
       realtimeSeeded = false;
@@ -331,6 +355,7 @@ uint16_t soilSensorOp(uint8_t op) {
     case 3: { // Set real-time mode
       readMode = READ_MODE_REALTIME;
       lazyState = LAZY_STATE_IDLE;
+      windowOwner = WINDOW_OWNER_LAZY;
       sensorPowerOn();
       resetRealtimeFilter(lazyValue);
       break;
