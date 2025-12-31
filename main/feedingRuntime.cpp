@@ -26,7 +26,8 @@ enum FeedStopReason : uint8_t {
   FEED_STOP_MOISTURE,
   FEED_STOP_RUNOFF,
   FEED_STOP_MAX_RUNTIME,
-  FEED_STOP_DISABLED
+  FEED_STOP_DISABLED,
+  FEED_STOP_UI_PAUSE
 };
 
 struct FeedSession {
@@ -54,6 +55,7 @@ static uint16_t rtcMinutes = 0;
 static uint16_t rtcDayKey = 0;
 static unsigned long rtcLastReadAt = 0;
 static bool feedingDisabledCached = false;
+static bool feedingPausedForUi = false;
 
 static inline bool feedingDisabledFlag() {
   return (config.flags & CONFIG_FLAG_FEEDING_DISABLED) != 0;
@@ -63,6 +65,14 @@ static inline void setFeedingDisabledFlag(bool disabled) {
   if (disabled) config.flags |= CONFIG_FLAG_FEEDING_DISABLED;
   else config.flags &= static_cast<uint8_t>(~CONFIG_FLAG_FEEDING_DISABLED);
   feedingDisabledCached = disabled;
+}
+
+static inline bool feedingPausedFlag() {
+  return feedingPausedForUi;
+}
+
+static inline void setFeedingPausedFlag(bool paused) {
+  feedingPausedForUi = paused;
 }
 
 static bool slotFlag(const FeedSlot *slot, uint8_t flag) {
@@ -95,7 +105,7 @@ static bool updateRtcCache() {
 }
 
 static void startFeed(uint8_t slotIndex, const FeedSlot *slot, bool timeTriggered) {
-  if (feedingDisabledCached) return;
+  if (feedingDisabledCached || feedingPausedFlag()) return;
 
   session.active = true;
   session.slotIndex = slotIndex;
@@ -275,8 +285,6 @@ static bool startConditionsMet(uint8_t slotIndex, const FeedSlot *slot) {
 }
 
 static void maybeStartFeed() {
-  if (uiTaskActive()) return;
-
   for (uint8_t i = 0; i < FEED_SLOT_COUNT; ++i) {
     FeedSlot slot;
     unpackFeedSlot(&slot, config.feedSlotsPacked[i]);
@@ -292,6 +300,15 @@ static void maybeStartFeed() {
 
 void feedingTick() {
   unsigned long now = millis();
+
+  feedingDisabledCached = feedingDisabledFlag();
+
+  if (feedingPausedFlag()) {
+    if (session.active) {
+      stopFeed(FEED_STOP_UI_PAUSE, now);
+    }
+    return;
+  }
 
   feedingDisabledCached = feedingDisabledFlag();
   if (feedingDisabledCached) {
@@ -352,4 +369,19 @@ void feedingSetEnabled(bool enabled) {
 
   setFeedingDisabledFlag(disable);
   saveConfig();
+}
+
+bool feedingIsPausedForUi() {
+  return feedingPausedFlag();
+}
+
+void feedingPauseForUi() {
+  setFeedingPausedFlag(true);
+  if (session.active) {
+    stopFeed(FEED_STOP_UI_PAUSE, millis());
+  }
+}
+
+void feedingResumeAfterUi() {
+  setFeedingPausedFlag(false);
 }

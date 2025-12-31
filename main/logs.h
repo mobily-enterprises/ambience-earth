@@ -11,7 +11,8 @@ enum LogStopReason : uint8_t {
   LOG_STOP_MOISTURE = 1,
   LOG_STOP_RUNOFF = 2,
   LOG_STOP_MAX_RUNTIME = 3,
-  LOG_STOP_DISABLED = 4
+  LOG_STOP_DISABLED = 4,
+  LOG_STOP_UI_PAUSE = 5
 };
 
 enum LogStartReason : uint8_t {

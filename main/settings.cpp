@@ -24,14 +24,6 @@ extern Button downButton;
 extern Button rightButton;
 extern Button okButton;
 extern Button *pressedButton;
-
-enum UiTaskKind : uint8_t {
-  UI_TASK_NONE = 0,
-  UI_TASK_CALIBRATION,
-  UI_TASK_PUMP_TEST
-};
-
-static UiTaskKind uiTask = UI_TASK_NONE;
 enum CalState : uint8_t {
   CAL_STATE_IDLE = 0,
   CAL_STATE_PROMPT_DRY,
@@ -132,23 +124,17 @@ static void drawYesNoPrompt(bool yesSelected) {
   lcdPrint_P(MSG_NO);
 }
 
-bool uiTaskActive() {
-  return uiTask != UI_TASK_NONE;
-}
-
 static void finishCalibrationTask() {
   setSoilSensorLazy();
-  uiTask = UI_TASK_NONE;
+  calTask.state = CAL_STATE_IDLE;
 }
 
 static void finishPumpTestTask() {
   digitalWrite(PUMP_IN_DEVICE, HIGH);
-  uiTask = UI_TASK_NONE;
+  pumpTask.state = PUMP_STATE_IDLE;
 }
 
 void startCalibrationTask() {
-  if (uiTaskActive()) return;
-  uiTask = UI_TASK_CALIBRATION;
   calTask.state = CAL_STATE_PROMPT_DRY;
   calTask.lastState = CAL_STATE_IDLE;
   calTask.samplingStarted = false;
@@ -160,15 +146,12 @@ void startCalibrationTask() {
 }
 
 void startPumpTestTask() {
-  if (uiTaskActive()) return;
-  uiTask = UI_TASK_PUMP_TEST;
   pumpTask.state = PUMP_STATE_MESSAGE;
   pumpTask.lastState = PUMP_STATE_IDLE;
   pumpTask.nextActionAt = 0;
   pumpTask.cyclesRemaining = 3;
   screenSaverModeOff();
 }
-
 static void runCalibrationTask() {
   analogButtonsCheck();
 
@@ -347,16 +330,6 @@ static void runPumpTestTask() {
 
   pumpTask.lastState = pumpTask.state;
 }
-
-void runUiTask() {
-  // Dispatch the active UI task (non-blocking state machines).
-  if (uiTask == UI_TASK_CALIBRATION) {
-    runCalibrationTask();
-  } else if (uiTask == UI_TASK_PUMP_TEST) {
-    runPumpTestTask();
-  }
-}
-
 void settings() {
   int8_t choice = 0;
 
@@ -372,15 +345,31 @@ void settings() {
 
     if (choice == 1) setTimeAndDate();
     else if (choice == 2) {
-      startCalibrationTask();
+      calibrateMoistureSensorBlocking();
       return;
     }
     else if (choice == 3) {
-      startPumpTestTask();
+      pumpTestBlocking();
       return;
     }
     else if (choice == 4) testSensors();
     else if (choice == 5) settingsReset();
+  }
+}
+
+void calibrateMoistureSensorBlocking() {
+  startCalibrationTask();
+  while (calTask.state != CAL_STATE_IDLE) {
+    runCalibrationTask();
+    delay(10);
+  }
+}
+
+void pumpTestBlocking() {
+  startPumpTestTask();
+  while (pumpTask.state != PUMP_STATE_IDLE) {
+    runPumpTestTask();
+    delay(10);
   }
 }
 
@@ -583,10 +572,7 @@ int runInitialSetup() {
 }
 
 int calibrateSoilMoistureSensor() {
-  startCalibrationTask();
-  while (uiTaskActive()) {
-    runUiTask();
-  }
+  calibrateMoistureSensorBlocking();
   return calTask.saved ? true : false;
 }
 
@@ -608,5 +594,5 @@ void resetData() {
 }
 
 void activatePumps() {
-  startPumpTestTask();
+  pumpTestBlocking();
 }

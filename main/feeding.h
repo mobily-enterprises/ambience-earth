@@ -8,6 +8,9 @@ void feedingTick();
 bool feedingIsActive();
 bool feedingIsEnabled();
 void feedingSetEnabled(bool enabled);
+bool feedingIsPausedForUi();
+void feedingPauseForUi();
+void feedingResumeAfterUi();
 
 typedef struct {
   bool active;

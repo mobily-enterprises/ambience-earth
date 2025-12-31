@@ -114,24 +114,9 @@ void loop() {
   feedingTick();
   unsigned long currentMillis = millis();
 
-  static bool wasUiTaskActive = false;
-  bool uiActive = uiTaskActive();
-  if (wasUiTaskActive && !uiActive) {
-    forceDisplayRedraw = true;
-  }
-  wasUiTaskActive = uiActive;
-
-  if (uiActive) {
-    runUiTask();
-    runSoilSensorLazyReadings();
-    maybeLogValues();
-    delay(50); // Let the CPU breathe
-    return;
-  }
-
   bool inputRendered = handleUiInput(currentMillis);
 
-  if (!uiTaskActive() && currentMillis - lastButtonPressTime > SCREENSAVER_TRIGGER_TIME) screenSaverModeOn();
+  if (currentMillis - lastButtonPressTime > SCREENSAVER_TRIGGER_TIME) screenSaverModeOn();
 
   // Necessary to run this consistently so that
   // lazy reads work
@@ -165,7 +150,9 @@ static bool handleUiInput(unsigned long now) {
   }
 
   if (pressedButton == &okButton) {
+    feedingPauseForUi();
     mainMenu();
+    feedingResumeAfterUi();
     pressedButton = nullptr;
     return true;
   }
@@ -385,7 +372,6 @@ void mainMenu() {
       feedingSetEnabled(!feedingIsEnabled());
       // Immediate feedback; loop redraws menu with new label.
     }
-    if (uiTaskActive()) return;
   } while (choice != -1);
   forceDisplayRedraw = true;
   displayInfo(screenCounter);
@@ -579,6 +565,7 @@ void showLogType1() {
     case LOG_STOP_RUNOFF: lcd.print(F("Run")); break;
     case LOG_STOP_MAX_RUNTIME: lcd.print(F("Max")); break;
     case LOG_STOP_DISABLED: lcd.print(F("Off")); break;
+    case LOG_STOP_UI_PAUSE: lcd.print(F("Cfg")); break;
     default: lcd.print(F("---")); break;
   }
 
