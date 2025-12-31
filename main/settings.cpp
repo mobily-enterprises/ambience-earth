@@ -344,20 +344,14 @@ void settings() {
     choice = selectChoice(5, 1);
 
     if (choice == 1) setTimeAndDate();
-    else if (choice == 2) {
-      calibrateMoistureSensorBlocking();
-      return;
-    }
-    else if (choice == 3) {
-      pumpTestBlocking();
-      return;
-    }
+    else if (choice == 2) calibrateMoistureSensor();
+    else if (choice == 3) pumpTest();
     else if (choice == 4) testSensors();
     else if (choice == 5) settingsReset();
   }
 }
 
-void calibrateMoistureSensorBlocking() {
+void calibrateMoistureSensor() {
   startCalibrationTask();
   while (calTask.state != CAL_STATE_IDLE) {
     runCalibrationTask();
@@ -365,7 +359,7 @@ void calibrateMoistureSensorBlocking() {
   }
 }
 
-void pumpTestBlocking() {
+void pumpTest() {
   startPumpTestTask();
   while (pumpTask.state != PUMP_STATE_IDLE) {
     runPumpTestTask();
@@ -572,7 +566,7 @@ int runInitialSetup() {
 }
 
 int calibrateSoilMoistureSensor() {
-  calibrateMoistureSensorBlocking();
+  calibrateMoistureSensor();
   return calTask.saved ? true : false;
 }
 
@@ -594,5 +588,5 @@ void resetData() {
 }
 
 void activatePumps() {
-  pumpTestBlocking();
+  pumpTest();
 }
