@@ -360,18 +360,18 @@ void mainMenu() {
     setChoices_P(
       MSG_LOGS, 1,
       MSG_FEEDING_MENU, 2,
-      MSG_SETTINGS, 3,
-      feedingToggle, 4);
+      feedingToggle, 3,
+      MSG_SETTINGS, 4);
 
     choice = selectChoice(4, 1);
 
     if (choice == 1) viewLogs();
     else if (choice == 2) feedingMenu();
-    else if (choice == 3) settings();
-    else if (choice == 4) {
+    else if (choice == 3) {
       feedingSetEnabled(!feedingIsEnabled());
       // Immediate feedback; loop redraws menu with new label.
     }
+    else if (choice == 4) settings();
   } while (choice != -1);
   forceDisplayRedraw = true;
   displayInfo(screenCounter);

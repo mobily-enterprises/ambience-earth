@@ -43,6 +43,7 @@ const char PROGMEM MSG_TRAY_SHORT[] = "Tr";
 const char PROGMEM MSG_TRAY_NOW[] = "Tray:";
 const char PROGMEM MSG_PERCENT[] = "%";
 const char PROGMEM MSG_IS[] = "is";
+const char PROGMEM MSG_WET_COLUMN[] = "Wet";
 
 const char PROGMEM MSG_EXTRACTING[] = "Extracting...";
 const char PROGMEM MSG_FEEDING[] = "Feeding...";
@@ -77,6 +78,8 @@ const char PROGMEM MSG_ON[] = "On";
 const char PROGMEM MSG_OFF[] = "Off";
 const char PROGMEM MSG_DISABLE_FEEDING[] = "Disable feeding";
 const char PROGMEM MSG_ENABLE_FEEDING[] = "Re-enable feeding";
+const char PROGMEM MSG_CAL_DRY_ONLY[] = "Calibrate DRY";
+const char PROGMEM MSG_CAL_WET_ONLY[] = "Calibrate WET";
 const char PROGMEM MSG_START_CONDITIONS[] = "Start feed when...";
 const char PROGMEM MSG_END_CONDITIONS[] = "Stop feed when...";
 const char PROGMEM MSG_FEED_OVERRIDES[] = "Feed overrides";

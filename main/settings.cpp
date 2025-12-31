@@ -24,43 +24,6 @@ extern Button downButton;
 extern Button rightButton;
 extern Button okButton;
 extern Button *pressedButton;
-enum CalState : uint8_t {
-  CAL_STATE_IDLE = 0,
-  CAL_STATE_PROMPT_DRY,
-  CAL_STATE_SAMPLE_DRY,
-  CAL_STATE_WAIT_AFTER_DRY,
-  CAL_STATE_PROMPT_SOAK,
-  CAL_STATE_SAMPLE_SOAK,
-  CAL_STATE_CONFIRM_SAVE
-};
-
-enum PumpState : uint8_t {
-  PUMP_STATE_IDLE = 0,
-  PUMP_STATE_MESSAGE,
-  PUMP_STATE_ON,
-  PUMP_STATE_OFF
-};
-
-struct CalTask {
-  CalState state;
-  CalState lastState;
-  unsigned long stateStartAt;
-  bool samplingStarted;
-  int dry;
-  int soaked;
-  bool saveChoice;
-  bool saved;
-};
-
-struct PumpTask {
-  PumpState state;
-  PumpState lastState;
-  unsigned long nextActionAt;
-  uint8_t cyclesRemaining;
-};
-
-static CalTask calTask = {};
-static PumpTask pumpTask = {};
 
 static void setTimeAndDate() {
   uint8_t hour = 0;
@@ -124,212 +87,8 @@ static void drawYesNoPrompt(bool yesSelected) {
   lcdPrint_P(MSG_NO);
 }
 
-static void finishCalibrationTask() {
-  setSoilSensorLazy();
-  calTask.state = CAL_STATE_IDLE;
-}
-
-static void finishPumpTestTask() {
-  digitalWrite(PUMP_IN_DEVICE, HIGH);
-  pumpTask.state = PUMP_STATE_IDLE;
-}
-
-void startCalibrationTask() {
-  calTask.state = CAL_STATE_PROMPT_DRY;
-  calTask.lastState = CAL_STATE_IDLE;
-  calTask.samplingStarted = false;
-  calTask.dry = 0;
-  calTask.soaked = 0;
-  calTask.saveChoice = true;
-  calTask.saved = false;
-  screenSaverModeOff();
-}
-
-void startPumpTestTask() {
-  pumpTask.state = PUMP_STATE_MESSAGE;
-  pumpTask.lastState = PUMP_STATE_IDLE;
-  pumpTask.nextActionAt = 0;
-  pumpTask.cyclesRemaining = 3;
-  screenSaverModeOff();
-}
-static void runCalibrationTask() {
-  analogButtonsCheck();
-
-  bool entered = calTask.state != calTask.lastState;
-  if (entered) calTask.stateStartAt = millis();
-
-  switch (calTask.state) {
-    case CAL_STATE_PROMPT_DRY:
-      if (entered) {
-        drawOkPrompt(MSG_MOIST_SENSOR, MSG_YES_ITS_DRY, MSG_ENSURE_SENSOR_IS, MSG_VERY_DRY);
-      }
-      if (pressedButton == &okButton) {
-        calTask.state = CAL_STATE_SAMPLE_DRY;
-        return;
-      }
-      if (pressedButton == &leftButton) {
-        finishCalibrationTask();
-        return;
-      }
-      break;
-
-    case CAL_STATE_SAMPLE_DRY:
-      if (entered) {
-        calTask.samplingStarted = false;
-        lcdClear();
-        lcdPrint_P(MSG_DRY_COLUMN, 1);
-      }
-      if (!calTask.samplingStarted) {
-        soilSensorWindowStart();
-        calTask.samplingStarted = true;
-      }
-      {
-        SoilSensorWindowStats stats;
-        bool done = soilSensorWindowTick(&stats);
-        uint16_t sample = soilSensorWindowLastRaw();
-        lcdPrint_P(MSG_DRY_COLUMN, 1);
-        lcdPrintNumber(sample);
-        lcdPrint_P(MSG_SPACE);
-        if (done) {
-          calTask.dry = (int)stats.avgRaw;
-          calTask.state = CAL_STATE_WAIT_AFTER_DRY;
-          return;
-        }
-      }
-      break;
-
-    case CAL_STATE_WAIT_AFTER_DRY:
-      if (millis() - calTask.stateStartAt >= 2000) {
-        calTask.state = CAL_STATE_PROMPT_SOAK;
-        return;
-      }
-      break;
-
-    case CAL_STATE_PROMPT_SOAK:
-      if (entered) {
-        drawOkPrompt(MSG_MOIST_SENSOR, MSG_YES_ITS_SOAKED, MSG_ENSURE_SENSOR_IS, MSG_VERY_SOAKED);
-      }
-      if (pressedButton == &okButton) {
-        calTask.state = CAL_STATE_SAMPLE_SOAK;
-        return;
-      }
-      if (pressedButton == &leftButton) {
-        finishCalibrationTask();
-        return;
-      }
-      break;
-
-    case CAL_STATE_SAMPLE_SOAK:
-      if (entered) {
-        calTask.samplingStarted = false;
-        lcdClear();
-        lcdPrint_P(MSG_SOAKED_COLUMN, 1);
-      }
-      if (!calTask.samplingStarted) {
-        soilSensorWindowStart();
-        calTask.samplingStarted = true;
-      }
-      {
-        SoilSensorWindowStats stats;
-        bool done = soilSensorWindowTick(&stats);
-        uint16_t sample = soilSensorWindowLastRaw();
-        lcdPrint_P(MSG_SOAKED_COLUMN, 1);
-        lcdPrintNumber(sample);
-        lcdPrint_P(MSG_SPACE);
-        if (done) {
-          calTask.soaked = (int)stats.avgRaw;
-          calTask.state = CAL_STATE_CONFIRM_SAVE;
-          return;
-        }
-      }
-      break;
-
-    case CAL_STATE_CONFIRM_SAVE:
-      if (entered) {
-        calTask.saveChoice = true;
-        drawYesNoPrompt(calTask.saveChoice);
-      }
-      if (pressedButton == &upButton || pressedButton == &downButton) {
-        calTask.saveChoice = !calTask.saveChoice;
-        drawYesNoPrompt(calTask.saveChoice);
-      }
-      if (pressedButton == &okButton) {
-        if (calTask.saveChoice) {
-          config.moistSensorCalibrationSoaked = calTask.soaked;
-          config.moistSensorCalibrationDry = calTask.dry;
-          saveConfig();
-          calTask.saved = true;
-        }
-        finishCalibrationTask();
-        return;
-      }
-      if (pressedButton == &leftButton) {
-        finishCalibrationTask();
-        return;
-      }
-      break;
-
-    default:
-      finishCalibrationTask();
-      return;
-  }
-
-  calTask.lastState = calTask.state;
-}
-
-static void runPumpTestTask() {
-  analogButtonsCheck();
-
-  bool entered = pumpTask.state != pumpTask.lastState;
-
-  switch (pumpTask.state) {
-    case PUMP_STATE_MESSAGE:
-      if (entered) {
-        lcdClear();
-        lcdPrint_P(MSG_DEVICE_WILL_BLINK, 1);
-        lcdPrint_P(MSG_THREE_TIMES, 2);
-        pumpTask.nextActionAt = millis() + 100;
-      }
-      if (millis() >= pumpTask.nextActionAt) {
-        pumpTask.state = PUMP_STATE_ON;
-        return;
-      }
-      break;
-
-    case PUMP_STATE_ON:
-      if (entered) {
-        digitalWrite(PUMP_IN_DEVICE, LOW);
-        pumpTask.nextActionAt = millis() + 1000;
-      }
-      if (millis() >= pumpTask.nextActionAt) {
-        pumpTask.state = PUMP_STATE_OFF;
-        return;
-      }
-      break;
-
-    case PUMP_STATE_OFF:
-      if (entered) {
-        digitalWrite(PUMP_IN_DEVICE, HIGH);
-        pumpTask.nextActionAt = millis() + 1000;
-      }
-      if (millis() >= pumpTask.nextActionAt) {
-        if (pumpTask.cyclesRemaining > 0) pumpTask.cyclesRemaining--;
-        if (pumpTask.cyclesRemaining == 0) {
-          finishPumpTestTask();
-          return;
-        }
-        pumpTask.state = PUMP_STATE_ON;
-        return;
-      }
-      break;
-
-    default:
-      finishPumpTestTask();
-      return;
-  }
-
-  pumpTask.lastState = pumpTask.state;
-}
+void startCalibrationTask() {}
+void startPumpTestTask() {}
 void settings() {
   int8_t choice = 0;
 
@@ -351,20 +110,102 @@ void settings() {
   }
 }
 
+static uint16_t calibrateOnePoint(bool isDry) {
+  lcdClear();
+  lcdSetCursor(0, 0);
+  lcdPrint_P(isDry ? MSG_CAL_DRY_ONLY : MSG_CAL_WET_ONLY);
+  lcdSetCursor(0, 1);
+  lcdPrint_P(isDry ? MSG_DRY_COLUMN : MSG_WET_COLUMN);
+  lcdPrint_P(MSG_SPACE);
+
+  soilSensorWindowStart();
+  uint16_t lastRaw = 0xFFFF;
+  unsigned long lastPrint = 0;
+
+  while (true) {
+    SoilSensorWindowStats stats;
+    bool done = soilSensorWindowTick(&stats);
+    uint16_t sample = soilSensorWindowLastRaw();
+    unsigned long now = millis();
+
+    if (sample != lastRaw && now - lastPrint >= 300) {
+      lcdSetCursor(5, 1);
+      lcd.print(sample);
+      lcdPrint_P(MSG_SPACE);
+      lastRaw = sample;
+      lastPrint = now;
+    }
+
+    if (done) {
+      setSoilSensorLazy();
+      uint16_t avg = stats.avgRaw;
+      if (isDry) config.moistSensorCalibrationDry = avg;
+      else config.moistSensorCalibrationSoaked = avg;
+      saveConfig();
+
+      lcdClear();
+      lcdSetCursor(0, 0);
+      lcdPrint_P(isDry ? MSG_CAL_DRY_ONLY : MSG_CAL_WET_ONLY);
+      lcdSetCursor(0, 1);
+      lcd.print(isDry ? F("Dry: ") : F("Wet: "));
+      lcd.print(avg);
+      lcdSetCursor(0, 2);
+      lcdPrint_P(MSG_SAVE_QUESTION);
+      lcdSetCursor(0, 3);
+      lcdPrint_P(MSG_OK_EDIT_BACK);
+      while (true) {
+        analogButtonsCheck();
+        if (pressedButton == &okButton) {
+          pressedButton = nullptr;
+          break;
+        } else if (pressedButton == &leftButton) {
+          pressedButton = nullptr;
+          return 0;
+        }
+      }
+      return avg;
+    }
+
+    analogButtonsCheck();
+    if (pressedButton == &leftButton) {
+      setSoilSensorLazy();
+      return 0;
+    }
+  }
+}
+
 void calibrateMoistureSensor() {
-  startCalibrationTask();
-  while (calTask.state != CAL_STATE_IDLE) {
-    runCalibrationTask();
-    delay(10);
+  while (true) {
+    setChoices_P(MSG_CAL_DRY_ONLY, 1, MSG_CAL_WET_ONLY, 2);
+    setChoicesHeader_P(MSG_CAL_MOISTURE_SENSOR);
+    int8_t choice = selectChoice(2, 1);
+    if (choice == -1) return;
+    if (choice == 1) {
+      calibrateOnePoint(true);
+      return;
+    }
+    if (choice == 2) {
+      calibrateOnePoint(false);
+      return;
+    }
   }
 }
 
 void pumpTest() {
-  startPumpTestTask();
-  while (pumpTask.state != PUMP_STATE_IDLE) {
-    runPumpTestTask();
-    delay(10);
+  lcdClear();
+  lcdPrint_P(MSG_DEVICE_WILL_BLINK, 1);
+  lcdPrint_P(MSG_THREE_TIMES, 2);
+  delay(500);
+  const uint8_t cycles = 3;
+  for (uint8_t i = 0; i < cycles; ++i) {
+    digitalWrite(PUMP_IN_DEVICE, LOW);
+    delay(1000);
+    digitalWrite(PUMP_IN_DEVICE, HIGH);
+    delay(1000);
   }
+  lcdClear();
+  lcdPrint_P(MSG_DONE, 1);
+  delay(1000);
 }
 
 void testSensors() {
@@ -567,7 +408,7 @@ int runInitialSetup() {
 
 int calibrateSoilMoistureSensor() {
   calibrateMoistureSensor();
-  return calTask.saved ? true : false;
+  return true;
 }
 
 void resetData() {

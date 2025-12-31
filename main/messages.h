@@ -46,6 +46,7 @@ extern const char PROGMEM MSG_TRAY_SHORT[];
 extern const char PROGMEM MSG_TRAY_NOW[];
 extern const char PROGMEM MSG_PERCENT[];
 extern const char PROGMEM MSG_IS[];
+extern const char PROGMEM MSG_WET_COLUMN[];
 
 extern const char PROGMEM MSG_EXTRACTING[];
 extern const char PROGMEM MSG_FEEDING_MENU[];
@@ -80,6 +81,8 @@ extern const char PROGMEM MSG_ON[];
 extern const char PROGMEM MSG_OFF[];
 extern const char PROGMEM MSG_DISABLE_FEEDING[];
 extern const char PROGMEM MSG_ENABLE_FEEDING[];
+extern const char PROGMEM MSG_CAL_DRY_ONLY[];
+extern const char PROGMEM MSG_CAL_WET_ONLY[];
 extern const char PROGMEM MSG_START_CONDITIONS[];
 extern const char PROGMEM MSG_END_CONDITIONS[];
 extern const char PROGMEM MSG_FEED_OVERRIDES[];
