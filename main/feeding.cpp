@@ -6,7 +6,7 @@
 #include "feedSlots.h"
 #include "messages.h"
 #include "ui.h"
-#include <LiquidCrystal_I2C.h>
+#include "LiquidCrystal_I2C.h"
 #include <AnalogButtons.h>
 
 extern Config config;
