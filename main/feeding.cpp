@@ -596,7 +596,8 @@ static void feedingSlotsPage(uint8_t startIndex) {
     if (choice != -1) viewFeedSlot(static_cast<uint8_t>(choice - 1));
   }
 }
-}
+
+} /* End of namespace */
 
 void feedingMenu() {
   int8_t choice = 0;
