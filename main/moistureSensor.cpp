@@ -25,7 +25,7 @@ enum WindowOwner : uint8_t {
 
 static uint16_t lazyValue = 0;
 static uint16_t realtimeRaw = 0;
-static float realtimeAvg = 0.0f;
+static int32_t realtimeAvgQ8 = 0; // Q8.8 fixed-point average
 static ReadMode readMode = READ_MODE_LAZY;
 static LazyState lazyState = LAZY_STATE_IDLE;
 static WindowOwner windowOwner = WINDOW_OWNER_LAZY;
@@ -158,7 +158,7 @@ static bool tickWindow(SoilSensorWindowStats *out) {
 }
 
 static void resetRealtimeFilter(uint16_t seed) {
-  realtimeAvg = (float)seed;
+  realtimeAvgQ8 = (int32_t)seed << 8;
   realtimeRaw = seed;
   realtimeSeeded = true;
   realtimeLastSampleAt = 0;
@@ -183,12 +183,12 @@ static void tickRealtime(bool forceSample) {
   realtimeRaw = raw;
 
   if (!realtimeSeeded) {
-    realtimeAvg = (float)raw;
+    realtimeAvgQ8 = (int32_t)raw << 8;
     realtimeSeeded = true;
   }
 
   uint8_t rawPercent = soilMoistureAsPercentage(raw);
-  uint8_t avgPercent = soilMoistureAsPercentage((uint16_t)(realtimeAvg + 0.5f));
+  uint8_t avgPercent = soilMoistureAsPercentage((uint16_t)((realtimeAvgQ8 + 128) >> 8));
   int16_t diffPercent = (int16_t)rawPercent - (int16_t)avgPercent;
 
   bool aboveBand = diffPercent > (int16_t)SENSOR_FEED_DEADBAND_PERCENT;
@@ -217,7 +217,7 @@ static void tickRealtime(bool forceSample) {
   bool riseOk = realtimeRiseActive && (now - realtimeRiseStartAt >= SENSOR_FEED_RISE_MS);
   bool fallOk = realtimeFallActive && (now - realtimeFallStartAt >= SENSOR_FEED_DROP_MS);
   bool shouldUpdate = false;
-  float tau = SENSOR_FEED_TAU_SLOW_MS;
+  uint32_t tau = SENSOR_FEED_TAU_SLOW_MS;
 
   if (aboveBand && riseOk) {
     shouldUpdate = true;
@@ -228,9 +228,13 @@ static void tickRealtime(bool forceSample) {
   }
 
   if (shouldUpdate) {
-    unsigned long dt = realtimeLastSampleAt ? (now - realtimeLastSampleAt) : SENSOR_SAMPLE_INTERVAL;
-    float alpha = (float)dt / (tau + (float)dt);
-    realtimeAvg += alpha * ((float)raw - realtimeAvg);
+    uint32_t dt = realtimeLastSampleAt ? (now - realtimeLastSampleAt) : SENSOR_SAMPLE_INTERVAL;
+    uint32_t denom = tau + dt;
+    uint32_t alphaQ8 = denom ? (uint32_t)(((uint64_t)dt << 8) / denom) : 0;
+    if (alphaQ8 > 256) alphaQ8 = 256;
+    int32_t rawQ8 = (int32_t)raw << 8;
+    int32_t deltaQ8 = rawQ8 - realtimeAvgQ8;
+    realtimeAvgQ8 += (deltaQ8 * (int32_t)alphaQ8) >> 8;
   }
 
   realtimeLastSampleAt = now;
@@ -253,7 +257,7 @@ void initMoistureSensor() {
   windowLastRaw = lazyValue;
   sensorPowerOff();
   realtimeRaw = lazyValue;
-  realtimeAvg = (float)lazyValue;
+  realtimeAvgQ8 = (int32_t)lazyValue << 8;
   realtimeSeeded = true;
 }
 
@@ -290,7 +294,7 @@ bool soilSensorRealtimeReady() {
 
 uint16_t soilSensorGetRealtimeAvg() {
   if (!realtimeSeeded) return lazyValue;
-  return (uint16_t)(realtimeAvg + 0.5f);
+  return (uint16_t)((realtimeAvgQ8 + 128) >> 8);
 }
 
 uint16_t soilSensorGetRealtimeRaw() {
