@@ -130,6 +130,18 @@ void loop() {
   }
 
   analogButtonsCheck();
+
+  if (pressedButton != nullptr && screenSaverMode) {
+    lastButtonPressTime = millis();
+    screenSaverModeOff();
+    forceDisplayRedraw = true;
+    displayInfo(screenCounter);
+    pressedButton = nullptr;
+    runSoilSensorLazyReadings();
+    maybeLogValues();
+    delay(50); // Let the CPU breathe
+    return;
+  }
   
   if (pressedButton != nullptr) {
     if (pressedButton == &upButton) screenCounter = (screenCounter - 1 + kScreenCount) % kScreenCount;

@@ -201,7 +201,7 @@ static void labelcpy_R(char *destination, const char *source) {
 
 void initLcd() {
   lcd.init();
-  delay(1000);
+  delay(100);
   lcd.backlight();
 
   lcd.createChar(0, fullSquare);

@@ -35,9 +35,11 @@ static unsigned long sensorOnTime = 0;
 static unsigned long windowStartAt = 0;
 static unsigned long nextSampleAt = 0;
 static unsigned long nextWindowAt = 0;
+static unsigned long initialSeedReadyAt = 0;
 static unsigned long realtimeWarmupUntil = 0;
 static unsigned long realtimeLastSampleAt = 0;
 static bool realtimeSeeded = false;
+static bool initialSeedPending = false;
 
 static uint32_t windowSum = 0;
 static uint16_t windowCount = 0;
@@ -76,6 +78,19 @@ static void resetWindowAccum() {
   windowMinRaw = 0xFFFF;
   windowMaxRaw = 0;
   windowLastRaw = 0;
+}
+
+static void maybeCompleteInitialSeed() {
+  if (!initialSeedPending) return;
+  if (millis() < initialSeedReadyAt) return;
+
+  uint16_t seed = readMedian3();
+  lazyValue = seed;
+  realtimeRaw = seed;
+  realtimeAvgQ8 = (int32_t)seed << 8;
+  realtimeSeeded = true;
+  initialSeedPending = false;
+  sensorPowerOff();
 }
 
 static void finalizeWindow(SoilSensorWindowStats *out) {
@@ -201,14 +216,16 @@ void initMoistureSensor() {
   nextWindowAt = millis();
   resetWindowAccum();
 
+  lazyValue = 0;
+  windowLastRaw = 0;
+  realtimeRaw = 0;
+  realtimeAvgQ8 = 0;
+  realtimeSeeded = false;
+
   sensorPowerOn();
-  delay(SENSOR_STABILIZATION_TIME);
-  lazyValue = readMedian3();
-  windowLastRaw = lazyValue;
-  sensorPowerOff();
-  realtimeRaw = lazyValue;
-  realtimeAvgQ8 = (int32_t)lazyValue << 8;
-  realtimeSeeded = true;
+  sensorOnTime = millis();
+  initialSeedReadyAt = sensorOnTime + SENSOR_STABILIZATION_TIME;
+  initialSeedPending = true;
 }
 
 uint16_t runSoilSensorLazyReadings() {
@@ -275,6 +292,11 @@ uint16_t soilSensorOp(uint8_t op) {
         return soilSensorGetRealtimeAvg();
       }
 
+      if (initialSeedPending) {
+        maybeCompleteInitialSeed();
+        if (initialSeedPending) return lazyValue;
+      }
+
       if (windowOwner != WINDOW_OWNER_LAZY) return lazyValue;
 
       if (lazyState == LAZY_STATE_IDLE) {
@@ -293,6 +315,9 @@ uint16_t soilSensorOp(uint8_t op) {
         tickRealtime(true);
         return soilSensorGetRealtimeAvg();
       }
+      if (initialSeedPending) {
+        maybeCompleteInitialSeed();
+      }
       return lazyValue;
     }
 
@@ -310,6 +335,7 @@ uint16_t soilSensorOp(uint8_t op) {
       readMode = READ_MODE_REALTIME;
       lazyState = LAZY_STATE_IDLE;
       windowOwner = WINDOW_OWNER_LAZY;
+      initialSeedPending = false;
       sensorPowerOn();
       resetRealtimeFilter(lazyValue);
       break;
