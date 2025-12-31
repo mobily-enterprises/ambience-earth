@@ -29,7 +29,8 @@ LiquidCrystal_I2C::LiquidCrystal_I2C(uint8_t address, uint8_t cols, uint8_t rows
       _backlightMask(kMaskBacklight),
       _displayControl(0),
       _displayMode(0),
-      _displayFunction(0) {
+      _displayFunction(0),
+      _ok(true) {
   setRowOffsets(0x00, 0x40, 0x14, 0x54);
 }
 
@@ -123,21 +124,30 @@ void LiquidCrystal_I2C::send(uint8_t value, uint8_t mode) {
 }
 
 void LiquidCrystal_I2C::write4bits(uint8_t value) {
-  expanderWrite(value);
+  if (!expanderWrite(value)) return;
   pulseEnable(value);
 }
 
-void LiquidCrystal_I2C::expanderWrite(uint8_t data) {
-  Wire.beginTransmission(_addr);
-  Wire.write(data | _backlightMask);
-  Wire.endTransmission();
+bool LiquidCrystal_I2C::expanderWrite(uint8_t data) {
+  for (uint8_t attempt = 0; attempt < 2; ++attempt) {
+    Wire.beginTransmission(_addr);
+    Wire.write(data | _backlightMask);
+    if (Wire.endTransmission() == 0) {
+      _ok = true;
+      return true;
+    }
+    delay(1);
+  }
+  _ok = false;
+  return false;
 }
 
-void LiquidCrystal_I2C::pulseEnable(uint8_t data) {
-  expanderWrite(data | kMaskEn);
+bool LiquidCrystal_I2C::pulseEnable(uint8_t data) {
+  if (!expanderWrite(data | kMaskEn)) return false;
   delayMicroseconds(1);
-  expanderWrite(data & (uint8_t)~kMaskEn);
+  if (!expanderWrite(data & (uint8_t)~kMaskEn)) return false;
   delayMicroseconds(50);
+  return true;
 }
 
 void LiquidCrystal_I2C::setRowOffsets(uint8_t row0, uint8_t row1, uint8_t row2, uint8_t row3) {

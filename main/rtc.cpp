@@ -5,6 +5,7 @@
 
 namespace {
 const uint8_t kRtcAddress = 0x68;
+static bool rtcOk = true;
 
 uint8_t bcdToDec(uint8_t value) {
   return static_cast<uint8_t>((value >> 4) * 10 + (value & 0x0F));
@@ -31,22 +32,32 @@ uint16_t makeDayKey(uint8_t year, uint8_t month, uint8_t day) {
 }
 
 bool readRegisters(uint8_t startReg, uint8_t *buffer, uint8_t length) {
-  Wire.beginTransmission(kRtcAddress);
-  Wire.write(startReg);
-  if (Wire.endTransmission() != 0) return false;
-
-  uint8_t readCount = Wire.requestFrom(kRtcAddress, length);
-  if (readCount != length) return false;
-
-  for (uint8_t i = 0; i < length; ++i) {
-    buffer[i] = Wire.read();
+  rtcOk = true;
+  for (uint8_t attempt = 0; attempt < 2; ++attempt) {
+    Wire.beginTransmission(kRtcAddress);
+    Wire.write(startReg);
+    if (Wire.endTransmission() == 0) {
+      uint8_t readCount = Wire.requestFrom(kRtcAddress, length);
+      if (readCount == length) {
+        for (uint8_t i = 0; i < length; ++i) {
+          buffer[i] = Wire.read();
+        }
+        return true;
+      }
+    }
+    delay(2);
   }
-  return true;
+  rtcOk = false;
+  return false;
 }
 }
 
 void initRtc() {
   Wire.begin();
+}
+
+bool rtcIsOk() {
+  return rtcOk;
 }
 
 bool rtcReadMinutesAndDay(uint16_t *minutesOfDay, uint16_t *dayKey) {

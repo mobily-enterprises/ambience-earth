@@ -86,9 +86,6 @@ static void drawYesNoPrompt(bool yesSelected) {
   else lcdPrint_P(MSG_SPACE);
   lcdPrint_P(MSG_NO);
 }
-
-void startCalibrationTask() {}
-void startPumpTestTask() {}
 void settings() {
   int8_t choice = 0;
 

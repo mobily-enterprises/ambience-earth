@@ -131,7 +131,7 @@ void loop() {
     // int pinValue = digitalRead(12);
     // Serial.print(digitalRead(12));
   }
-  delay(50); // Let the CPU breathe
+  delay(10); // Let the CPU breathe
 }
 
 static bool handleUiInput(unsigned long now) {
@@ -225,12 +225,10 @@ void maybeLogValues() {
 }
 
 void initialPinSetup() {
-  // Initial set for all pins
-  // This is a blanket-set, it will be overridden by
-  // sensor functions as needed.
+  // Set only the pins we own; avoid blanket driving analog pins that may connect to sensors.
   //pinMode(0, OUTPUT); digitalWrite(0, LOW); // D0 (RX) left alone, serial comms
   //pinMode(1, OUTPUT); digitalWrite(1, LOW); // D1 (TX) left alone, serial comms
-  
+
   pinMode(2, OUTPUT); digitalWrite(2, LOW); 
   pinMode(3, OUTPUT); digitalWrite(3, LOW); 
   pinMode(4, OUTPUT); digitalWrite(4, LOW);
@@ -244,11 +242,7 @@ void initialPinSetup() {
   pinMode(12, OUTPUT); digitalWrite(12, LOW);
   pinMode(13, OUTPUT); digitalWrite(13, LOW);
 
-  // Set analog pins (A0 to A5) as OUTPUT and drive LOW
-  pinMode(A0, OUTPUT); digitalWrite(A0, LOW);
-  pinMode(A1, OUTPUT); digitalWrite(A1, LOW);
-  pinMode(A2, OUTPUT); digitalWrite(A2, LOW);
-  pinMode(A3, OUTPUT); digitalWrite(A3, LOW);
+  // Leave A0-A3 alone until their respective modules configure them.
   // A4/A5 are SDA/SCL for I2C (LCD), leave them alone.
 
   pinMode(A6, INPUT_PULLUP); // Input only, set as pullup
@@ -395,6 +389,8 @@ static void lcdPrintPadded_P(PGM_P message, uint8_t width) {
 }
 
 static bool getRtcTimeString(char *out) {
+  if (!rtcIsOk()) return false;
+
   static unsigned long lastReadAt = 0;
   static uint16_t cachedMinutes = 0;
   static bool cachedValid = false;

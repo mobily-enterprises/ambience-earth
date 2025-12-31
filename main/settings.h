@@ -5,8 +5,6 @@ void settings();
 void resetOnlyLogs();
 void settingsDefaultMoistLevels();
 void settingsReset();
-void startCalibrationTask();
-void startPumpTestTask();
 void testSensors();
 void calibrateMoistureSensor();
 void pumpTest();
