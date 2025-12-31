@@ -465,7 +465,14 @@ static void lcdPrintHoursMinutes(unsigned long totalMinutes) {
 }
 
 void lcdPrintTime(unsigned long milliseconds) {
-  lcdPrintHoursMinutes(milliseconds / 1000 / 60);
+  unsigned long totalMinutes = milliseconds / 1000 / 60;
+  unsigned long tenths = (totalMinutes + 3) / 6;
+  unsigned long hours = tenths / 10;
+  uint8_t tenth = tenths % 10;
+  lcd.print(hours);
+  lcd.print('.');
+  lcd.print(tenth);
+  lcd.print('h');
 }
 
 void lcdPrintTimeSince(unsigned long milliseconds) {

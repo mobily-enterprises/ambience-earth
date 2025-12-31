@@ -37,10 +37,6 @@ static unsigned long nextSampleAt = 0;
 static unsigned long nextWindowAt = 0;
 static unsigned long realtimeWarmupUntil = 0;
 static unsigned long realtimeLastSampleAt = 0;
-static unsigned long realtimeRiseStartAt = 0;
-static bool realtimeRiseActive = false;
-static unsigned long realtimeFallStartAt = 0;
-static bool realtimeFallActive = false;
 static bool realtimeSeeded = false;
 
 static uint32_t windowSum = 0;
@@ -163,10 +159,6 @@ static void resetRealtimeFilter(uint16_t seed) {
   realtimeSeeded = true;
   realtimeLastSampleAt = 0;
   realtimeWarmupUntil = millis() + SENSOR_STABILIZATION_TIME;
-  realtimeRiseStartAt = 0;
-  realtimeRiseActive = false;
-  realtimeFallStartAt = 0;
-  realtimeFallActive = false;
 }
 
 static void tickRealtime(bool forceSample) {
@@ -187,55 +179,13 @@ static void tickRealtime(bool forceSample) {
     realtimeSeeded = true;
   }
 
-  uint8_t rawPercent = soilMoistureAsPercentage(raw);
-  uint8_t avgPercent = soilMoistureAsPercentage((uint16_t)((realtimeAvgQ8 + 128) >> 8));
-  int16_t diffPercent = (int16_t)rawPercent - (int16_t)avgPercent;
-
-  bool aboveBand = diffPercent > (int16_t)SENSOR_FEED_DEADBAND_PERCENT;
-  bool belowBand = diffPercent < -(int16_t)SENSOR_FEED_DEADBAND_PERCENT;
-
-  if (aboveBand) {
-    if (!realtimeRiseActive) {
-      realtimeRiseActive = true;
-      realtimeRiseStartAt = now;
-    }
-  } else {
-    realtimeRiseActive = false;
-    realtimeRiseStartAt = 0;
-  }
-
-  if (belowBand) {
-    if (!realtimeFallActive) {
-      realtimeFallActive = true;
-      realtimeFallStartAt = now;
-    }
-  } else {
-    realtimeFallActive = false;
-    realtimeFallStartAt = 0;
-  }
-
-  bool riseOk = realtimeRiseActive && (now - realtimeRiseStartAt >= SENSOR_FEED_RISE_MS);
-  bool fallOk = realtimeFallActive && (now - realtimeFallStartAt >= SENSOR_FEED_DROP_MS);
-  bool shouldUpdate = false;
-  uint32_t tau = SENSOR_FEED_TAU_SLOW_MS;
-
-  if (aboveBand && riseOk) {
-    shouldUpdate = true;
-    tau = SENSOR_FEED_TAU_FAST_MS;
-  } else if (belowBand) {
-    shouldUpdate = true;
-    tau = fallOk ? SENSOR_FEED_TAU_FAST_MS : SENSOR_FEED_TAU_SLOW_MS;
-  }
-
-  if (shouldUpdate) {
-    uint32_t dt = realtimeLastSampleAt ? (now - realtimeLastSampleAt) : SENSOR_SAMPLE_INTERVAL;
-    uint32_t denom = tau + dt;
-    uint32_t alphaQ8 = denom ? (uint32_t)(((uint64_t)dt << 8) / denom) : 0;
-    if (alphaQ8 > 256) alphaQ8 = 256;
-    int32_t rawQ8 = (int32_t)raw << 8;
-    int32_t deltaQ8 = rawQ8 - realtimeAvgQ8;
-    realtimeAvgQ8 += (deltaQ8 * (int32_t)alphaQ8) >> 8;
-  }
+  uint32_t dt = realtimeLastSampleAt ? (now - realtimeLastSampleAt) : SENSOR_SAMPLE_INTERVAL;
+  uint32_t denom = SENSOR_FEED_TAU_SLOW_MS + dt;
+  uint32_t alphaQ8 = denom ? (uint32_t)(((uint64_t)dt << 8) / denom) : 0;
+  if (alphaQ8 > 256) alphaQ8 = 256;
+  int32_t rawQ8 = (int32_t)raw << 8;
+  int32_t deltaQ8 = rawQ8 - realtimeAvgQ8;
+  realtimeAvgQ8 += (deltaQ8 * (int32_t)alphaQ8) >> 8;
 
   realtimeLastSampleAt = now;
 }
