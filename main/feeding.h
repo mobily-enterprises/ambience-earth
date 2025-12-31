@@ -6,6 +6,8 @@
 void feedingMenu();
 void feedingTick();
 bool feedingIsActive();
+bool feedingIsEnabled();
+void feedingSetEnabled(bool enabled);
 
 typedef struct {
   bool active;

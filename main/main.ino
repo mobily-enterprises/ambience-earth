@@ -37,9 +37,8 @@ extern Button downButton;
 extern Button rightButton;
 extern Button okButton;
 
-const unsigned long actionInterval = 2000;  // Interval in milliseconds (1000 milliseconds = 1 second)
-// const unsigned long actionInterval = 2000;  // Interval in milliseconds (1000 milliseconds = 1 second)
-unsigned long actionPreviousMillis = 0;
+const unsigned long idleDisplayIntervalMs = 2000;  // Periodic refresh when idle
+unsigned long lastDisplayAt = 0;
 
 unsigned long averageMsBetweenFeeds = 0;
 unsigned long int millisAtEndOfLastFeed = 0;
@@ -48,6 +47,7 @@ bool screenSaverMode = false;
 static bool forceDisplayRedraw = false;
 
 static void displayFeedingStatus(bool fullRedraw);
+static bool handleUiInput(unsigned long now);
 
 
 void setup() {
@@ -110,9 +110,9 @@ void setup() {
 
 
 void loop() {
+  // Main loop phases: feed tick -> ui task (if any) -> handle input -> periodic display -> background sensors/logging.
   feedingTick();
   unsigned long currentMillis = millis();
-  if (!uiTaskActive() && millis() - lastButtonPressTime > SCREENSAVER_TRIGGER_TIME) screenSaverModeOn();
 
   static bool wasUiTaskActive = false;
   bool uiActive = uiTaskActive();
@@ -129,34 +129,9 @@ void loop() {
     return;
   }
 
-  analogButtonsCheck();
+  bool inputRendered = handleUiInput(currentMillis);
 
-  if (pressedButton != nullptr && screenSaverMode) {
-    lastButtonPressTime = millis();
-    screenSaverModeOff();
-    forceDisplayRedraw = true;
-    displayInfo(screenCounter);
-    pressedButton = nullptr;
-    runSoilSensorLazyReadings();
-    maybeLogValues();
-    delay(50); // Let the CPU breathe
-    return;
-  }
-  
-  if (pressedButton != nullptr) {
-    if (pressedButton == &upButton) screenCounter = (screenCounter - 1 + kScreenCount) % kScreenCount;
-    if (pressedButton == &downButton) screenCounter = (screenCounter + 1) % kScreenCount;
-    displayInfo(screenCounter);
-  }
-
-  if (pressedButton != nullptr) {
-    lastButtonPressTime = millis();
-
-    if (pressedButton == &okButton) mainMenu();
-
-    else screenSaverModeOff();
-    // pressedButton = nullptr;
-  }
+  if (!uiTaskActive() && currentMillis - lastButtonPressTime > SCREENSAVER_TRIGGER_TIME) screenSaverModeOn();
 
   // Necessary to run this consistently so that
   // lazy reads work
@@ -164,14 +139,52 @@ void loop() {
 
   maybeLogValues();
 
-  unsigned long displayInterval = feedingIsActive() ? 500UL : actionInterval;
-  if (currentMillis - actionPreviousMillis >= displayInterval) {
-    actionPreviousMillis = currentMillis;
+  unsigned long displayInterval = feedingIsActive() ? 500UL : idleDisplayIntervalMs;
+  if (!inputRendered && currentMillis - lastDisplayAt >= displayInterval) {
+    lastDisplayAt = currentMillis;
     displayInfo(screenCounter);
     // int pinValue = digitalRead(12);
     // Serial.print(digitalRead(12));
   }
   delay(50); // Let the CPU breathe
+}
+
+static bool handleUiInput(unsigned long now) {
+  // Centralized button handling: wake screensaver, navigate screens, open menu, and render immediately.
+  analogButtonsCheck();
+  if (pressedButton == nullptr) return false;
+
+  lastButtonPressTime = now;
+
+  if (screenSaverMode) {
+    screenSaverModeOff();
+    forceDisplayRedraw = true;
+    displayInfo(screenCounter); // immediate redraw on wake
+    pressedButton = nullptr;    // swallow wake press
+    return true;
+  }
+
+  if (pressedButton == &okButton) {
+    mainMenu();
+    pressedButton = nullptr;
+    return true;
+  }
+
+  if (pressedButton == &upButton) {
+    screenCounter = (screenCounter - 1 + kScreenCount) % kScreenCount;
+  } else if (pressedButton == &downButton) {
+    screenCounter = (screenCounter + 1) % kScreenCount;
+  }
+
+  if (forceDisplayRedraw || pressedButton == &upButton || pressedButton == &downButton) {
+    displayInfo(screenCounter);
+    lastDisplayAt = now;
+    pressedButton = nullptr;
+    return true;
+  }
+
+  pressedButton = nullptr;
+  return false;
 }
 
 void maybeLogValues() {
@@ -356,16 +369,22 @@ void mainMenu() {
 
   lcd.backlight();
   do {
+    PGM_P feedingToggle = feedingIsEnabled() ? MSG_DISABLE_FEEDING : MSG_ENABLE_FEEDING;
     setChoices_P(
       MSG_LOGS, 1,
       MSG_FEEDING_MENU, 2,
-      MSG_SETTINGS, 3);
+      MSG_SETTINGS, 3,
+      feedingToggle, 4);
 
-    choice = selectChoice(3, 1);
+    choice = selectChoice(4, 1);
 
     if (choice == 1) viewLogs();
     else if (choice == 2) feedingMenu();
     else if (choice == 3) settings();
+    else if (choice == 4) {
+      feedingSetEnabled(!feedingIsEnabled());
+      // Immediate feedback; loop redraws menu with new label.
+    }
     if (uiTaskActive()) return;
   } while (choice != -1);
   forceDisplayRedraw = true;
@@ -559,6 +578,7 @@ void showLogType1() {
     case LOG_STOP_MOISTURE: lcd.print(F("Mst")); break;
     case LOG_STOP_RUNOFF: lcd.print(F("Run")); break;
     case LOG_STOP_MAX_RUNTIME: lcd.print(F("Max")); break;
+    case LOG_STOP_DISABLED: lcd.print(F("Off")); break;
     default: lcd.print(F("---")); break;
   }
 

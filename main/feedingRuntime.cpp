@@ -25,7 +25,8 @@ enum FeedStopReason : uint8_t {
   FEED_STOP_NONE = 0,
   FEED_STOP_MOISTURE,
   FEED_STOP_RUNOFF,
-  FEED_STOP_MAX_RUNTIME
+  FEED_STOP_MAX_RUNTIME,
+  FEED_STOP_DISABLED
 };
 
 struct FeedSession {
@@ -52,6 +53,17 @@ static bool rtcValid = false;
 static uint16_t rtcMinutes = 0;
 static uint16_t rtcDayKey = 0;
 static unsigned long rtcLastReadAt = 0;
+static bool feedingDisabledCached = false;
+
+static inline bool feedingDisabledFlag() {
+  return (config.flags & CONFIG_FLAG_FEEDING_DISABLED) != 0;
+}
+
+static inline void setFeedingDisabledFlag(bool disabled) {
+  if (disabled) config.flags |= CONFIG_FLAG_FEEDING_DISABLED;
+  else config.flags &= static_cast<uint8_t>(~CONFIG_FLAG_FEEDING_DISABLED);
+  feedingDisabledCached = disabled;
+}
 
 static bool slotFlag(const FeedSlot *slot, uint8_t flag) {
   return (slot->flags & flag) != 0;
@@ -83,6 +95,8 @@ static bool updateRtcCache() {
 }
 
 static void startFeed(uint8_t slotIndex, const FeedSlot *slot, bool timeTriggered) {
+  if (feedingDisabledCached) return;
+
   session.active = true;
   session.slotIndex = slotIndex;
   session.slot = *slot;
@@ -279,6 +293,14 @@ static void maybeStartFeed() {
 void feedingTick() {
   unsigned long now = millis();
 
+  feedingDisabledCached = feedingDisabledFlag();
+  if (feedingDisabledCached) {
+    if (session.active) {
+      stopFeed(FEED_STOP_DISABLED, now);
+    }
+    return;
+  }
+
   if (session.active) {
     tickActiveFeed(now);
     return;
@@ -313,4 +335,21 @@ bool feedingGetStatus(FeedStatus *outStatus) {
   outStatus->maxRuntimeSeconds = ticksToSeconds(session.slot.maxRuntime5s);
   outStatus->elapsedSeconds = (uint16_t)((millis() - session.startMillis) / 1000UL);
   return true;
+}
+
+bool feedingIsEnabled() {
+  return !feedingDisabledFlag();
+}
+
+void feedingSetEnabled(bool enabled) {
+  bool disable = !enabled;
+  bool wasDisabled = feedingDisabledFlag();
+  if (disable == wasDisabled && (!disable || !session.active)) return;
+
+  if (disable && session.active) {
+    stopFeed(FEED_STOP_DISABLED, millis());
+  }
+
+  setFeedingDisabledFlag(disable);
+  saveConfig();
 }

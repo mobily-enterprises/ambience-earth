@@ -78,6 +78,8 @@ extern const char PROGMEM MSG_CONTINUOUS[];
 extern const char PROGMEM MSG_PULSED[];
 extern const char PROGMEM MSG_ON[];
 extern const char PROGMEM MSG_OFF[];
+extern const char PROGMEM MSG_DISABLE_FEEDING[];
+extern const char PROGMEM MSG_ENABLE_FEEDING[];
 extern const char PROGMEM MSG_START_CONDITIONS[];
 extern const char PROGMEM MSG_END_CONDITIONS[];
 extern const char PROGMEM MSG_FEED_OVERRIDES[];

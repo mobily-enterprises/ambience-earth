@@ -349,6 +349,7 @@ static void runPumpTestTask() {
 }
 
 void runUiTask() {
+  // Dispatch the active UI task (non-blocking state machines).
   if (uiTask == UI_TASK_CALIBRATION) {
     runCalibrationTask();
   } else if (uiTask == UI_TASK_PUMP_TEST) {
@@ -426,7 +427,6 @@ void testSensors() {
         break;
       }
 
-      // Serial.print("AH"); Serial.println(digitalRead(TRAY_SENSOR_LOW)); 
       lcdSetCursor(15, 0);
       lcdPrintNumber(trayWaterLevelLow);
       lcdPrint_P(MSG_SPACE);
@@ -451,8 +451,6 @@ void testSensors() {
     }
   }
 }
-
-
 
 void wipeLogsAndResetVars() {
   averageMsBetweenFeeds = 0.0;

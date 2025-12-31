@@ -9,6 +9,7 @@ bool uiTaskActive();
 void runUiTask();
 void startCalibrationTask();
 void startPumpTestTask();
+void testSensors();
 int runInitialSetup();
 void runButtonsSetup();
 int readSensor(int sensor);
@@ -16,5 +17,5 @@ int calibrateSoilMoistureSensor();
 void resetData();
 void activatePumps();
 void createBootLogEntry();
-void testSensors();
-#endif UI_H
+
+#endif SETTINGS_H
