@@ -63,6 +63,7 @@ extern const char PROGMEM MSG_RESET[];
 extern const char PROGMEM MSG_TEST_PUMPS[];
 extern const char PROGMEM MSG_LOGS[];
 extern const char PROGMEM MSG_FEEDING[];
+extern const char PROGMEM MSG_FORCE_FEED[];
 extern const char PROGMEM MSG_SETTINGS[];
 extern const char PROGMEM MSG_CAL_WEIGHT_SENSOR[];
 extern const char PROGMEM MSG_WEIGHT_PLACE_EMPTY[];

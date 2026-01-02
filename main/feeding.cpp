@@ -650,7 +650,7 @@ static void viewFeedSlot(uint8_t slotIndex) {
   saveFeedSlot(slotIndex, &updated);
 }
 
-static void feedingSlotsPage(uint8_t startIndex) {
+static void feedingSlotsPage(uint8_t startIndex, bool forceStart) {
   int8_t choice = 0;
   uint8_t count = FEED_SLOT_COUNT - startIndex;
   if (count > kSlotsPerPage) count = kSlotsPerPage;
@@ -672,14 +672,27 @@ static void feedingSlotsPage(uint8_t startIndex) {
                  slotListLabels[6], startIndex + 7,
                  slotListLabels[7], startIndex + 8);
 
-    setChoicesHeader_P(MSG_SLOTS_1_8);
+    setChoicesHeader_P(forceStart ? MSG_FORCE_FEED : MSG_SLOTS_1_8);
     choice = selectChoice(count, startIndex + 1);
-    if (choice != -1) viewFeedSlot(static_cast<uint8_t>(choice - 1));
+    if (choice != -1) {
+      uint8_t slotIndex = static_cast<uint8_t>(choice - 1);
+      if (forceStart) {
+        feedingForceStartSlot(slotIndex);
+        lcdFlashMessage_P(MSG_FEEDING);
+        choice = -1; // exit after action
+      } else {
+        viewFeedSlot(slotIndex);
+      }
+    }
   }
 }
 
 } /* End of namespace */
 
 void feedingMenu() {
-  feedingSlotsPage(0);
+  feedingSlotsPage(0, false);
+}
+
+void forceFeedMenu() {
+  feedingSlotsPage(0, true);
 }

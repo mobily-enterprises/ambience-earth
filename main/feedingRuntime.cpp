@@ -89,6 +89,10 @@ static uint16_t ticksToSeconds(uint8_t ticks) {
   return static_cast<uint16_t>(ticks) * kTickSeconds;
 }
 
+static void loadFeedSlotRuntime(uint8_t index, FeedSlot *slot) {
+  unpackFeedSlot(slot, config.feedSlotsPacked[index]);
+}
+
 static void clampSlotDurations(FeedSlot *slot) {
   if (slot->maxRuntime5s == 0) slot->maxRuntime5s = 1;
   if (slotFlag(slot, FEED_SLOT_PULSED)) {
@@ -417,4 +421,13 @@ void feedingPauseForUi() {
 
 void feedingResumeAfterUi() {
   setFeedingPausedFlag(false);
+}
+
+void feedingForceStartSlot(uint8_t slotIndex) {
+  if (session.active || slotIndex >= FEED_SLOT_COUNT) return;
+
+  FeedSlot slot;
+  loadFeedSlotRuntime(slotIndex, &slot);
+  // Treat as moisture-triggered for logging purposes.
+  startFeed(slotIndex, &slot, false);
 }

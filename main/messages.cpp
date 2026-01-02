@@ -62,6 +62,7 @@ const char PROGMEM MSG_RESET[] = "Reset";
 const char PROGMEM MSG_TEST_PUMPS[] = "Test pump";
 const char PROGMEM MSG_LOGS[] = "Logs";
 const char PROGMEM MSG_FEEDING_MENU[] = "Feeding";
+const char PROGMEM MSG_FORCE_FEED[] = "Force feed";
 const char PROGMEM MSG_SETTINGS[] = "Settings";
 const char PROGMEM MSG_CAL_WEIGHT_SENSOR[] = "Cal weight sensor";
 const char PROGMEM MSG_RAW_COLUMN[] = "Raw";

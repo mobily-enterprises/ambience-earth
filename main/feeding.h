@@ -11,6 +11,8 @@ void feedingSetEnabled(bool enabled);
 bool feedingIsPausedForUi();
 void feedingPauseForUi();
 void feedingResumeAfterUi();
+void feedingForceStartSlot(uint8_t slotIndex);
+void forceFeedMenu();
 
 typedef struct {
   bool active;
