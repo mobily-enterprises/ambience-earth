@@ -122,17 +122,6 @@ void lcdPrint_P(PGM_P message, int8_t y = -1) {
   lcd.print(buffer);
 }
 
-void lcdPrint_R(const char *message, int8_t y = -1) {
-  char buffer[LABEL_LENGTH + 1];
-
-  if (y != -1) {
-    lcdClearLine(y);
-    lcdSetCursor(0, y);
-  }
-  labelcpy_R(buffer, message);
-  lcd.print(buffer);
-}
-
 void lcdPrintNumber(int number, int8_t y) {
   if (y != -1) {
     lcdClearLine(y);
@@ -177,9 +166,7 @@ static uint8_t actualLength(const char *str) {
 }
 
 // Simple wrapper to copy from RAM; used by string input.
-
-// Simple wrapper to copy from RAM; used by string input.
-static void inputStringCommon(bool useProgmem, PGM_P promptP, const char *promptR, PGM_P optionalHeaderP, const char *optionalHeaderR, char *initialUserInput, bool asEdit) {
+static void inputStringCommon(PGM_P prompt, PGM_P optionalHeader, char *initialUserInput, bool asEdit) {
   uint8_t cursorPosition = 0;
   bool displayChanged = true;
   bool cursorVisible = true;
@@ -201,12 +188,10 @@ static void inputStringCommon(bool useProgmem, PGM_P promptP, const char *prompt
   lcd.clear();
 
   lcd.setCursor(0, promptY);
-  if (useProgmem) lcdPrint_P(promptP);
-  else lcdPrint_R(promptR);
+  lcdPrint_P(prompt);
 
   lcd.setCursor(0, headerY);
-  if (useProgmem) lcdPrint_P(optionalHeaderP);
-  else lcdPrint_R(optionalHeaderR);
+  lcdPrint_P(optionalHeader);
 
   while (true) {
     unsigned long currentMillis = millis();
@@ -261,7 +246,7 @@ static void inputStringCommon(bool useProgmem, PGM_P promptP, const char *prompt
 
 // Public wrappers with sensible defaults for header/asEdit.
 void inputString_P(PGM_P prompt, char *initialUserInput, PGM_P optionalHeader /*=MSG_LITTLE*/, bool asEdit /*=false*/) {
-  inputStringCommon(true, prompt, nullptr, optionalHeader ? optionalHeader : MSG_LITTLE, nullptr, initialUserInput, asEdit);
+  inputStringCommon(prompt, optionalHeader ? optionalHeader : MSG_LITTLE, initialUserInput, asEdit);
 }
 
 // R-variant not needed in current codepaths; keep PGM version for consistency.
@@ -379,70 +364,25 @@ static void labelcpy_P(char *destination, PGM_P source) {
 
 static bool label_is_empty(const LabelRef *label) {
   if (!label || !label->ptr) return true;
-  return label->is_progmem ? pgm_read_byte(label->ptr) == '\0' : label->ptr[0] == '\0';
+  return pgm_read_byte(label->ptr) == '\0';
 }
 
 static void lcdPrintLabel(const LabelRef *label) {
   if (!label || !label->ptr) return;
-  if (label->is_progmem) lcdPrint_P((PGM_P)label->ptr);
-  else lcdPrint_R(label->ptr);
+  lcdPrint_P(label->ptr);
 }
 
 void setChoices_P(PGM_P label0 = MSG_LITTLE, int value0 = 0, PGM_P label1 = MSG_LITTLE, int value1 = 0, PGM_P label2 = MSG_LITTLE, int value2 = 0, PGM_P label3 = MSG_LITTLE, int value3 = 0, PGM_P label4 = MSG_LITTLE, int value4 = 0, PGM_P label5 = MSG_LITTLE, int value5 = 0, PGM_P label6 = MSG_LITTLE, int value6 = 0, PGM_P label7 = MSG_LITTLE, int value7 = 0, PGM_P label8 = MSG_LITTLE, int value8 = 0, PGM_P label9 = MSG_LITTLE, int value9 = 0) {
   choices[0].label.ptr = (const char *)label0;
-  choices[0].label.is_progmem = 1;
   choices[1].label.ptr = (const char *)label1;
-  choices[1].label.is_progmem = 1;
   choices[2].label.ptr = (const char *)label2;
-  choices[2].label.is_progmem = 1;
   choices[3].label.ptr = (const char *)label3;
-  choices[3].label.is_progmem = 1;
   choices[4].label.ptr = (const char *)label4;
-  choices[4].label.is_progmem = 1;
   choices[5].label.ptr = (const char *)label5;
-  choices[5].label.is_progmem = 1;
   choices[6].label.ptr = (const char *)label6;
-  choices[6].label.is_progmem = 1;
   choices[7].label.ptr = (const char *)label7;
-  choices[7].label.is_progmem = 1;
   choices[8].label.ptr = (const char *)label8;
-  choices[8].label.is_progmem = 1;
   choices[9].label.ptr = (const char *)label9;
-  choices[9].label.is_progmem = 1;
-
-  choices[0].value = value0;
-  choices[1].value = value1;
-  choices[2].value = value2;
-  choices[3].value = value3;
-  choices[4].value = value4;
-  choices[5].value = value5;
-  choices[6].value = value6;
-  choices[7].value = value7;
-  choices[8].value = value8;
-  choices[9].value = value9;
-}
-
-void setChoices_R(const char *label0 = "", int value0 = 0, const char *label1 = "", int value1 = 0, const char *label2 = "", int value2 = 0, const char *label3 = "", int value3 = 0, const char *label4 = "", int value4 = 0, const char *label5 = "", int value5 = 0, const char *label6 = "", int value6 = 0, const char *label7 = "", int value7 = 0, const char *label8 = "", int value8 = 0, const char *label9 = "", int value9 = 0) {
-  choices[0].label.ptr = label0;
-  choices[0].label.is_progmem = 0;
-  choices[1].label.ptr = label1;
-  choices[1].label.is_progmem = 0;
-  choices[2].label.ptr = label2;
-  choices[2].label.is_progmem = 0;
-  choices[3].label.ptr = label3;
-  choices[3].label.is_progmem = 0;
-  choices[4].label.ptr = label4;
-  choices[4].label.is_progmem = 0;
-  choices[5].label.ptr = label5;
-  choices[5].label.is_progmem = 0;
-  choices[6].label.ptr = label6;
-  choices[6].label.is_progmem = 0;
-  choices[7].label.ptr = label7;
-  choices[7].label.is_progmem = 0;
-  choices[8].label.ptr = label8;
-  choices[8].label.is_progmem = 0;
-  choices[9].label.ptr = label9;
-  choices[9].label.is_progmem = 0;
 
   choices[0].value = value0;
   choices[1].value = value1;
@@ -458,25 +398,11 @@ void setChoices_R(const char *label0 = "", int value0 = 0, const char *label1 = 
 
 void setChoicesHeader_P(PGM_P header = MSG_LITTLE) {
   choicesHeader.ptr = (const char *)header;
-  choicesHeader.is_progmem = 1;
-}
-
-void setChoicesHeader_R(const char *header = "") {
-  choicesHeader.ptr = header;
-  choicesHeader.is_progmem = 0;
 }
 
 void setChoice_P(unsigned char index, PGM_P label, int value = 0) {
   if (index >= (sizeof(choices) / sizeof(choices[0]))) return;
   choices[index].label.ptr = (const char *)label;
-  choices[index].label.is_progmem = 1;
-  choices[index].value = value;
-}
-
-void setChoice_R(unsigned char index, const char *label, int value = 0) {
-  if (index >= (sizeof(choices) / sizeof(choices[0]))) return;
-  choices[index].label.ptr = label;
-  choices[index].label.is_progmem = 0;
   choices[index].value = value;
 }
 
@@ -513,62 +439,6 @@ long int inputNumber_P(PGM_P prompt, long int initialUserInput, int stepSize = 1
       lcd.setCursor(0, inputY);
       lcd.print(userInput);
       lcdPrint_P(postFix);    // Display postFix after userInput
-      lcdPrint_P(MSG_SPACE);  // Clear the remaining characters
-      lcdPrint_P(MSG_SPACE);  // Clear the remaining characters
-      lcdPrint_P(MSG_SPACE);  // Clear the remaining characters
-
-      displayChanged = false;
-    }
-
-    analogButtonsCheck();  // This will set the global `pressedButton`
-
-    if (pressedButton == &okButton) {
-      // If OK button is pressed, return the input string
-      return userInput;
-    } else if (pressedButton == &upButton) {
-      userInput = userInput + stepSize <= max ? userInput + stepSize : userInput;
-      displayChanged = true;
-    } else if (pressedButton == &downButton) {
-      // If UP button is pressed, increment the character
-      userInput = userInput - stepSize >= min ? userInput - stepSize : userInput;
-      displayChanged = true;
-
-    } else if (pressedButton == &leftButton) {
-      return -1;
-      displayChanged = true;
-    } else {
-      // ...
-    }
-  }
-}
-
-long int inputNumber_R(const char *prompt, long int initialUserInput, int stepSize = 1, long int min = 0, long int max = 100, const char *postFix = "", const char *optionalHeader = "") {
-  long int userInput;
-  bool displayChanged = true;
-  const uint8_t headerY = 0;
-  const uint8_t promptY = 2;
-  const uint8_t inputY = 3;
-
-  // Check if initialUserInput is not empty
-  if (initialUserInput != -1) {
-    userInput = initialUserInput;
-  } else {
-    userInput = 0;
-  }
-
-  lcd.clear();
-
-  lcd.setCursor(0, promptY);
-  lcdPrint_R(prompt);
-
-  lcd.setCursor(0, headerY);
-  lcdPrint_R(optionalHeader);
-
-  while (true) {
-    if (displayChanged) {
-      lcd.setCursor(0, inputY);
-      lcd.print(userInput);
-      lcdPrint_R(postFix);    // Display postFix after userInput
       lcdPrint_P(MSG_SPACE);  // Clear the remaining characters
       lcdPrint_P(MSG_SPACE);  // Clear the remaining characters
       lcdPrint_P(MSG_SPACE);  // Clear the remaining characters
@@ -748,12 +618,10 @@ bool inputDateTime_P(PGM_P header, uint8_t *hour, uint8_t *minute, uint8_t *day,
 void resetChoicesAndHeader() {
   for (int i = 0; i < 10; i++) {
     choices[i].label.ptr = nullptr;
-    choices[i].label.is_progmem = 0;
     choices[i].value = 0;
   }
 
   choicesHeader.ptr = nullptr;
-  choicesHeader.is_progmem = 0;
 }
 
 int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = false) {
@@ -881,17 +749,6 @@ void lcdFlashMessage_P(PGM_P message, PGM_P message2 = MSG_LITTLE, uint16_t time
   delay(time);
 }
 
-void lcdFlashMessage_R(const char *message, const char *message2 = "", uint16_t time = 1000) {
-  lcdClear();
-  lcdSetCursor(0, 1);
-  lcdPrint_R(message);
-  lcdSetCursor(0, 2);
-  lcdPrint_R(message2);
-
-  delay(time);
-}
-
-
 bool alert_P(PGM_P warning = MSG_LITTLE) {
   setChoices_P(MSG_OK, 1);
   setChoicesHeader_P(warning);
@@ -900,29 +757,9 @@ bool alert_P(PGM_P warning = MSG_LITTLE) {
   return 1;
 }
 
-bool alert_R(const char *warning = "") {
-  setChoices_P(MSG_OK, 1);
-  setChoicesHeader_R(warning);
-
-  int8_t userInput = selectChoice(1, 1);
-  return 1;
-}
-
 int8_t yesOrNo_P(PGM_P question, bool initialUserInput = true) {
   setChoices_P(MSG_YES, 1, MSG_NO, 0);
   setChoicesHeader_P(question);
-
-  int8_t response = selectChoice(2, initialUserInput ? 1 : 0);
-  if (response == -1) {
-    lcdFlashMessage_P(MSG_ABORTED);
-    return response;
-  }
-  return response == 1 ? true : false;
-}
-
-int8_t yesOrNo_R(const char *question, bool initialUserInput = true) {
-  setChoices_P(MSG_YES, 1, MSG_NO, 0);
-  setChoicesHeader_R(question);
 
   int8_t response = selectChoice(2, initialUserInput ? 1 : 0);
   if (response == -1) {
@@ -945,20 +782,6 @@ int8_t giveOk_P(PGM_P top, PGM_P promptText = MSG_LITTLE, PGM_P line2 = MSG_LITT
   setChoicesHeader_P(top);
   lcdPrint_P(line2, 2);
   lcdPrint_P(line3, 3);
-  int8_t response = selectChoice(1, 1, true);
-  if (response == -1) {
-    lcdFlashMessage_P(MSG_ABORTED);
-    return -1;
-  }
-
-  return 1;
-}
-
-int8_t giveOk_R(const char *top, const char *promptText = "", const char *line2 = "", const char *line3 = "") {
-  setChoices_R(promptText, 1);
-  setChoicesHeader_R(top);
-  lcdPrint_R(line2, 2);
-  lcdPrint_R(line3, 3);
   int8_t response = selectChoice(1, 1, true);
   if (response == -1) {
     lcdFlashMessage_P(MSG_ABORTED);
