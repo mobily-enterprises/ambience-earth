@@ -153,21 +153,28 @@ static void loadFeedSlot(uint8_t index, FeedSlot *slot) {
   unpackFeedSlot(slot, config.feedSlotsPacked[index]);
 }
 
-static void saveFeedSlot(uint8_t index, const FeedSlot *slot) {
+static bool saveFeedSlot(uint8_t index, const FeedSlot *slot) {
   uint8_t packed[FEED_SLOT_PACKED_SIZE];
   packFeedSlot(packed, slot);
   if (memcmp(packed, config.feedSlotsPacked[index], FEED_SLOT_PACKED_SIZE) != 0) {
     memcpy(config.feedSlotsPacked[index], packed, FEED_SLOT_PACKED_SIZE);
     saveConfig();
+    return true;
   }
+  return false;
 }
 
-static void buildSummaryLine0(char *out, uint8_t slotNumber, const FeedSlot *slot) {
+static void buildSummaryLine0(char *out, uint8_t slotNumber, const FeedSlot *slot, const char *slotName) {
   char *p = out;
-  p = append_P(p, MSG_SLOT);
-  *p++ = ' ';
-  p = appendNumber(p, slotNumber);
-  *p++ = ' ';
+  if (slotName && slotName[0]) {
+    p = append_R(p, slotName);
+    *p++ = ' ';
+  } else {
+    p = append_P(p, MSG_SLOT);
+    *p++ = ' ';
+    p = appendNumber(p, slotNumber);
+    *p++ = ' ';
+  }
   *p++ = '(';
   if (!slotFlag(slot, FEED_SLOT_ENABLED)) {
     p = append_P(p, MSG_OFF);
@@ -253,13 +260,13 @@ static bool inputTimeWithHeader(PGM_P header, PGM_P prompt, uint16_t initialMinu
   return inputTime_P(header, prompt, initialMinutes, outMinutes);
 }
 
-static bool showSlotSummary(uint8_t slotIndex, const FeedSlot *slot) {
+static bool showSlotSummary(uint8_t slotIndex, const FeedSlot *slot, const char *slotName) {
   char line[LABEL_LENGTH + 1];
   const uint8_t slotNumber = slotIndex + 1;
 
   lcdClear();
 
-  buildSummaryLine0(line, slotNumber, slot);
+  buildSummaryLine0(line, slotNumber, slot, slotName);
   lcdClearLine(0);
   lcdSetCursor(0, 0);
   lcd.print(line);
@@ -443,9 +450,10 @@ static SlotStepAction editPulseSettings(FeedSlot *slot) {
   return STEP_NEXT;
 }
 
-static bool editSlotSequence(FeedSlot *slot) {
+static bool editSlotSequence(FeedSlot *slot, char *slotName) {
   enum Step : uint8_t {
-    STEP_ENABLE = 0,
+    STEP_NAME = 0,
+    STEP_ENABLE,
     STEP_STYLE,
     STEP_PULSE,
     STEP_START_TIME,
@@ -458,12 +466,17 @@ static bool editSlotSequence(FeedSlot *slot) {
     STEP_CONFIRM
   };
 
-  uint8_t step = STEP_ENABLE;
+  uint8_t step = STEP_NAME;
 
   while (true) {
     SlotStepAction action = STEP_NEXT;
 
     switch (step) {
+      case STEP_NAME: {
+        inputString_P(MSG_SLOT_NAME, slotName, MSG_FEEDING_MENU, true, FEED_SLOT_NAME_LENGTH);
+        action = STEP_NEXT;
+        break;
+      }
       case STEP_ENABLE: {
         int8_t enable = yesOrNo_P(MSG_ENABLE_SLOT, slotFlag(slot, FEED_SLOT_ENABLED));
         if (enable == -1) action = STEP_BACK;
@@ -530,10 +543,10 @@ static bool editSlotSequence(FeedSlot *slot) {
       continue;
     }
     if (action == STEP_BACK) {
-      if (step == STEP_ENABLE) return false;
+      if (step == STEP_NAME) return false;
       uint8_t prev = static_cast<uint8_t>(step - 1);
       while (prev == STEP_PULSE && !slotFlag(slot, FEED_SLOT_PULSED)) {
-        if (prev == STEP_ENABLE) break;
+        if (prev == STEP_NAME) break;
         prev = static_cast<uint8_t>(prev - 1);
       }
       step = prev;
@@ -547,13 +560,19 @@ static bool editSlotSequence(FeedSlot *slot) {
 static void viewFeedSlot(uint8_t slotIndex) {
   FeedSlot slot;
   loadFeedSlot(slotIndex, &slot);
+  char *slotName = config.feedSlotNames[slotIndex];
+  char originalName[FEED_SLOT_NAME_LENGTH + 1];
+  memcpy(originalName, slotName, FEED_SLOT_NAME_LENGTH + 1);
 
-  bool edit = showSlotSummary(slotIndex, &slot);
+  bool edit = showSlotSummary(slotIndex, &slot, slotName);
   if (!edit) return;
 
   FeedSlot updated = slot;
-  if (!editSlotSequence(&updated)) return;
-  saveFeedSlot(slotIndex, &updated);
+  if (!editSlotSequence(&updated, slotName)) return;
+
+  bool nameChanged = memcmp(originalName, slotName, FEED_SLOT_NAME_LENGTH + 1) != 0;
+  bool slotChanged = saveFeedSlot(slotIndex, &updated);
+  if (nameChanged && !slotChanged) saveConfig();
 }
 
 static void feedingSlotsPage() {

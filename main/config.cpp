@@ -84,6 +84,7 @@ void restoreDefaultConfig() {
   config.kbdRight = 0;
   config.kbdOk = 0;
 
+  memset(config.feedSlotNames, 0, sizeof(config.feedSlotNames));
   memset(config.feedSlotsPacked, 0, sizeof(config.feedSlotsPacked));
 
   // Set default checksum

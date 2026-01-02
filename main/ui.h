@@ -43,6 +43,7 @@ void setChoice_P(unsigned char index, PGM_P label, int value=0);
 long int inputNumber_P(PGM_P prompt, long int initialUserInput, int stepSize, long int min = 0, long int max = 100, PGM_P postFix = MSG_LITTLE, PGM_P optionalHeader = MSG_LITTLE);
 bool inputTime_P(PGM_P header, PGM_P prompt, uint16_t initialMinutes, uint16_t *outMinutes);
 bool inputDateTime_P(PGM_P header, uint8_t *hour, uint8_t *minute, uint8_t *day, uint8_t *month, uint8_t *year);
+void inputString_P(PGM_P prompt, char *initialUserInput, PGM_P optionalHeader = MSG_LITTLE, bool asEdit = false, uint8_t maxLen = LABEL_LENGTH);
 
 
 void resetChoicesAndHeader();

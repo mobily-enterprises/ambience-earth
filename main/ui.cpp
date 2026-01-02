@@ -6,7 +6,7 @@
 #include "moistureSensor.h"
 
 // Private functions (not declared in ui.h)
-static void labelcpy_R(char *destination, const char *source);
+static void labelcpy_R(char *destination, const char *source, uint8_t maxLen = LABEL_LENGTH);
 static void labelcpy_P(char *destination, PGM_P source);
 void upClick();
 void downClick();
@@ -151,38 +151,41 @@ static char getPreviousCharacter(char currentChar) {
   return *(pos - 1);
 }
 
-static void sanitizeUserInput(char *str) {
-  uint8_t len = strnlen(str, LABEL_LENGTH);
+static void sanitizeUserInput(char *str, uint8_t maxLen) {
+  uint8_t len = strnlen(str, maxLen);
   for (uint8_t i = 0; i < len; i++) {
     if (!strchr(allowedStringCharacters, str[i])) str[i] = ' ';
   }
   str[len] = '\0';
 }
 
-static uint8_t actualLength(const char *str) {
-  uint8_t len = strnlen(str, LABEL_LENGTH);
+static uint8_t actualLength(const char *str, uint8_t maxLen) {
+  uint8_t len = strnlen(str, maxLen);
   while (len > 0 && str[len - 1] == ' ') len--;
   return len;
 }
 
 // Simple wrapper to copy from RAM; used by string input.
-static void inputStringCommon(PGM_P prompt, PGM_P optionalHeader, char *initialUserInput, bool asEdit) {
+static void inputStringCommon(PGM_P prompt, PGM_P optionalHeader, char *initialUserInput, bool asEdit, uint8_t maxLen) {
   uint8_t cursorPosition = 0;
   bool displayChanged = true;
   bool cursorVisible = true;
   unsigned long previousMillis = 0;
+  uint8_t limit = maxLen > LABEL_LENGTH ? LABEL_LENGTH : maxLen;
+  if (limit == 0) limit = 1;
 
   const uint8_t headerY = 0;
   const uint8_t promptY = 2;
   const uint8_t inputY = 3;
 
-  if (!strlen(initialUserInput) > 0) {
+  if (strnlen(initialUserInput, limit) == 0) {
     labelcpy_P(userInputString, MSG_SPACES);
+    userInputString[limit] = '\0';
     userInputString[0] = allowedStringCharacters[0];
   } else {
-    labelcpy_R(userInputString, initialUserInput);
-    sanitizeUserInput(userInputString);
-    cursorPosition = actualLength(userInputString);
+    labelcpy_R(userInputString, initialUserInput, limit);
+    sanitizeUserInput(userInputString, limit);
+    cursorPosition = actualLength(userInputString, limit);
   }
 
   lcd.clear();
@@ -216,8 +219,8 @@ static void inputStringCommon(PGM_P prompt, PGM_P optionalHeader, char *initialU
     analogButtonsCheck();
 
     if (pressedButton == &okButton) {
-      if (cursorPosition == 0) labelcpy_P(userInputString, MSG_STAR);
-      if (asEdit) labelcpy_R(initialUserInput, userInputString);
+      if (cursorPosition == 0) userInputString[0] = '\0';
+      if (asEdit) labelcpy_R(initialUserInput, userInputString, limit);
       return;
     } else if (pressedButton == &downButton) {
       if (cursorPosition != 0) {
@@ -231,11 +234,12 @@ static void inputStringCommon(PGM_P prompt, PGM_P optionalHeader, char *initialU
       }
     } else if (pressedButton == &rightButton) {
       cursorPosition++;
-      if (cursorPosition >= DISPLAY_COLUMNS) cursorPosition = 0;
+      if (cursorPosition >= limit || cursorPosition >= DISPLAY_COLUMNS) cursorPosition = 0;
       displayChanged = true;
     } else if (pressedButton == &leftButton) {
       if (cursorPosition == 0) {
-        labelcpy_R(userInputString, "*");
+        labelcpy_P(userInputString, MSG_STAR);
+        userInputString[limit] = '\0';
         return;
       }
       cursorPosition--;
@@ -245,8 +249,8 @@ static void inputStringCommon(PGM_P prompt, PGM_P optionalHeader, char *initialU
 }
 
 // Public wrappers with sensible defaults for header/asEdit.
-void inputString_P(PGM_P prompt, char *initialUserInput, PGM_P optionalHeader /*=MSG_LITTLE*/, bool asEdit /*=false*/) {
-  inputStringCommon(prompt, optionalHeader ? optionalHeader : MSG_LITTLE, initialUserInput, asEdit);
+void inputString_P(PGM_P prompt, char *initialUserInput, PGM_P optionalHeader /*=MSG_LITTLE*/, bool asEdit /*=false*/, uint8_t maxLen /*=LABEL_LENGTH*/) {
+  inputStringCommon(prompt, optionalHeader ? optionalHeader : MSG_LITTLE, initialUserInput, asEdit, maxLen);
 }
 
 // R-variant not needed in current codepaths; keep PGM version for consistency.
@@ -295,13 +299,13 @@ const byte sensorDot[8] = {
 };
 
 
-static void labelcpy_R(char *destination, const char *source) {
+static void labelcpy_R(char *destination, const char *source, uint8_t maxLen) {
   if (!source) {
     destination[0] = '\0';
     return;
   }
-  strncpy(destination, source, LABEL_LENGTH);
-  destination[strnlen(destination, LABEL_LENGTH)] = '\0';
+  strncpy(destination, source, maxLen);
+  destination[strnlen(destination, maxLen)] = '\0';
 }
 
 void initLcd() {

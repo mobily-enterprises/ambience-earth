@@ -6,7 +6,7 @@
 #include "feedSlots.h"
 
 #define CONFIG_ADDRESS 0
-#define CONFIG_VERSION 3
+#define CONFIG_VERSION 4
 #define CONFIG_FLAG_MUST_RUN_INITIAL_SETUP 0x01
 #define CONFIG_FLAG_FEEDING_DISABLED 0x02
 
@@ -27,6 +27,7 @@ typedef struct {
     uint16_t kbdLeft;
     uint16_t kbdRight;
     uint16_t kbdOk;
+    char feedSlotNames[FEED_SLOT_COUNT][FEED_SLOT_NAME_LENGTH + 1];
     uint8_t feedSlotsPacked[FEED_SLOT_COUNT][FEED_SLOT_PACKED_SIZE];
 } Config;
 
