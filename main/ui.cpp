@@ -715,6 +715,9 @@ int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = 
       displayChanged = false;
     }
 
+    // Keep background sensor tasks alive even while in blocking menus
+    runSoilSensorLazyReadings();
+
     analogButtonsCheck();  // This will set the global `pressedButton`
 
     if (pressedButton == &okButton || pressedButton == &rightButton) {
