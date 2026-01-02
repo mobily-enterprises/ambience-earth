@@ -25,7 +25,7 @@ enum WindowOwner : uint8_t {
 
 static uint16_t lazyValue = 0;
 static uint16_t realtimeRaw = 0;
-static int32_t realtimeAvgQ8 = 0; // Q8.8 fixed-point average
+static int32_t realtimeAvgQ8 = 0; // Q8.8 fixed-point average (used for feeding stops and status)
 static ReadMode readMode = READ_MODE_LAZY;
 static LazyState lazyState = LAZY_STATE_IDLE;
 static WindowOwner windowOwner = WINDOW_OWNER_LAZY;
@@ -160,8 +160,10 @@ static bool tickWindow(SoilSensorWindowStats *out) {
 }
 
 static void resetRealtimeFilter(uint16_t seed) {
-  realtimeAvgQ8 = (int32_t)seed << 8;
-  realtimeRaw = seed;
+  // Seed EMA; if no prior lazy value is known, fall back to mid-scale (512)
+  uint16_t init = seed ? seed : 512;
+  realtimeAvgQ8 = (int32_t)init << 8;
+  realtimeRaw = init;
   realtimeSeeded = true;
   realtimeLastSampleAt = 0;
   realtimeWarmupUntil = millis() + SENSOR_STABILIZATION_TIME;

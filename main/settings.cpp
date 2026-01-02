@@ -207,10 +207,12 @@ void pumpTest() {
 
 void testSensors() {
   static const unsigned long interval = 300;  // interval at which to run (milliseconds)
-  static unsigned long previousMillis = 0;   // will store last time the loop ran
+  static unsigned long previousMillis = 0;    // will store last time the loop ran
   static int soilMoistureRawPercentage = 0;
+  static int soilMoistureAvgPercentage = 0;
   static bool trayWaterLevelLow = false;
   static int soilMoistureRawReading;
+  static int soilMoistureAvgReading;
 
 
   lcdClear();
@@ -230,10 +232,11 @@ void testSensors() {
     if (currentMillis - previousMillis >= interval) {
       previousMillis = currentMillis;
 
-      // Drive a realtime sample; ignore the EMA return, we only display raw
-      getSoilMoisture();
+      // Drive a realtime sample (EMA) and also read raw
+      soilMoistureAvgReading = getSoilMoisture();
       soilMoistureRawReading = soilSensorGetRealtimeRaw();
       
+      soilMoistureAvgPercentage = soilMoistureAsPercentage(soilMoistureAvgReading);
       soilMoistureRawPercentage = soilMoistureAsPercentage(soilMoistureRawReading);
       
       trayWaterLevelLow = senseTrayWaterLevelLow();
@@ -256,7 +259,12 @@ void testSensors() {
         lcdPrint_P(MSG_RAW_COLUMN);
         lcdSetCursor(5, 2);
         lcd.print(F("--% -"));
+
         lcdClearLine(3);
+        lcdSetCursor(0, 3);
+        lcdPrint_P(MSG_AVG_SHORT);
+        lcdSetCursor(5, 3);
+        lcd.print(F("--% -"));
         continue;
       }
 
@@ -269,6 +277,13 @@ void testSensors() {
       lcdPrint_P(MSG_SPACE);
       lcdPrintNumber(soilMoistureRawReading);
       lcdClearLine(3);
+      lcdSetCursor(0, 3);
+      lcdPrint_P(MSG_AVG_SHORT);
+      lcdSetCursor(5, 3);
+      lcdPrintNumber(soilMoistureAvgPercentage);
+      lcdPrint_P(MSG_PERCENT);
+      lcdPrint_P(MSG_SPACE);
+      lcdPrintNumber(soilMoistureAvgReading);
     }
   }
 }
