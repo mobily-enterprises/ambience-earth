@@ -105,9 +105,6 @@ extern const char PROGMEM MSG_AVG_COLUMN[];
 extern const char PROGMEM MSG_NOT_YET[];
 extern const char PROGMEM MSG_NA[];
 
-extern const char PROGMEM MSG_DEVICE_WILL_BLINK[];
-extern const char PROGMEM MSG_THREE_TIMES[];
-
 extern const char PROGMEM MSG_TEST_SENSORS[];
 extern const char PROGMEM MSG_MOISTURE_SENSOR_HEADING[];
 

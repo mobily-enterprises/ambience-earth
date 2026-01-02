@@ -99,9 +99,6 @@ const char PROGMEM MSG_AVG_COLUMN[] = "Avg bw feeds: ";
 const char PROGMEM MSG_NOT_YET[] = "Not yet";
 const char PROGMEM MSG_NA[] = "n/a";
 
-const char PROGMEM MSG_DEVICE_WILL_BLINK[] = "Device will blink";
-const char PROGMEM MSG_THREE_TIMES[] = "three times...";
-
 const char PROGMEM MSG_TEST_SENSORS[] = "Test sensors";
 const char PROGMEM MSG_MOISTURE_SENSOR_HEADING[] = "Moisture snsr";
 
