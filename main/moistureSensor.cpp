@@ -316,6 +316,7 @@ uint16_t soilSensorOp(uint8_t op) {
       sensorPowerOff();
       nextWindowAt = millis();
       realtimeSeeded = false;
+      moistureReady = false; // force fresh window before reporting
       break;
     }
 
