@@ -89,6 +89,11 @@ static uint16_t ticksToSeconds(uint8_t ticks) {
   return static_cast<uint16_t>(ticks) * kTickSeconds;
 }
 
+static uint16_t weightPercentOfFull(uint16_t weightKg10, uint16_t fullKg10) {
+  if (fullKg10 == 0) return 0;
+  return static_cast<uint16_t>((weightKg10 * 100UL) / fullKg10);
+}
+
 static void loadFeedSlotRuntime(uint8_t index, FeedSlot *slot) {
   unpackFeedSlot(slot, config.feedSlotsPacked[index]);
 }
@@ -251,7 +256,7 @@ static void tickActiveFeed(unsigned long now) {
   bool weightStop = false;
   uint16_t fullKg10 = config.weightFullKg10;
   if (session.slot.weightAboveKg10 && weightReady && fullKg10) {
-    uint16_t pct = (uint16_t)((weightKg10 * 100UL) / fullKg10);
+    uint16_t pct = weightPercentOfFull(weightKg10, fullKg10);
     weightStop = pct >= session.slot.weightAboveKg10;
   }
 
@@ -312,7 +317,7 @@ static bool startConditionsMet(uint8_t slotIndex, const FeedSlot *slot) {
     if (!weightSensorReady()) return false;
     float weightGrams = weightSensorLastValue();
     uint16_t weightKg10 = static_cast<uint16_t>((weightGrams + 50.0f) / 100.0f);
-    uint16_t pct = (uint16_t)((weightKg10 * 100UL) / fullKg10);
+    uint16_t pct = weightPercentOfFull(weightKg10, fullKg10);
     weightOk = pct <= slot->weightBelowKg10;
   }
 

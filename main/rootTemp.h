@@ -10,8 +10,9 @@
 // Initialize the bus pin.
 void initRootTempSensor();
 
-// Blocking read of the DS18B20. Returns temperature in °C * 10 (e.g., 231 = 23.1°C).
-// Returns false if the sensor does not respond.
-bool rootTempReadC10(int16_t *outC10);
+// Non-blocking read of the DS18B20. Kick off convert/read in poll; use cache getter.
+void rootTempPoll();
+bool rootTempCachedC10(int16_t *outC10);
+#define rootTempReadC10 rootTempCachedC10
 
 #endif // ROOT_TEMP_H

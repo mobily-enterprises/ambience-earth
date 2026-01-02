@@ -29,6 +29,23 @@ extern Button *pressedButton;
 
 static void calibrateWeightSensor();
 static void calibrateFullWeight();
+
+static void captureButton(uint16_t *store, PGM_P prompt) {
+  uint16_t read = 1024;
+  lcd.setCursor(0, 0);
+  lcdPrint_P(prompt);
+  while (read > 1000) {
+    read = analogRead(BUTTONS_PIN);
+    if (read < 1000) {
+      delay(100);
+      read = analogRead(BUTTONS_PIN);
+      *store = read;
+      lcdPrintNumber(read, 1);
+      break;
+    }
+  }
+  delay(1000);
+}
 static void setTimeAndDate() {
   uint8_t hour = 0;
   uint8_t minute = 0;
@@ -431,85 +448,11 @@ void settingsReset() {
 }
 
 void runButtonsSetup() {
-  uint16_t read = 1024;
-
-  lcd.setCursor(0, 0);
-  lcdPrint_P(MSG_PRESS_UP);
-  while (read > 1000) {
-    read = analogRead(BUTTONS_PIN);
-    if (read < 1000) {
-      delay(100);
-      read = analogRead(BUTTONS_PIN);
-      config.kbdUp = read;
-      lcdPrintNumber(read, 1);
-      break;
-    }
-  }
-
-  delay(1000);
-
-  lcd.setCursor(0, 0);
-  lcdPrint_P(MSG_PRESS_DOWN);
-  read = 1024;
-  while (read > 1000) {
-    read = analogRead(BUTTONS_PIN);
-    if (read < 1000) {
-      delay(100);
-      read = analogRead(BUTTONS_PIN);
-      config.kbdDown = read;
-      lcdPrintNumber(read, 1);
-      break;
-    }
-  }
-  delay(1000);
-
-  lcd.setCursor(0, 0);
-  lcdPrint_P(MSG_PRESS_LEFT);
-  read = 1024;
-  while (read > 1000) {
-    read = analogRead(BUTTONS_PIN);
-    if (read < 1000) {
-      delay(100);
-      read = analogRead(BUTTONS_PIN);
-      config.kbdLeft = read;
-      lcdPrintNumber(read, 1);
-      break;
-    }
-  }
-
-  delay(1000);
-
-  lcd.setCursor(0, 0);
-  lcdPrint_P(MSG_PRESS_RIGHT);
-  read = 1024;
-  while (read > 1000) {
-    read = analogRead(BUTTONS_PIN);
-    if (read < 1000) {
-      delay(100);
-      read = analogRead(BUTTONS_PIN);
-      config.kbdRight = read;
-      lcdPrintNumber(read, 1);
-      break;
-    }
-  }
-
-  delay(1000);
-
-  lcd.setCursor(0, 0);
-  lcdPrint_P(MSG_PRESS_OK);
-  read = 1024;
-  while (read > 1000) {
-    read = analogRead(BUTTONS_PIN);
-    if (read < 1000) {
-      delay(100);
-      read = analogRead(BUTTONS_PIN);
-      config.kbdOk = read;
-      lcdPrintNumber(read, 1);
-      break;
-    }
-  }
-
-  delay(1000);
+  captureButton(&config.kbdUp, MSG_PRESS_UP);
+  captureButton(&config.kbdDown, MSG_PRESS_DOWN);
+  captureButton(&config.kbdLeft, MSG_PRESS_LEFT);
+  captureButton(&config.kbdRight, MSG_PRESS_RIGHT);
+  captureButton(&config.kbdOk, MSG_PRESS_OK);
 
   initializeButtons();
 }

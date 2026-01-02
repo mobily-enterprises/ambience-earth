@@ -193,6 +193,14 @@ static void buildSummaryLine0(char *out, uint8_t slotNumber, const FeedSlot *slo
   *p = '\0';
 }
 
+static char* appendCondPercent(char *p, char label, char sign, uint8_t value) {
+  *p++ = label;
+  *p++ = sign;
+  p = appendNumber(p, value);
+  p = append_P(p, MSG_PERCENT);
+  return p;
+}
+
 static void buildStartSummaryLine(char *out, const FeedSlot *slot) {
   char *p = out;
   p = append_P(p, PSTR("Start: "));
@@ -210,15 +218,11 @@ static void buildStartSummaryLine(char *out, const FeedSlot *slot) {
       if (hasMoist || hasWeight) *p++ = ' ';
     }
     if (hasMoist) {
-      p = append_P(p, PSTR("M<"));
-      p = appendNumber(p, slot->moistureBelow);
-      p = append_P(p, MSG_PERCENT);
+      p = appendCondPercent(p, 'M', '<', slot->moistureBelow);
       if (hasWeight) *p++ = ' ';
     }
     if (hasWeight) {
-      p = append_P(p, PSTR("W<"));
-      p = appendNumber(p, slot->weightBelowKg10);
-      p = append_P(p, MSG_PERCENT);
+      p = appendCondPercent(p, 'W', '<', slot->weightBelowKg10);
     }
   }
   *p = '\0';
@@ -235,9 +239,7 @@ static void buildStopSummaryLine(char *out, const FeedSlot *slot) {
     p = append_P(p, PSTR("N/A"));
   } else {
     if (hasTarget) {
-      p = append_P(p, PSTR("M>"));
-      p = appendNumber(p, slot->moistureTarget);
-      p = append_P(p, MSG_PERCENT);
+      p = appendCondPercent(p, 'M', '>', slot->moistureTarget);
       if (hasRunoff || hasWeightStop) *p++ = ' ';
     }
     if (hasRunoff) {
@@ -245,9 +247,7 @@ static void buildStopSummaryLine(char *out, const FeedSlot *slot) {
       if (hasWeightStop) *p++ = ' ';
     }
     if (hasWeightStop) {
-      p = append_P(p, PSTR("W>"));
-      p = appendNumber(p, slot->weightAboveKg10);
-      p = append_P(p, MSG_PERCENT);
+      p = appendCondPercent(p, 'W', '>', slot->weightAboveKg10);
     }
   }
   *p = '\0';

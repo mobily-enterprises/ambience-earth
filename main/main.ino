@@ -386,6 +386,12 @@ static void lcdPrintSpaces(uint8_t count) {
   while (count--) lcd.print(' ');
 }
 
+static void lcdPrintPadded_P(PGM_P message, uint8_t width) {
+  lcdPrint_P(message);
+  uint8_t len = strlen_P(message);
+  if (len < width) lcdPrintSpaces(width - len);
+}
+
 static bool getRtcTimeString(char *out) {
   if (!rtcIsOk()) return false;
 
@@ -471,9 +477,7 @@ void printSoilAndWaterTrayStatus(bool fullRedraw) {
 
   lcdSetCursor(kTrayValueCol, 1);
   PGM_P trayLabel = trayWaterLevelInEnglish(trayState);
-  lcdPrint_P(trayLabel);
-  uint8_t trayLen = strlen_P(trayLabel);
-  if (trayLen < kTrayFieldWidth) lcdPrintSpaces(kTrayFieldWidth - trayLen);
+  lcdPrintPadded_P(trayLabel, kTrayFieldWidth);
 
   // Temp fixed at column 10 on line 1: XX.YC
   lcdSetCursor(10, 1);
@@ -502,37 +506,6 @@ void printSoilAndWaterTrayStatus(bool fullRedraw) {
 */
 
 
-static void lcdPrintHoursMinutes(unsigned long totalMinutes) {
-  unsigned long minutes = totalMinutes % 60;
-  unsigned long hours = totalMinutes / 60;
-
-  if (hours) {
-    lcd.print(hours);
-    lcd.print('h');
-  }
-
-  // Always show minutes (even 0m) so the time isn't blank
-  lcd.print(minutes);
-  lcd.print('m');
-}
-
-void lcdPrintTime(unsigned long milliseconds) {
-  unsigned long totalMinutes = milliseconds / 1000 / 60;
-  unsigned long tenths = (totalMinutes + 3) / 6;
-  unsigned long hours = tenths / 10;
-  uint8_t tenth = tenths % 10;
-  lcd.print(hours);
-  lcd.print('.');
-  lcd.print(tenth);
-  lcd.print('h');
-}
-
-void lcdPrintTimeSince(unsigned long milliseconds) {
-  unsigned long elapsedMillis = millis() - milliseconds;
-  lcdPrintHoursMinutes(elapsedMillis / 1000 / 60);
-}
-
-
 static void lcdPrintTwoDigits(uint8_t value) {
   if (value < 10) lcd.print('0');
   lcd.print(value);
@@ -554,93 +527,102 @@ static void lcdPrintDateTime(uint8_t day, uint8_t month, uint8_t year, uint8_t h
   lcdPrintTwoDigits(minute);
 }
 
+static void lcdPrintHoursMinutes(unsigned long totalMinutes) {
+  unsigned long minutes = totalMinutes % 60;
+  unsigned long hours = totalMinutes / 60;
+
+  if (hours) {
+    lcd.print(hours);
+    lcd.print('h');
+  }
+
+  // Always show minutes (even 0m) so the time isn't blank
+  lcd.print(minutes);
+  lcd.print('m');
+}
+
+static void lcdPrintTimeFromMs(unsigned long milliseconds) {
+  unsigned long totalMinutes = milliseconds / 60000UL;
+  lcdPrintHoursMinutes(totalMinutes);
+}
+
+void lcdPrintTime(unsigned long milliseconds) {
+  lcdPrintTimeFromMs(milliseconds);
+}
+
+void lcdPrintTimeSince(unsigned long milliseconds) {
+  unsigned long elapsedMillis = millis() - milliseconds;
+  lcdPrintTimeFromMs(elapsedMillis);
+}
 
 void lcdPrintTimeDuration(unsigned long start, unsigned long finish) {
   unsigned long elapsedMillis = finish - start;
-  lcdPrintHoursMinutes(elapsedMillis / 1000 / 60);
+  lcdPrintTimeFromMs(elapsedMillis);
 }
 
-void showLogType0() {
+static void showLogEntry() {
   lcdClear();
   // Print absolute log number (epoch-aware)
   lcd.print((unsigned long)getAbsoluteLogNumber());
   lcdPrint_P(MSG_SPACE);
-  lcdPrint_P(MSG_LOG_TYPE_0);
-  lcd.setCursor(0, 1);
-  lcd.print(F("At "));
-  lcdPrintDateTime(currentLogEntry.startDay, currentLogEntry.startMonth, currentLogEntry.startYear,
-                   currentLogEntry.startHour, currentLogEntry.startMinute);
-  lcd.setCursor(0, 2);
-  lcd.print(F("Soil:"));
-  lcd.print(currentLogEntry.soilMoistureBefore);
-  lcd.print('%');
-}
 
-void showLogType1() {
-  lcdClear();
-  // Print absolute log number (epoch-aware)
-  lcd.print((unsigned long)getAbsoluteLogNumber());
-  lcdPrint_P(MSG_SPACE);
-  lcdPrint_P(MSG_LOG_TYPE_1);
-  lcdPrint_P(MSG_SPACE);
-  lcd.print('S');
-  lcd.print(currentLogEntry.slotIndex + 1);
-
-  lcd.setCursor(0, 1);
-  lcd.print(F("Start "));
-  lcdPrintDateTime(currentLogEntry.startDay, currentLogEntry.startMonth, currentLogEntry.startYear,
-                   currentLogEntry.startHour, currentLogEntry.startMinute);
-
-  lcd.setCursor(0, 2);
-  lcd.print(F("Dur:"));
-  lcdPrintTimeDuration(currentLogEntry.millisStart, currentLogEntry.millisEnd);
-  lcd.print(F(" Stop:"));
-  switch (currentLogEntry.stopReason) {
-    case LOG_STOP_MOISTURE: lcd.print(F("Mst")); break;
-    case LOG_STOP_RUNOFF: lcd.print(F("Run")); break;
-    case LOG_STOP_MAX_RUNTIME: lcd.print(F("Max")); break;
-    case LOG_STOP_DISABLED: lcd.print(F("Off")); break;
-    case LOG_STOP_UI_PAUSE: lcd.print(F("Cfg")); break;
-    default: lcd.print(F("---")); break;
+  uint8_t type = currentLogEntry.entryType;
+  if (type == 1) {
+    lcdPrint_P(MSG_LOG_TYPE_1);
+    lcdPrint_P(MSG_SPACE);
+    lcd.print('S');
+    lcd.print(currentLogEntry.slotIndex + 1);
+  } else if (type == 2) {
+    lcdPrint_P(MSG_LOG_TYPE_2);
+  } else {
+    lcdPrint_P(MSG_LOG_TYPE_0);
   }
 
-  lcd.setCursor(0, 3);
-  lcd.print(F("M:"));
-  lcdPrintNumber(currentLogEntry.soilMoistureBefore);
-  lcd.print('-');
-  lcdPrintNumber(currentLogEntry.soilMoistureAfter);
-  lcd.print('%');
-  lcd.print(' ');
-
-  lcd.print(F("W:"));
-  lcdPrint_P(trayWaterLevelInEnglishShort(currentLogEntry.trayWaterLevelBefore));
-  lcd.print('-');
-  lcdPrint_P(trayWaterLevelInEnglishShort(currentLogEntry.trayWaterLevelAfter));
-}
-
-void showLogType2() {
-  lcdClear();
-  // Print absolute log number (epoch-aware)
-  lcd.print((unsigned long)getAbsoluteLogNumber());
-  lcdPrint_P(MSG_SPACE);
-  lcdPrint_P(MSG_LOG_TYPE_2);
   lcd.setCursor(0, 1);
   lcd.print(F("At "));
   lcdPrintDateTime(currentLogEntry.startDay, currentLogEntry.startMonth, currentLogEntry.startYear,
                    currentLogEntry.startHour, currentLogEntry.startMinute);
 
   lcd.setCursor(0, 2);
-  lcdPrint_P(MSG_SOIL_NOW);
-  lcdPrintNumber(currentLogEntry.soilMoistureBefore);
-  lcdPrint_P(MSG_PERCENT);
+  if (type == 1) {
+    lcd.print(F("Dur:"));
+    lcdPrintTimeDuration(currentLogEntry.millisStart, currentLogEntry.millisEnd);
+    lcd.print(F(" Stop:"));
+    switch (currentLogEntry.stopReason) {
+      case LOG_STOP_MOISTURE: lcd.print(F("Mst")); break;
+      case LOG_STOP_RUNOFF: lcd.print(F("Run")); break;
+      case LOG_STOP_MAX_RUNTIME: lcd.print(F("Max")); break;
+      case LOG_STOP_DISABLED: lcd.print(F("Off")); break;
+      case LOG_STOP_UI_PAUSE: lcd.print(F("Cfg")); break;
+      default: lcd.print(F("---")); break;
+    }
 
-  lcd.setCursor(0, 3);
-  lcdPrint_P(MSG_TRAY);
-  lcdPrint_P(MSG_COLUMN_SPACE);
-  lcdPrint_P(trayWaterLevelInEnglish(currentLogEntry.trayWaterLevelBefore));
-  
-  // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureBefore);
-  // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureAfter);
+    lcd.setCursor(0, 3);
+    lcd.print(F("M:"));
+    lcdPrintNumber(currentLogEntry.soilMoistureBefore);
+    lcd.print('-');
+    lcdPrintNumber(currentLogEntry.soilMoistureAfter);
+    lcd.print('%');
+    lcd.print(' ');
+
+    lcd.print(F("W:"));
+    lcdPrint_P(trayWaterLevelInEnglishShort(currentLogEntry.trayWaterLevelBefore));
+    lcd.print('-');
+    lcdPrint_P(trayWaterLevelInEnglishShort(currentLogEntry.trayWaterLevelAfter));
+  } else if (type == 2) {
+    lcdPrint_P(MSG_SOIL_NOW);
+    lcdPrintNumber(currentLogEntry.soilMoistureBefore);
+    lcdPrint_P(MSG_PERCENT);
+
+    lcd.setCursor(0, 3);
+    lcdPrint_P(MSG_TRAY);
+    lcdPrint_P(MSG_COLUMN_SPACE);
+    lcdPrint_P(trayWaterLevelInEnglish(currentLogEntry.trayWaterLevelBefore));
+  } else {
+    lcd.print(F("Soil:"));
+    lcd.print(currentLogEntry.soilMoistureBefore);
+    lcd.print('%');
+  }
 }
 
 
@@ -658,10 +640,7 @@ void viewLogs() {
   bool dataChanged = true;
   while (1) {
     if (dataChanged) {
-
-      if (currentLogEntry.entryType == 0) showLogType0();
-      if (currentLogEntry.entryType == 1) showLogType1();
-      if (currentLogEntry.entryType == 2) showLogType2();
+      showLogEntry();
       dataChanged = false;
     }
 
@@ -752,9 +731,7 @@ void displayInfo1(bool fullRedraw) {
   lcdPrintSpaces(kLastFeedFieldWidth);
   lcdSetCursor(kLastFeedValueCol, 2);
   if (!millisAtEndOfLastFeed) {
-    lcdPrint_P(MSG_NOT_YET);
-    uint8_t len = strlen_P(MSG_NOT_YET);
-    if (len < kLastFeedFieldWidth) lcdPrintSpaces(kLastFeedFieldWidth - len);
+    lcdPrintPadded_P(MSG_NOT_YET, kLastFeedFieldWidth);
   } else lcdPrintTimeSince(millisAtEndOfLastFeed);
   // lcdPrintNumber(actionPreviousMillis);
 
@@ -762,9 +739,7 @@ void displayInfo1(bool fullRedraw) {
   lcdPrintSpaces(kAvgFieldWidth);
   lcdSetCursor(kAvgValueCol, 3);
   if (!averageMsBetweenFeeds) {
-    lcdPrint_P(MSG_NA);
-    uint8_t len = strlen_P(MSG_NA);
-    if (len < kAvgFieldWidth) lcdPrintSpaces(kAvgFieldWidth - len);
+    lcdPrintPadded_P(MSG_NA, kAvgFieldWidth);
   } else lcdPrintTime(averageMsBetweenFeeds);
 }
 

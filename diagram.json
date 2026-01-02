@@ -15,7 +15,10 @@
     { "type": "wokwi-pushbutton", "id": "btnDown", "top": 120, "left": 300, "attrs": { "label": "DOWN", "key": "x" } },
     { "type": "wokwi-pushbutton", "id": "btnOk", "top": 80, "left": 200, "attrs": { "label": "OK", "key": "d" } },
     { "type": "chip-keyladder", "id": "keys", "top": 170, "left": 260, "attrs": {} },
-    { "type": "wokwi-led", "id": "pumpInLed", "top": 10, "left": 120, "attrs": { "color": "white", "lightColor": "#00ff3c", "label": "PUMP IN ON" } }
+    { "type": "wokwi-led", "id": "pumpInLed", "top": 10, "left": 120, "attrs": { "color": "white", "lightColor": "#00ff3c", "label": "PUMP IN ON" } },
+    { "type": "wokwi-at24c256", "id": "eep1", "top": -60, "left": 520, "attrs": { "label": "AT24C256" } },
+    { "type": "wokwi-ds18b20", "id": "temp1", "top": 10, "left": 620, "attrs": { "temperature": "22" } },
+    { "type": "wokwi-hx711", "id": "hx1", "top": 70, "left": -20, "attrs": { "label": "Weight HX711" } }
   ],
   "connections": [
     ["nano:5V", "lcd1:VCC", "#5a2e2e", ["v0"]],
@@ -58,6 +61,20 @@
     ["btnRight:2.l", "nano:GND.1", "#333333", ["v0"]],
 
     ["keys:F", "btnOk:1.r", "#2e5a2e", ["v0"]],
-    ["btnOk:2.l", "nano:GND.1", "#333333", ["v0"]]
+    ["btnOk:2.l", "nano:GND.1", "#333333", ["v0"]],
+
+    ["nano:5V", "eep1:VCC", "#5a2e2e", ["v0"]],
+    ["nano:GND.1", "eep1:GND", "#333333", ["v0"]],
+    ["nano:A4", "eep1:SDA", "#2e5a2e", ["v0"]],
+    ["nano:A5", "eep1:SCL", "#2e5a2e", ["v0"]],
+
+    ["nano:6", "temp1:DQ", "#2e5a2e", ["v0"]],
+    ["temp1:VCC", "nano:5V", "#5a2e2e", ["v0"]],
+    ["temp1:GND", "nano:GND.1", "#333333", ["v0"]],
+
+    ["nano:3", "hx1:DT", "#2e5a2e", ["v0"]],
+    ["nano:4", "hx1:SCK", "#2e5a2e", ["v0"]],
+    ["hx1:VCC", "nano:5V", "#5a2e2e", ["v0"]],
+    ["hx1:GND", "nano:GND.1", "#333333", ["v0"]]
   ]
 }
