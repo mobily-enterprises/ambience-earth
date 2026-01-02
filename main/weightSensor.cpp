@@ -73,6 +73,8 @@ bool weightSensorRead(float *outUnits, uint8_t samples) {
 }
 
 void weightSensorPoll() {
+  // Non-blocking poll: skip if data not ready to avoid 100ms waitReady timeouts.
+  if (digitalRead(doutPin) == HIGH) return;
   float v = 0.0f;
   if (weightSensorRead(&v, 2)) {
     lastReady = true;
