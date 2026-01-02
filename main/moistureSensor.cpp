@@ -35,18 +35,16 @@ static unsigned long sensorOnTime = 0;
 static unsigned long windowStartAt = 0;
 static unsigned long nextSampleAt = 0;
 static unsigned long nextWindowAt = 0;
-static unsigned long initialSeedReadyAt = 0;
 static unsigned long realtimeWarmupUntil = 0;
 static unsigned long realtimeLastSampleAt = 0;
 static bool realtimeSeeded = false;
-static bool initialSeedPending = false;
 
 static uint32_t windowSum = 0;
 static uint16_t windowCount = 0;
 static uint16_t windowMinRaw = 0;
 static uint16_t windowMaxRaw = 0;
 static uint16_t windowLastRaw = 0;
-static bool windowQuickSample = false;
+static bool moistureReady = false;
 
 static void sensorPowerOn() {
   if (sensorPowered) return;
@@ -81,19 +79,6 @@ static void resetWindowAccum() {
   windowLastRaw = 0;
 }
 
-static void maybeCompleteInitialSeed() {
-  if (!initialSeedPending) return;
-  if (millis() < initialSeedReadyAt) return;
-
-  uint16_t seed = readMedian3();
-  lazyValue = seed;
-  realtimeRaw = seed;
-  realtimeAvgQ8 = (int32_t)seed << 8;
-  realtimeSeeded = true;
-  initialSeedPending = false;
-  sensorPowerOff();
-}
-
 static void finalizeWindow(SoilSensorWindowStats *out) {
   if (windowCount == 0) {
     if (out) {
@@ -107,6 +92,7 @@ static void finalizeWindow(SoilSensorWindowStats *out) {
 
   uint16_t avg = (uint16_t)(windowSum / windowCount);
   lazyValue = avg;
+  moistureReady = true;
   if (out) {
     out->minRaw = windowMinRaw;
     out->maxRaw = windowMaxRaw;
@@ -117,7 +103,6 @@ static void finalizeWindow(SoilSensorWindowStats *out) {
 
 static void startWindow(WindowOwner owner) {
   windowOwner = owner;
-  windowQuickSample = (owner == WINDOW_OWNER_LAZY); // quick sample when idle; full window for calibration
   readMode = READ_MODE_LAZY;
   lazyState = LAZY_STATE_WARMING;
   windowStartAt = 0;
@@ -150,15 +135,6 @@ static bool tickWindow(SoilSensorWindowStats *out) {
         if (raw < windowMinRaw) windowMinRaw = raw;
         if (raw > windowMaxRaw) windowMaxRaw = raw;
         nextSampleAt = now + SENSOR_SAMPLE_INTERVAL;
-        if (windowQuickSample) {
-          finalizeWindow(out);
-          sensorPowerOff();
-          lazyState = LAZY_STATE_IDLE;
-          if (windowOwner == WINDOW_OWNER_LAZY) {
-            nextWindowAt = now + SENSOR_SLEEP_INTERVAL;
-          }
-          return true;
-        }
       }
 
       if (now - windowStartAt >= SENSOR_WINDOW_DURATION) {
@@ -199,6 +175,7 @@ static void tickRealtime(bool forceSample) {
 
   uint16_t raw = readMedian3();
   realtimeRaw = raw;
+  moistureReady = true;
 
   if (!realtimeSeeded) {
     realtimeAvgQ8 = (int32_t)raw << 8;
@@ -232,11 +209,10 @@ void initMoistureSensor() {
   realtimeRaw = 0;
   realtimeAvgQ8 = 0;
   realtimeSeeded = false;
+  moistureReady = false;
 
-  sensorPowerOn();
-  sensorOnTime = millis();
-  initialSeedReadyAt = sensorOnTime + SENSOR_STABILIZATION_TIME;
-  initialSeedPending = true;
+  // Kick off a window immediately; no immediate seed sample
+  startWindow(WINDOW_OWNER_LAZY);
 }
 
 uint16_t runSoilSensorLazyReadings() {
@@ -268,6 +244,10 @@ bool soilSensorRealtimeReady() {
   if (readMode != READ_MODE_REALTIME) return false;
   if (!sensorPowered) return false;
   return millis() >= realtimeWarmupUntil;
+}
+
+bool soilSensorReady() {
+  return moistureReady;
 }
 
 uint16_t soilSensorGetRealtimeAvg() {
@@ -303,11 +283,6 @@ uint16_t soilSensorOp(uint8_t op) {
         return soilSensorGetRealtimeAvg();
       }
 
-      if (initialSeedPending) {
-        maybeCompleteInitialSeed();
-        if (initialSeedPending) return lazyValue;
-      }
-
       if (windowOwner != WINDOW_OWNER_LAZY) return lazyValue;
 
       if (lazyState == LAZY_STATE_IDLE) {
@@ -326,9 +301,6 @@ uint16_t soilSensorOp(uint8_t op) {
         tickRealtime(true);
         return soilSensorGetRealtimeAvg();
       }
-      if (initialSeedPending) {
-        maybeCompleteInitialSeed();
-      }
       return lazyValue;
     }
 
@@ -346,7 +318,6 @@ uint16_t soilSensorOp(uint8_t op) {
       readMode = READ_MODE_REALTIME;
       lazyState = LAZY_STATE_IDLE;
       windowOwner = WINDOW_OWNER_LAZY;
-      initialSeedPending = false;
       sensorPowerOn();
       resetRealtimeFilter(lazyValue);
       break;

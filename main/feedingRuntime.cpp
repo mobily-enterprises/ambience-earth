@@ -268,6 +268,8 @@ static void tickActiveFeed(unsigned long now) {
 }
 
 static bool startConditionsMet(uint8_t slotIndex, const FeedSlot *slot) {
+  if (!soilSensorReady()) return false;
+
   bool hasTime = slotFlag(slot, FEED_SLOT_HAS_TIME_WINDOW);
   bool hasMoisture = slotFlag(slot, FEED_SLOT_HAS_MOISTURE_BELOW);
   if (!hasTime && !hasMoisture) return false;

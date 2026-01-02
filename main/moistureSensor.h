@@ -6,8 +6,8 @@
 #define SOIL_MOISTURE_SENSOR A0
 #define SOIL_MOISTURE_SENSOR_POWER 12
 
-#define SENSOR_SLEEP_INTERVAL 300000UL
-#define SENSOR_WINDOW_DURATION 30000UL // used for calibration; lazy mode now does a single post-warmup sample
+#define SENSOR_SLEEP_INTERVAL 30000UL
+#define SENSOR_WINDOW_DURATION 30000UL // full window for both lazy sampling and calibration
 #define SENSOR_SAMPLE_INTERVAL 250UL
 #define SENSOR_STABILIZATION_TIME 2000UL
 #define SENSOR_FEED_TAU_FAST_MS 700UL
@@ -35,6 +35,7 @@ uint16_t getSoilMoisture();
 uint16_t runSoilSensorLazyReadings();
 bool soilSensorIsActive();
 bool soilSensorRealtimeReady();
+bool soilSensorReady();
 uint16_t soilSensorGetRealtimeAvg();
 uint16_t soilSensorGetRealtimeRaw();
 uint16_t soilSensorOp(uint8_t op);

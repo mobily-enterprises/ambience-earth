@@ -178,6 +178,8 @@ void maybeLogValues() {
     static unsigned long lastRunTime = 0; // Stores the last time the function was executed
     unsigned long currentMillis = millis(); // Get the current time in milliseconds
 
+    if (!soilSensorReady()) return;
+
     // Check if LOG_VALUES_INTERVAL has passed since the last run
     if (currentMillis - lastRunTime >= LOG_VALUES_INTERVAL) {  
       lastRunTime = currentMillis; // Update the last run time
@@ -439,10 +441,14 @@ void printSoilAndWaterTrayStatus(bool fullRedraw) {
   }
 
   lcdSetCursor(kSoilValueCol, 0);
-  if (soilMoisturePercent < 100) lcd.print(' ');
-  if (soilMoisturePercent < 10) lcd.print(' ');
-  lcd.print(soilMoisturePercent);
-  lcd.print('%');
+  if (!soilSensorReady()) {
+    lcd.print(F("--%")); // not ready yet
+  } else {
+    if (soilMoisturePercent < 100) lcd.print(' ');
+    if (soilMoisturePercent < 10) lcd.print(' ');
+    lcd.print(soilMoisturePercent);
+    lcd.print('%');
+  }
 
   lcdSetCursor(kTrayValueCol, 1);
   PGM_P trayLabel = trayWaterLevelInEnglish(trayState);
