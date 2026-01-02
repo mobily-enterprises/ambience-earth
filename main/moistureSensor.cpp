@@ -35,6 +35,7 @@ static unsigned long sensorOnTime = 0;
 static unsigned long windowStartAt = 0;
 static unsigned long nextSampleAt = 0;
 static unsigned long nextWindowAt = 0;
+static unsigned long lastWindowEndAt = 0;
 static unsigned long realtimeWarmupUntil = 0;
 static unsigned long realtimeLastSampleAt = 0;
 static bool realtimeSeeded = false;
@@ -93,6 +94,7 @@ static void finalizeWindow(SoilSensorWindowStats *out) {
   uint16_t avg = (uint16_t)(windowSum / windowCount);
   lazyValue = avg;
   moistureReady = true;
+  lastWindowEndAt = millis();
   if (out) {
     out->minRaw = windowMinRaw;
     out->maxRaw = windowMaxRaw;
@@ -142,7 +144,9 @@ static bool tickWindow(SoilSensorWindowStats *out) {
         sensorPowerOff();
         lazyState = LAZY_STATE_IDLE;
         if (windowOwner == WINDOW_OWNER_LAZY) {
-          nextWindowAt = now + SENSOR_SLEEP_INTERVAL;
+          // Schedule next window relative to this window start to avoid drift
+          unsigned long planned = windowStartAt + SENSOR_WINDOW_DURATION + SENSOR_SLEEP_INTERVAL;
+          nextWindowAt = (planned > now) ? planned : now + SENSOR_SLEEP_INTERVAL;
         }
         return true;
       }
@@ -210,6 +214,7 @@ void initMoistureSensor() {
   realtimeAvgQ8 = 0;
   realtimeSeeded = false;
   moistureReady = false;
+  lastWindowEndAt = 0;
 
   // Kick off a window immediately; no immediate seed sample
   startWindow(WINDOW_OWNER_LAZY);
