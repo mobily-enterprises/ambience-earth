@@ -24,6 +24,7 @@ const uint8_t kMaxMinRuntimeTicks = 48;   // 240s
 const uint8_t kMaxMaxRuntimeTicks = 120;  // 600s
 const uint8_t kMaxPulseOnTicks = 12;      // 60s
 const uint8_t kMaxPulseOffTicks = 120;    // 600s
+static char slotListLabels[FEED_SLOT_COUNT][LABEL_LENGTH + 1];
 
 static int8_t promptYesNoWithHeader(PGM_P header, PGM_P question, bool initialYes) {
   bool yesSelected = initialYes;
@@ -166,24 +167,38 @@ static bool saveFeedSlot(uint8_t index, const FeedSlot *slot) {
 
 static void buildSummaryLine0(char *out, uint8_t slotNumber, const FeedSlot *slot, const char *slotName) {
   char *p = out;
-  if (slotName && slotName[0]) {
-    p = append_R(p, slotName);
-    *p++ = ' ';
-  } else {
-    p = append_P(p, MSG_SLOT);
-    *p++ = ' ';
-    p = appendNumber(p, slotNumber);
-    *p++ = ' ';
-  }
+  if (slotName && slotName[0]) p = append_R(p, slotName);
+  else p = append_P(p, MSG_SLOT_EMPTY);
+  *p++ = ' ';
   *p++ = '(';
-  if (!slotFlag(slot, FEED_SLOT_ENABLED)) {
-    p = append_P(p, MSG_OFF);
-  } else if (slotFlag(slot, FEED_SLOT_PULSED)) {
-    p = append_P(p, PSTR("pulse"));
-  } else {
-    p = append_P(p, PSTR("cont"));
-  }
+  if (!slotFlag(slot, FEED_SLOT_ENABLED)) p = append_P(p, MSG_OFF);
+  else if (slotFlag(slot, FEED_SLOT_PULSED)) p = append_P(p, PSTR("pulse"));
+  else p = append_P(p, PSTR("cont"));
   *p++ = ')';
+  *p++ = ' ';
+  p = append_P(p, MSG_SLOT);
+  *p++ = ' ';
+  p = appendNumber(p, slotNumber);
+  *p = '\0';
+}
+
+static void buildSlotListEntry(uint8_t index, const FeedSlot *slot, char out[LABEL_LENGTH + 1]) {
+  char *p = out;
+  const char *name = config.feedSlotNames[index];
+  if (name && name[0]) {
+    p = append_R(p, name);
+  } else {
+    p = append_P(p, MSG_SLOT_EMPTY);
+  }
+
+  bool enabled = slotFlag(slot, FEED_SLOT_ENABLED);
+  if ((p - out) < LABEL_LENGTH - 5) {
+    *p++ = ' ';
+    if (enabled) *p++ = ' ';
+    *p++ = '(';
+    p = append_P(p, enabled ? PSTR("ON") : MSG_OFF);
+    *p++ = ')';
+  }
   *p = '\0';
 }
 
@@ -452,8 +467,8 @@ static SlotStepAction editPulseSettings(FeedSlot *slot) {
 
 static bool editSlotSequence(FeedSlot *slot, char *slotName) {
   enum Step : uint8_t {
-    STEP_NAME = 0,
-    STEP_ENABLE,
+    STEP_ENABLE = 0,
+    STEP_NAME,
     STEP_STYLE,
     STEP_PULSE,
     STEP_START_TIME,
@@ -466,17 +481,12 @@ static bool editSlotSequence(FeedSlot *slot, char *slotName) {
     STEP_CONFIRM
   };
 
-  uint8_t step = STEP_NAME;
+  uint8_t step = STEP_ENABLE;
 
-  while (true) {
-    SlotStepAction action = STEP_NEXT;
+      while (true) {
+        SlotStepAction action = STEP_NEXT;
 
     switch (step) {
-      case STEP_NAME: {
-        inputString_P(MSG_SLOT_NAME, slotName, MSG_FEEDING_MENU, true, FEED_SLOT_NAME_LENGTH);
-        action = STEP_NEXT;
-        break;
-      }
       case STEP_ENABLE: {
         int8_t enable = yesOrNo_P(MSG_ENABLE_SLOT, slotFlag(slot, FEED_SLOT_ENABLED));
         if (enable == -1) action = STEP_BACK;
@@ -484,6 +494,11 @@ static bool editSlotSequence(FeedSlot *slot, char *slotName) {
           setSlotFlag(slot, FEED_SLOT_ENABLED, enable);
           action = STEP_NEXT;
         }
+        break;
+      }
+      case STEP_NAME: {
+        bool accepted = inputString_P(MSG_SLOT_NAME, slotName, MSG_FEEDING_MENU, true, FEED_SLOT_NAME_LENGTH);
+        action = accepted ? STEP_NEXT : STEP_BACK;
         break;
       }
       case STEP_STYLE: {
@@ -543,10 +558,10 @@ static bool editSlotSequence(FeedSlot *slot, char *slotName) {
       continue;
     }
     if (action == STEP_BACK) {
-      if (step == STEP_NAME) return false;
+      if (step == STEP_ENABLE) return false;
       uint8_t prev = static_cast<uint8_t>(step - 1);
       while (prev == STEP_PULSE && !slotFlag(slot, FEED_SLOT_PULSED)) {
-        if (prev == STEP_NAME) break;
+        if (prev == STEP_ENABLE) break;
         prev = static_cast<uint8_t>(prev - 1);
       }
       step = prev;
@@ -581,10 +596,12 @@ static void feedingSlotsPage() {
   while (choice != -1) {
     resetChoicesAndHeader();
     for (uint8_t i = 0; i < FEED_SLOT_COUNT; ++i) {
-      setChoice_P(i, MSG_SLOT_EMPTY, static_cast<int>(i + 1));
+      FeedSlot slot;
+      loadFeedSlot(i, &slot);
+      buildSlotListEntry(i, &slot, slotListLabels[i]);
+      setChoice_R(i, slotListLabels[i], static_cast<int>(i + 1));
     }
 
-    setChoicesHeader_P(MSG_FEEDING_MENU);
     choice = selectChoice(FEED_SLOT_COUNT, 1);
     if (choice != -1) viewFeedSlot(static_cast<uint8_t>(choice - 1));
   }

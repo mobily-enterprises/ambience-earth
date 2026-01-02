@@ -1,10 +1,10 @@
 TODO:
+  ✔ Add named slots, precursor to "common configs" @done(26-01-02 23:16)
   ☐ Install OptiBoot on every single arduino
   ☐ Check for repeated code: make sure code is very tight, no repetitions
-  ☐ Add named slots, precursor to "common configs"
+  ☐ Add code that measures them, calibration, triggeer feeds based on weight
   ☐ MEMORY COMES: Move all strings off progmem and onto new EPROM
-  ☐ SCALES COME: Add code that measures them, calibration, triggeer feeds based on weight
-  ☐ Soil Temperature, add it and show temperature, log it too
+  ☐ MAYBE, if there is space: Soil Temperature, add it and show temperature, log it too
 
 Other things reported:
   ☐ EEPROM wear & scalability: every boot writes a log entry (createBootLogEntry() main/main.ino:258) and

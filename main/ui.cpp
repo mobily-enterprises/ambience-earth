@@ -166,7 +166,7 @@ static uint8_t actualLength(const char *str, uint8_t maxLen) {
 }
 
 // Simple wrapper to copy from RAM; used by string input.
-static void inputStringCommon(PGM_P prompt, PGM_P optionalHeader, char *initialUserInput, bool asEdit, uint8_t maxLen) {
+static bool inputStringCommon(PGM_P prompt, PGM_P optionalHeader, char *initialUserInput, bool asEdit, uint8_t maxLen) {
   uint8_t cursorPosition = 0;
   bool displayChanged = true;
   bool cursorVisible = true;
@@ -182,10 +182,12 @@ static void inputStringCommon(PGM_P prompt, PGM_P optionalHeader, char *initialU
     labelcpy_P(userInputString, MSG_SPACES);
     userInputString[limit] = '\0';
     userInputString[0] = allowedStringCharacters[0];
+    cursorPosition = 1;
   } else {
     labelcpy_R(userInputString, initialUserInput, limit);
     sanitizeUserInput(userInputString, limit);
     cursorPosition = actualLength(userInputString, limit);
+    if (cursorPosition == 0) cursorPosition = 1;
   }
 
   lcd.clear();
@@ -221,26 +223,24 @@ static void inputStringCommon(PGM_P prompt, PGM_P optionalHeader, char *initialU
     if (pressedButton == &okButton) {
       if (cursorPosition == 0) userInputString[0] = '\0';
       if (asEdit) labelcpy_R(initialUserInput, userInputString, limit);
-      return;
-    } else if (pressedButton == &downButton) {
+      return true;
+    } else if (pressedButton == &upButton) {
       if (cursorPosition != 0) {
         userInputString[cursorPosition - 1] = getNextCharacter(userInputString[cursorPosition - 1]);
         displayChanged = true;
       }
-    } else if (pressedButton == &upButton) {
+    } else if (pressedButton == &downButton) {
       if (cursorPosition != 0) {
         userInputString[cursorPosition - 1] = getPreviousCharacter(userInputString[cursorPosition - 1]);
         displayChanged = true;
       }
     } else if (pressedButton == &rightButton) {
       cursorPosition++;
-      if (cursorPosition >= limit || cursorPosition >= DISPLAY_COLUMNS) cursorPosition = 0;
+      if (cursorPosition >= limit || cursorPosition >= DISPLAY_COLUMNS) cursorPosition = limit;
       displayChanged = true;
     } else if (pressedButton == &leftButton) {
-      if (cursorPosition == 0) {
-        labelcpy_P(userInputString, MSG_STAR);
-        userInputString[limit] = '\0';
-        return;
+      if (cursorPosition <= 1) {
+        return false;
       }
       cursorPosition--;
       displayChanged = true;
@@ -249,8 +249,8 @@ static void inputStringCommon(PGM_P prompt, PGM_P optionalHeader, char *initialU
 }
 
 // Public wrappers with sensible defaults for header/asEdit.
-void inputString_P(PGM_P prompt, char *initialUserInput, PGM_P optionalHeader /*=MSG_LITTLE*/, bool asEdit /*=false*/, uint8_t maxLen /*=LABEL_LENGTH*/) {
-  inputStringCommon(prompt, optionalHeader ? optionalHeader : MSG_LITTLE, initialUserInput, asEdit, maxLen);
+bool inputString_P(PGM_P prompt, char *initialUserInput, PGM_P optionalHeader /*=MSG_LITTLE*/, bool asEdit /*=false*/, uint8_t maxLen /*=LABEL_LENGTH*/) {
+  return inputStringCommon(prompt, optionalHeader ? optionalHeader : MSG_LITTLE, initialUserInput, asEdit, maxLen);
 }
 
 // R-variant not needed in current codepaths; keep PGM version for consistency.
@@ -368,25 +368,37 @@ static void labelcpy_P(char *destination, PGM_P source) {
 
 static bool label_is_empty(const LabelRef *label) {
   if (!label || !label->ptr) return true;
-  return pgm_read_byte(label->ptr) == '\0';
+  if (label->is_progmem) return pgm_read_byte(label->ptr) == '\0';
+  return label->ptr[0] == '\0';
 }
 
 static void lcdPrintLabel(const LabelRef *label) {
   if (!label || !label->ptr) return;
-  lcdPrint_P(label->ptr);
+  if (label->is_progmem) lcdPrint_P((PGM_P)label->ptr);
+  else lcd.print(label->ptr);
 }
 
 void setChoices_P(PGM_P label0 = MSG_LITTLE, int value0 = 0, PGM_P label1 = MSG_LITTLE, int value1 = 0, PGM_P label2 = MSG_LITTLE, int value2 = 0, PGM_P label3 = MSG_LITTLE, int value3 = 0, PGM_P label4 = MSG_LITTLE, int value4 = 0, PGM_P label5 = MSG_LITTLE, int value5 = 0, PGM_P label6 = MSG_LITTLE, int value6 = 0, PGM_P label7 = MSG_LITTLE, int value7 = 0, PGM_P label8 = MSG_LITTLE, int value8 = 0, PGM_P label9 = MSG_LITTLE, int value9 = 0) {
   choices[0].label.ptr = (const char *)label0;
+  choices[0].label.is_progmem = 1;
   choices[1].label.ptr = (const char *)label1;
+  choices[1].label.is_progmem = 1;
   choices[2].label.ptr = (const char *)label2;
+  choices[2].label.is_progmem = 1;
   choices[3].label.ptr = (const char *)label3;
+  choices[3].label.is_progmem = 1;
   choices[4].label.ptr = (const char *)label4;
+  choices[4].label.is_progmem = 1;
   choices[5].label.ptr = (const char *)label5;
+  choices[5].label.is_progmem = 1;
   choices[6].label.ptr = (const char *)label6;
+  choices[6].label.is_progmem = 1;
   choices[7].label.ptr = (const char *)label7;
+  choices[7].label.is_progmem = 1;
   choices[8].label.ptr = (const char *)label8;
+  choices[8].label.is_progmem = 1;
   choices[9].label.ptr = (const char *)label9;
+  choices[9].label.is_progmem = 1;
 
   choices[0].value = value0;
   choices[1].value = value1;
@@ -402,11 +414,20 @@ void setChoices_P(PGM_P label0 = MSG_LITTLE, int value0 = 0, PGM_P label1 = MSG_
 
 void setChoicesHeader_P(PGM_P header = MSG_LITTLE) {
   choicesHeader.ptr = (const char *)header;
+  choicesHeader.is_progmem = 1;
 }
 
 void setChoice_P(unsigned char index, PGM_P label, int value = 0) {
   if (index >= (sizeof(choices) / sizeof(choices[0]))) return;
   choices[index].label.ptr = (const char *)label;
+  choices[index].label.is_progmem = 1;
+  choices[index].value = value;
+}
+
+void setChoice_R(unsigned char index, const char *label, int value = 0) {
+  if (index >= (sizeof(choices) / sizeof(choices[0]))) return;
+  choices[index].label.ptr = label;
+  choices[index].label.is_progmem = 0;
   choices[index].value = value;
 }
 
@@ -622,10 +643,12 @@ bool inputDateTime_P(PGM_P header, uint8_t *hour, uint8_t *minute, uint8_t *day,
 void resetChoicesAndHeader() {
   for (int i = 0; i < 10; i++) {
     choices[i].label.ptr = nullptr;
+    choices[i].label.is_progmem = 0;
     choices[i].value = 0;
   }
 
   choicesHeader.ptr = nullptr;
+  choicesHeader.is_progmem = 0;
 }
 
 int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = false) {
