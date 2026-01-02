@@ -386,19 +386,6 @@ static void lcdPrintSpaces(uint8_t count) {
   while (count--) lcd.print(' ');
 }
 
-static void lcdPrintPercent3(uint8_t value) {
-  if (value < 100) lcd.print(' ');
-  if (value < 10) lcd.print(' ');
-  lcd.print(value);
-  lcd.print('%');
-}
-
-static void lcdPrintPadded_P(PGM_P message, uint8_t width) {
-  lcdPrint_P(message);
-  uint8_t len = strlen_P(message);
-  if (len < width) lcdPrintSpaces(width - len);
-}
-
 static bool getRtcTimeString(char *out) {
   if (!rtcIsOk()) return false;
 
@@ -482,24 +469,11 @@ void printSoilAndWaterTrayStatus(bool fullRedraw) {
     lcd.print(dec);
   }
 
-  // Root temp (°C, 1 decimal) fixed at column 14 on line 1 (right edge)
-  if (tempReady) {
-    int16_t c10 = rootTempC10;
-    bool neg = c10 < 0;
-    if (neg) c10 = -c10;
-    int16_t c_int = c10 / 10;
-    int16_t c_dec = c10 % 10;
-    lcdSetCursor(14, 1);
-    if (neg) lcd.print('-');
-    lcd.print(c_int);
-    lcd.print('.');
-    lcd.print(c_dec);
-    lcd.print('C');
-  }
-
   lcdSetCursor(kTrayValueCol, 1);
   PGM_P trayLabel = trayWaterLevelInEnglish(trayState);
-  lcdPrintPadded_P(trayLabel, kTrayFieldWidth);
+  lcdPrint_P(trayLabel);
+  uint8_t trayLen = strlen_P(trayLabel);
+  if (trayLen < kTrayFieldWidth) lcdPrintSpaces(kTrayFieldWidth - trayLen);
 
   // Temp fixed at column 10 on line 1: XX.YC
   lcdSetCursor(10, 1);
@@ -513,10 +487,10 @@ void printSoilAndWaterTrayStatus(bool fullRedraw) {
     lcd.print(c_int);
     lcd.print('.');
     lcd.print(c_dec);
-    lcd.write((uint8_t)223); // degree symbol on HD44780
+    lcd.print('C');
   } else {
     lcd.print(F("--.-"));
-    lcd.write((uint8_t)223);
+    lcd.print('C');
   }
 }
 
@@ -777,16 +751,21 @@ void displayInfo1(bool fullRedraw) {
   lcdSetCursor(kLastFeedValueCol, 2);
   lcdPrintSpaces(kLastFeedFieldWidth);
   lcdSetCursor(kLastFeedValueCol, 2);
-  if (!millisAtEndOfLastFeed) lcdPrintPadded_P(MSG_NOT_YET, kLastFeedFieldWidth);
-  else lcdPrintTimeSince(millisAtEndOfLastFeed);
+  if (!millisAtEndOfLastFeed) {
+    lcdPrint_P(MSG_NOT_YET);
+    uint8_t len = strlen_P(MSG_NOT_YET);
+    if (len < kLastFeedFieldWidth) lcdPrintSpaces(kLastFeedFieldWidth - len);
+  } else lcdPrintTimeSince(millisAtEndOfLastFeed);
   // lcdPrintNumber(actionPreviousMillis);
 
   lcdSetCursor(kAvgValueCol, 3);
   lcdPrintSpaces(kAvgFieldWidth);
   lcdSetCursor(kAvgValueCol, 3);
-  if (!averageMsBetweenFeeds) lcdPrintPadded_P(MSG_NA, kAvgFieldWidth);
-  // else lcdPrintNumber(averageMsBetweenFeeds);
-  else lcdPrintTime(averageMsBetweenFeeds);
+  if (!averageMsBetweenFeeds) {
+    lcdPrint_P(MSG_NA);
+    uint8_t len = strlen_P(MSG_NA);
+    if (len < kAvgFieldWidth) lcdPrintSpaces(kAvgFieldWidth - len);
+  } else lcdPrintTime(averageMsBetweenFeeds);
 }
 
 static void displayFeedingStatus(bool fullRedraw) {

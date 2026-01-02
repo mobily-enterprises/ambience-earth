@@ -77,6 +77,7 @@ void restoreDefaultConfig() {
 
   config.moistSensorCalibrationSoaked = 0;
   config.moistSensorCalibrationDry = 1024;
+  config.weightFullKg10 = 0;
 
   config.kbdUp = 0;
   config.kbdDown = 0;

@@ -217,11 +217,8 @@ static void buildStartSummaryLine(char *out, const FeedSlot *slot) {
     }
     if (hasWeight) {
       p = append_P(p, PSTR("W<"));
-      uint16_t v = slot->weightBelowKg10;
-      p = appendNumber(p, v / 10);
-      *p++ = '.';
-      p = appendNumber(p, v % 10);
-      p = append_P(p, PSTR("kg"));
+      p = appendNumber(p, slot->weightBelowKg10);
+      p = append_P(p, MSG_PERCENT);
     }
   }
   *p = '\0';
@@ -249,11 +246,8 @@ static void buildStopSummaryLine(char *out, const FeedSlot *slot) {
     }
     if (hasWeightStop) {
       p = append_P(p, PSTR("W>"));
-      uint16_t v = slot->weightAboveKg10;
-      p = appendNumber(p, v / 10);
-      *p++ = '.';
-      p = appendNumber(p, v % 10);
-      p = append_P(p, PSTR("kg"));
+      p = appendNumber(p, slot->weightAboveKg10);
+      p = append_P(p, MSG_PERCENT);
     }
   }
   *p = '\0';
@@ -399,11 +393,11 @@ static bool editWeightBelow(FeedSlot *slot) {
     return true;
   }
 
-  uint8_t initial = slot->weightBelowKg10 ? slot->weightBelowKg10 : 150; // 15.0 kg default
-  if (initial > 250) initial = 250;
-  long int val = inputNumber_P(MSG_WEIGHT_BELOW, initial, 5, 0, 250, MSG_LITTLE, MSG_START_CONDITIONS);
+  uint8_t initial = slot->weightBelowKg10 ? slot->weightBelowKg10 : 80; // 80% default
+  if (initial > 200) initial = 200;
+  long int val = inputNumber_P(MSG_WEIGHT_BELOW, initial, 5, 0, 200, MSG_PERCENT, MSG_START_CONDITIONS);
   if (val < 0) return false;
-  if (val > 250) val = 250;
+  if (val > 200) val = 200;
   slot->weightBelowKg10 = static_cast<uint8_t>(val);
   return true;
 }
@@ -416,9 +410,9 @@ static bool editWeightTarget(FeedSlot *slot) {
     return true;
   }
 
-  uint8_t initial = slot->weightAboveKg10 ? slot->weightAboveKg10 : 180; // 18.0 kg default
+  uint8_t initial = slot->weightAboveKg10 ? slot->weightAboveKg10 : 110; // 110% default
   if (initial > 250) initial = 250;
-  long int val = inputNumber_P(MSG_WEIGHT_TARGET, initial, 5, 0, 250, MSG_LITTLE, MSG_END_CONDITIONS);
+  long int val = inputNumber_P(MSG_WEIGHT_TARGET, initial, 5, 0, 250, MSG_PERCENT, MSG_END_CONDITIONS);
   if (val < 0) return false;
   if (val > 250) val = 250;
   slot->weightAboveKg10 = static_cast<uint8_t>(val);
@@ -678,7 +672,6 @@ static void feedingSlotsPage(uint8_t startIndex, bool forceStart) {
       uint8_t slotIndex = static_cast<uint8_t>(choice - 1);
       if (forceStart) {
         feedingForceStartSlot(slotIndex);
-        lcdFlashMessage_P(MSG_FEEDING);
         choice = -1; // exit after action
       } else {
         viewFeedSlot(slotIndex);

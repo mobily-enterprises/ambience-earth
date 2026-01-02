@@ -249,8 +249,10 @@ static void tickActiveFeed(unsigned long now) {
   }
 
   bool weightStop = false;
-  if (session.slot.weightAboveKg10 && weightReady) {
-    weightStop = weightKg10 >= session.slot.weightAboveKg10;
+  uint16_t fullKg10 = config.weightFullKg10;
+  if (session.slot.weightAboveKg10 && weightReady && fullKg10) {
+    uint16_t pct = (uint16_t)((weightKg10 * 100UL) / fullKg10);
+    weightStop = pct >= session.slot.weightAboveKg10;
   }
 
   bool runoffStop = false;
@@ -287,6 +289,7 @@ static bool startConditionsMet(uint8_t slotIndex, const FeedSlot *slot) {
   bool hasTime = slotFlag(slot, FEED_SLOT_HAS_TIME_WINDOW);
   bool hasMoisture = slotFlag(slot, FEED_SLOT_HAS_MOISTURE_BELOW);
   bool hasWeight = slot->weightBelowKg10 != 0;
+  uint16_t fullKg10 = config.weightFullKg10;
   if (!hasTime && !hasMoisture && !hasWeight) return false;
 
   bool timeOk = false;
@@ -305,10 +308,12 @@ static bool startConditionsMet(uint8_t slotIndex, const FeedSlot *slot) {
 
   bool weightOk = false;
   if (hasWeight) {
+    if (fullKg10 == 0) return false;
     if (!weightSensorReady()) return false;
     float weightGrams = weightSensorLastValue();
     uint16_t weightKg10 = static_cast<uint16_t>((weightGrams + 50.0f) / 100.0f);
-    weightOk = weightKg10 <= slot->weightBelowKg10;
+    uint16_t pct = (uint16_t)((weightKg10 * 100UL) / fullKg10);
+    weightOk = pct <= slot->weightBelowKg10;
   }
 
   if (!timeOk && !moistureOk && !weightOk) return false;

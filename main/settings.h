@@ -8,6 +8,8 @@ void settingsReset();
 void testSensors();
 void calibrateMoistureSensor();
 void pumpTest();
+void calibrateWeightSensor();
+void calibrateFullWeight();
 int runInitialSetup();
 void runButtonsSetup();
 int readSensor(int sensor);

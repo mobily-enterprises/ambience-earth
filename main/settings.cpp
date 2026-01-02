@@ -28,6 +28,7 @@ extern Button okButton;
 extern Button *pressedButton;
 
 static void calibrateWeightSensor();
+static void calibrateFullWeight();
 static void setTimeAndDate() {
   uint8_t hour = 0;
   uint8_t minute = 0;
@@ -100,8 +101,9 @@ void settings() {
       MSG_TEST_PUMPS, 3,
       MSG_TEST_SENSORS, 4,
       MSG_RESET, 5,
-      MSG_CAL_WEIGHT_SENSOR, 6);
-    choice = selectChoice(6, 1);
+      MSG_CAL_WEIGHT_SENSOR, 6,
+      MSG_CAL_FULL_WEIGHT, 7);
+    choice = selectChoice(7, 1);
 
     if (choice == 1) setTimeAndDate();
     else if (choice == 2) calibrateMoistureSensor();
@@ -109,6 +111,7 @@ void settings() {
     else if (choice == 4) testSensors();
     else if (choice == 5) settingsReset();
     else if (choice == 6) calibrateWeightSensor();
+    else if (choice == 7) calibrateFullWeight();
   }
 }
 
@@ -195,8 +198,6 @@ void calibrateMoistureSensor() {
 
 void pumpTest() {
   lcdClear();
-  lcdPrint_P(MSG_DEVICE_WILL_BLINK, 1);
-  lcdPrint_P(MSG_THREE_TIMES, 2);
   delay(500);
   const uint8_t cycles = 3;
   for (uint8_t i = 0; i < cycles; ++i) {
@@ -357,6 +358,42 @@ void calibrateWeightSensor() {
     weightSensorSetScale((float)calValue / reading);
   }
 
+  lcdFlashMessage_P(MSG_DONE);
+}
+
+void calibrateFullWeight() {
+  lcdClear();
+  lcdPrint_P(MSG_CAL_FULL_WEIGHT, 0);
+  lcdPrint_P(MSG_WEIGHT_PLACE_CAL, 1);
+  lcdPrint_P(MSG_PRESS_OK, 3);
+
+  while (true) {
+    analogButtonsCheck();
+    if (pressedButton == &okButton) {
+      pressedButton = nullptr;
+      break;
+    } else if (pressedButton == &leftButton) {
+      pressedButton = nullptr;
+      return;
+    }
+    weightSensorPoll();
+  }
+
+  float reading = 0.0f;
+  if (!weightSensorRead(&reading, 4) || reading <= 0.0f) {
+    lcdFlashMessage_P(MSG_ABORTED);
+    return;
+  }
+
+  uint16_t fullKg10 = static_cast<uint16_t>((reading + 5.0f) / 10.0f);
+  if (fullKg10 == 0) {
+    lcdFlashMessage_P(MSG_ABORTED);
+    return;
+  }
+
+  if (fullKg10 > 255) fullKg10 = 255;
+  config.weightFullKg10 = static_cast<uint8_t>(fullKg10);
+  saveConfig();
   lcdFlashMessage_P(MSG_DONE);
 }
 
