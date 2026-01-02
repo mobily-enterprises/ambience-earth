@@ -5,11 +5,13 @@
 #include "logs.h"
 #include "main.h"
 #include "messages.h"
+#include "messages_weight.h"
 #include "moistureSensor.h"
 #include "pumps.h"
 #include "rtc.h"
 #include "settings.h"
 #include "traySensors.h"
+#include "weightSensor.h"
 #include "ui.h"
 
 extern LiquidCrystal_I2C lcd;
@@ -25,6 +27,7 @@ extern Button rightButton;
 extern Button okButton;
 extern Button *pressedButton;
 
+static void calibrateWeightSensor();
 static void setTimeAndDate() {
   uint8_t hour = 0;
   uint8_t minute = 0;
@@ -96,14 +99,16 @@ void settings() {
       MSG_CAL_MOISTURE_SENSOR, 2,
       MSG_TEST_PUMPS, 3,
       MSG_TEST_SENSORS, 4,
-      MSG_RESET, 5);
-    choice = selectChoice(5, 1);
+      MSG_RESET, 5,
+      MSG_CAL_WEIGHT_SENSOR, 6);
+    choice = selectChoice(6, 1);
 
     if (choice == 1) setTimeAndDate();
     else if (choice == 2) calibrateMoistureSensor();
     else if (choice == 3) pumpTest();
     else if (choice == 4) testSensors();
     else if (choice == 5) settingsReset();
+    else if (choice == 6) calibrateWeightSensor();
   }
 }
 
@@ -276,16 +281,83 @@ void testSensors() {
       lcdPrint_P(MSG_PERCENT);
       lcdPrint_P(MSG_SPACE);
       lcdPrintNumber(soilMoistureRawReading);
-      lcdClearLine(3);
-      lcdSetCursor(0, 3);
-      lcdPrint_P(MSG_AVG_SHORT);
-      lcdSetCursor(5, 3);
-      lcdPrintNumber(soilMoistureAvgPercentage);
-      lcdPrint_P(MSG_PERCENT);
-      lcdPrint_P(MSG_SPACE);
-      lcdPrintNumber(soilMoistureAvgReading);
+      // lcdClearLine(3);
+      // lcdSetCursor(0, 3);
+      // lcdPrint_P(MSG_AVG_SHORT);
+      // lcdSetCursor(5, 3);
+      // lcdPrintNumber(soilMoistureAvgPercentage);
+      // lcdPrint_P(MSG_PERCENT);
+      // lcdPrint_P(MSG_SPACE);
+      // lcdPrintNumber(soilMoistureAvgReading);
     }
   }
+}
+
+void calibrateWeightSensor() {
+  lcdClear();
+  lcdPrint_P(MSG_WEIGHT_PLACE_EMPTY, 0);
+  lcdPrint_P(MSG_PRESS_OK, 3);
+  while (true) {
+    analogButtonsCheck();
+    if (pressedButton == &okButton) {
+      pressedButton = nullptr;
+      break;
+    } else if (pressedButton == &leftButton) {
+      pressedButton = nullptr;
+      return;
+    }
+    weightSensorPoll();
+  }
+
+  weightSensorTare(8);
+
+  lcdClear();
+  lcdPrint_P(MSG_WEIGHT_PLACE_CAL, 0);
+  lcdPrint_P(MSG_PRESS_OK, 3);
+
+  // Simple numeric entry (grams)
+  int32_t calValue = 0;
+  while (true) {
+    analogButtonsCheck();
+    lcdSetCursor(0, 2);
+    lcdPrintNumber(calValue);
+    lcdPrint_P(MSG_SPACE);
+
+    if (pressedButton == &upButton) {
+      calValue += 10;
+      pressedButton = nullptr;
+    } else if (pressedButton == &downButton) {
+      calValue -= 10;
+      if (calValue < 0) calValue = 0;
+      pressedButton = nullptr;
+    } else if (pressedButton == &okButton) {
+      pressedButton = nullptr;
+      break;
+    } else if (pressedButton == &leftButton) {
+      pressedButton = nullptr;
+      return;
+    }
+    weightSensorPoll();
+  }
+
+  if (calValue <= 0) {
+    lcdFlashMessage_P(MSG_ABORTED);
+    return;
+  }
+
+  // Read a few samples with the calibration weight in place
+  float reading = 0.0f;
+  if (!weightSensorRead(&reading, 4)) {
+    lcdFlashMessage_P(MSG_ABORTED);
+    return;
+  }
+
+  // Set scale: units per count (grams per count)
+  if (reading != 0.0f) {
+    weightSensorSetScale((float)calValue / reading);
+  }
+
+  lcdFlashMessage_P(MSG_DONE);
 }
 
 void wipeLogsAndResetVars() {

@@ -4,6 +4,7 @@
 #include "messages.h"
 #include "config.h"
 #include "moistureSensor.h"
+#include "weightSensor.h"
 
 // Private functions (not declared in ui.h)
 static void labelcpy_P(char *destination, PGM_P source);
@@ -717,6 +718,7 @@ int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = 
 
     // Keep background sensor tasks alive even while in blocking menus
     runSoilSensorLazyReadings();
+    weightSensorPoll();
 
     analogButtonsCheck();  // This will set the global `pressedButton`
 

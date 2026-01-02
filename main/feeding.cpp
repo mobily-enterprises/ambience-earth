@@ -198,20 +198,30 @@ static void buildStartSummaryLine(char *out, const FeedSlot *slot) {
   p = append_P(p, PSTR("Start: "));
   bool hasTime = slotFlag(slot, FEED_SLOT_HAS_TIME_WINDOW);
   bool hasMoist = slotFlag(slot, FEED_SLOT_HAS_MOISTURE_BELOW);
+  bool hasWeight = slot->weightBelowKg10 != 0;
 
-  if (!hasTime && !hasMoist) {
+  if (!hasTime && !hasMoist && !hasWeight) {
     p = append_P(p, PSTR("N/A"));
   } else {
     if (hasTime) {
       char start[6];
       formatTime(start, slot->startMinute);
       p = append_R(p, start);
-      if (hasMoist) *p++ = ' ';
+      if (hasMoist || hasWeight) *p++ = ' ';
     }
     if (hasMoist) {
       p = append_P(p, PSTR("M<"));
       p = appendNumber(p, slot->moistureBelow);
       p = append_P(p, MSG_PERCENT);
+      if (hasWeight) *p++ = ' ';
+    }
+    if (hasWeight) {
+      p = append_P(p, PSTR("W<"));
+      uint16_t v = slot->weightBelowKg10;
+      p = appendNumber(p, v / 10);
+      *p++ = '.';
+      p = appendNumber(p, v % 10);
+      p = append_P(p, PSTR("kg"));
     }
   }
   *p = '\0';
@@ -222,18 +232,28 @@ static void buildStopSummaryLine(char *out, const FeedSlot *slot) {
   p = append_P(p, PSTR("Stop: "));
   bool hasTarget = slotFlag(slot, FEED_SLOT_HAS_MOISTURE_TARGET);
   bool hasRunoff = slotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED);
+  bool hasWeightStop = slot->weightAboveKg10 != 0;
 
-  if (!hasTarget && !hasRunoff) {
+  if (!hasTarget && !hasRunoff && !hasWeightStop) {
     p = append_P(p, PSTR("N/A"));
   } else {
     if (hasTarget) {
       p = append_P(p, PSTR("M>"));
       p = appendNumber(p, slot->moistureTarget);
       p = append_P(p, MSG_PERCENT);
-      if (hasRunoff) *p++ = ' ';
+      if (hasRunoff || hasWeightStop) *p++ = ' ';
     }
     if (hasRunoff) {
       p = append_P(p, PSTR("Runoff"));
+      if (hasWeightStop) *p++ = ' ';
+    }
+    if (hasWeightStop) {
+      p = append_P(p, PSTR("W>"));
+      uint16_t v = slot->weightAboveKg10;
+      p = appendNumber(p, v / 10);
+      *p++ = '.';
+      p = appendNumber(p, v % 10);
+      p = append_P(p, PSTR("kg"));
     }
   }
   *p = '\0';
@@ -371,6 +391,40 @@ static bool editMoistureTarget(FeedSlot *slot) {
   return true;
 }
 
+static bool editWeightBelow(FeedSlot *slot) {
+  int8_t enable = promptYesNoWithHeader(MSG_START_CONDITIONS, MSG_WEIGHT_BELOW, slot->weightBelowKg10 != 0);
+  if (enable == -1) return false;
+  if (!enable) {
+    slot->weightBelowKg10 = 0;
+    return true;
+  }
+
+  uint8_t initial = slot->weightBelowKg10 ? slot->weightBelowKg10 : 150; // 15.0 kg default
+  if (initial > 250) initial = 250;
+  long int val = inputNumber_P(MSG_WEIGHT_BELOW, initial, 5, 0, 250, MSG_LITTLE, MSG_START_CONDITIONS);
+  if (val < 0) return false;
+  if (val > 250) val = 250;
+  slot->weightBelowKg10 = static_cast<uint8_t>(val);
+  return true;
+}
+
+static bool editWeightTarget(FeedSlot *slot) {
+  int8_t enable = promptYesNoWithHeader(MSG_END_CONDITIONS, MSG_WEIGHT_TARGET, slot->weightAboveKg10 != 0);
+  if (enable == -1) return false;
+  if (!enable) {
+    slot->weightAboveKg10 = 0;
+    return true;
+  }
+
+  uint8_t initial = slot->weightAboveKg10 ? slot->weightAboveKg10 : 180; // 18.0 kg default
+  if (initial > 250) initial = 250;
+  long int val = inputNumber_P(MSG_WEIGHT_TARGET, initial, 5, 0, 250, MSG_LITTLE, MSG_END_CONDITIONS);
+  if (val < 0) return false;
+  if (val > 250) val = 250;
+  slot->weightAboveKg10 = static_cast<uint8_t>(val);
+  return true;
+}
+
 static bool editMinRuntime(FeedSlot *slot) {
   int8_t enable = promptYesNoWithHeader(MSG_FEED_OVERRIDES, MSG_MIN_RUNTIME, slotFlag(slot, FEED_SLOT_HAS_MIN_RUNTIME));
   if (enable == -1) return false;
@@ -424,6 +478,17 @@ static bool editRunoffRequired(FeedSlot *slot) {
   return true;
 }
 
+static bool editRunoffHold(FeedSlot *slot) {
+  if (!slotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED)) return true;
+  uint16_t initialSeconds = ticksToSeconds(slot->runoffHold5s);
+  if (initialSeconds > 600) initialSeconds = 600;
+  long int seconds = inputNumber_P(MSG_RUNOFF_HOLD, initialSeconds, kTickSeconds, 0, 600, MSG_SECONDS, MSG_END_CONDITIONS);
+  if (seconds < 0) return false;
+  if (seconds > 600) seconds = 600;
+  slot->runoffHold5s = secondsToTicks(seconds, kMaxMaxRuntimeTicks);
+  return true;
+}
+
 enum SlotStepAction : uint8_t {
   STEP_NEXT = 0,
   STEP_BACK,
@@ -456,15 +521,18 @@ static SlotStepAction editPulseSettings(FeedSlot *slot) {
   return STEP_NEXT;
 }
 
-static bool editSlotSequence(FeedSlot *slot) {
+static bool editSlotSequence(uint8_t /*slotIndex*/, FeedSlot *slot) {
   enum Step : uint8_t {
     STEP_ENABLE = 0,
     STEP_STYLE,
     STEP_PULSE,
     STEP_START_TIME,
     STEP_START_MOIST,
+    STEP_START_WEIGHT,
     STEP_STOP_MOIST,
+    STEP_STOP_WEIGHT,
     STEP_STOP_RUNOFF,
+    STEP_RUNOFF_HOLD,
     STEP_MIN_RUNTIME,
     STEP_MAX_RUNTIME,
     STEP_MIN_BETWEEN,
@@ -506,11 +574,20 @@ static bool editSlotSequence(FeedSlot *slot) {
       case STEP_START_MOIST:
         action = editMoistureBelow(slot) ? STEP_NEXT : STEP_BACK;
         break;
+      case STEP_START_WEIGHT:
+        action = editWeightBelow(slot) ? STEP_NEXT : STEP_BACK;
+        break;
       case STEP_STOP_MOIST:
         action = editMoistureTarget(slot) ? STEP_NEXT : STEP_BACK;
         break;
+      case STEP_STOP_WEIGHT:
+        action = editWeightTarget(slot) ? STEP_NEXT : STEP_BACK;
+        break;
       case STEP_STOP_RUNOFF:
         action = editRunoffRequired(slot) ? STEP_NEXT : STEP_BACK;
+        break;
+      case STEP_RUNOFF_HOLD:
+        action = editRunoffHold(slot) ? STEP_NEXT : STEP_BACK;
         break;
       case STEP_MIN_RUNTIME:
         action = editMinRuntime(slot) ? STEP_NEXT : STEP_BACK;
@@ -539,6 +616,10 @@ static bool editSlotSequence(FeedSlot *slot) {
       while (next == STEP_PULSE && !slotFlag(slot, FEED_SLOT_PULSED)) {
         next = static_cast<uint8_t>(next + 1);
       }
+      if (next == STEP_RUNOFF_HOLD && !slotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED)) {
+        next = static_cast<uint8_t>(next + 1);
+      }
+      // Skip start/stop steps if weight/moisture disabled? (keep sequential)
       step = next;
       continue;
     }
@@ -565,7 +646,7 @@ static void viewFeedSlot(uint8_t slotIndex) {
   if (!edit) return;
 
   FeedSlot updated = slot;
-  if (!editSlotSequence(&updated)) return;
+  if (!editSlotSequence(slotIndex, &updated)) return;
   saveFeedSlot(slotIndex, &updated);
 }
 
@@ -591,7 +672,7 @@ static void feedingSlotsPage(uint8_t startIndex) {
                  slotListLabels[6], startIndex + 7,
                  slotListLabels[7], startIndex + 8);
 
-    setChoicesHeader_P(startIndex == 0 ? MSG_SLOTS_1_8 : MSG_SLOTS_9_16);
+    setChoicesHeader_P(MSG_SLOTS_1_8);
     choice = selectChoice(count, startIndex + 1);
     if (choice != -1) viewFeedSlot(static_cast<uint8_t>(choice - 1));
   }
@@ -600,12 +681,5 @@ static void feedingSlotsPage(uint8_t startIndex) {
 } /* End of namespace */
 
 void feedingMenu() {
-  int8_t choice = 0;
-  while (choice != -1) {
-    setChoices_P(MSG_SLOTS_1_8, 1, MSG_SLOTS_9_16, 2);
-    setChoicesHeader_P(MSG_FEEDING_MENU);
-    choice = selectChoice(2, 1);
-    if (choice == 1) feedingSlotsPage(0);
-    else if (choice == 2) feedingSlotsPage(8);
-  }
+  feedingSlotsPage(0);
 }

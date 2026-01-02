@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define FEED_SLOT_COUNT 16
-#define FEED_SLOT_PACKED_SIZE 10
+#define FEED_SLOT_COUNT 8
+#define FEED_SLOT_PACKED_SIZE 12
 
 enum FeedSlotFlags : uint8_t {
   FEED_SLOT_ENABLED = 1u << 0,
@@ -28,6 +28,8 @@ typedef struct {
   uint8_t pulseOn5s;
   uint8_t pulseOff5s;
   uint8_t runoffHold5s;
+  uint8_t weightBelowKg10;   // 0 = disabled; otherwise deci-kg (e.g., 123 = 12.3 kg)
+  uint8_t weightAboveKg10;   // 0 = disabled; otherwise deci-kg
   uint8_t flags;
 } FeedSlot;
 
@@ -44,6 +46,8 @@ typedef struct {
  *   Bits 50-53 : pulseOn5s (0-12)           [5-second ticks]
  *   Bits 54-60 : pulseOff5s (0-120)         [5-second ticks]
  *   Bits 61-68 : flags (see FeedSlotFlags)
+ *   Bits 69-76 : weightBelowKg10 (0-255, 0=disabled)
+ *   Bits 77-84 : weightAboveKg10 (0-255, 0=disabled)
  *
  * Fields can span byte boundaries; packing/unpacking writes/reads individual
  * bits so split fields are handled automatically.

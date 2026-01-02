@@ -29,6 +29,8 @@ const char PROGMEM MSG_SOIL_WHEN_VERY_MOIST[] = "Wet means";
 const char PROGMEM MSG_SAVE_QUESTION[] = "Save?";
 const char PROGMEM MSG_SURE_QUESTION[] = "Sure?";
 const char PROGMEM MSG_DONE[] = "Done!";
+const char PROGMEM MSG_WEIGHT_PLACE_EMPTY[] = "Clear platform";
+const char PROGMEM MSG_WEIGHT_PLACE_CAL[] = "Place weight";
 
 const char PROGMEM MSG_MOISTURE_SENSOR[] = "Moisture sensor";
 
@@ -37,7 +39,7 @@ const char PROGMEM MSG_ABORTED[] = "Aborted!";
 const char PROGMEM MSG_SOIL[] = "Soil";
 const char PROGMEM MSG_SOIL_SHORT[] = "Soil";
 
-const char PROGMEM MSG_SOIL_NOW[] = "Soil now:";
+const char PROGMEM MSG_SOIL_NOW[] = "Soil mst:";
 const char PROGMEM MSG_TRAY[] = "Tray";
 const char PROGMEM MSG_TRAY_SHORT[] = "Tr";
 const char PROGMEM MSG_TRAY_NOW[] = "Tray:";
@@ -61,6 +63,7 @@ const char PROGMEM MSG_TEST_PUMPS[] = "Test pump";
 const char PROGMEM MSG_LOGS[] = "Logs";
 const char PROGMEM MSG_FEEDING_MENU[] = "Feeding";
 const char PROGMEM MSG_SETTINGS[] = "Settings";
+const char PROGMEM MSG_CAL_WEIGHT_SENSOR[] = "Cal weight sensor";
 const char PROGMEM MSG_RAW_COLUMN[] = "Raw";
 const char PROGMEM MSG_AVG_SHORT[] = "Avg";
 const char PROGMEM MSG_SLOTS_1_8[] = "Slots 1-8";
@@ -86,10 +89,13 @@ const char PROGMEM MSG_FEED_OVERRIDES[] = "Feed overrides";
 const char PROGMEM MSG_WINDOW[] = "Set feeding time";
 const char PROGMEM MSG_MOIST_BELOW[] = "Set moisture level";
 const char PROGMEM MSG_MOIST_TARGET[] = "Moisture reached";
+const char PROGMEM MSG_WEIGHT_BELOW[] = "Start weight <";
+const char PROGMEM MSG_WEIGHT_TARGET[] = "Stop weight >";
 const char PROGMEM MSG_MIN_SINCE[] = "Minimum time between";
 const char PROGMEM MSG_MIN_RUNTIME[] = "Set minimum duration";
 const char PROGMEM MSG_MAX_RUNTIME[] = "Set max duration";
 const char PROGMEM MSG_RUNOFF_REQUIRED[] = "Runoff present";
+const char PROGMEM MSG_RUNOFF_HOLD[] = "Runoff hold";
 const char PROGMEM MSG_SECONDS[] = "s";
 const char PROGMEM MSG_MINUTES[] = "min";
 const char PROGMEM MSG_START_HOUR[] = "Start hour";
@@ -200,7 +206,6 @@ const char PROGMEM MSG_TEST_SENSORS[] = "Test sensors";
 const char PROGMEM MSG_MOISTURE_SENSOR_HEADING[] = "Moisture snsr";
 
 const char PROGMEM MSG_TRAY_LOW_COLUMN[] = "Water in tray:";
-const char PROGMEM MSG_SOIL_MOISTURE_COLUMN[] = "Soil mst:";
 
 const char PROGMEM MSG_PRESS_UP[] = "Press UP";
 const char PROGMEM MSG_PRESS_DOWN[] = "Press DOWN";

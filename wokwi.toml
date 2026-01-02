@@ -1,6 +1,6 @@
 [wokwi]
 version = 1
-firmware = "main/build/arduino.avr.nano/main.ino.hex"
+firmware = "main/build/arduino.avr.uno/main.ino.hex"
 
 [[chip]]
 name = "keyladder"

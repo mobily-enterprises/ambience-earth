@@ -11,6 +11,7 @@
 #include "rtc.h"
 #include "settings.h"
 #include "traySensors.h"
+#include "weightSensor.h"
 
 extern Config config;
 extern LogEntry newLogEntry;
@@ -228,6 +229,9 @@ static void updatePumpState(unsigned long now) {
 static void tickActiveFeed(unsigned long now) {
   uint8_t moisturePercent = soilMoistureAsPercentage(getSoilMoisture());
   bool moistureReady = soilSensorRealtimeReady();
+  bool weightReady = weightSensorReady();
+  float weightGrams = weightSensorLastValue();
+  uint16_t weightKg10 = static_cast<uint16_t>((weightGrams + 50.0f) / 100.0f); // deci-kg
 
   bool maxReached = (now - session.startMillis) >= ticksToMs(session.slot.maxRuntime5s);
   bool minReached = true;
@@ -238,6 +242,11 @@ static void tickActiveFeed(unsigned long now) {
   bool moistureStop = false;
   if (slotFlag(&session.slot, FEED_SLOT_HAS_MOISTURE_TARGET) && moistureReady) {
     moistureStop = moisturePercent >= session.slot.moistureTarget;
+  }
+
+  bool weightStop = false;
+  if (session.slot.weightAboveKg10 && weightReady) {
+    weightStop = weightKg10 >= session.slot.weightAboveKg10;
   }
 
   bool runoffStop = false;
@@ -259,8 +268,11 @@ static void tickActiveFeed(unsigned long now) {
     return;
   }
 
-  if (minReached && (moistureStop || runoffStop)) {
-    stopFeed(moistureStop ? FEED_STOP_MOISTURE : FEED_STOP_RUNOFF, now);
+  if (minReached && (moistureStop || runoffStop || weightStop)) {
+    FeedStopReason reason = FEED_STOP_RUNOFF;
+    if (moistureStop) reason = FEED_STOP_MOISTURE;
+    else if (weightStop) reason = FEED_STOP_MAX_RUNTIME; // reuse Max as weight cap
+    stopFeed(reason, now);
     return;
   }
 
@@ -268,11 +280,10 @@ static void tickActiveFeed(unsigned long now) {
 }
 
 static bool startConditionsMet(uint8_t slotIndex, const FeedSlot *slot) {
-  if (!soilSensorReady()) return false;
-
   bool hasTime = slotFlag(slot, FEED_SLOT_HAS_TIME_WINDOW);
   bool hasMoisture = slotFlag(slot, FEED_SLOT_HAS_MOISTURE_BELOW);
-  if (!hasTime && !hasMoisture) return false;
+  bool hasWeight = slot->weightBelowKg10 != 0;
+  if (!hasTime && !hasMoisture && !hasWeight) return false;
 
   bool timeOk = false;
   if (hasTime && updateRtcCache()) {
@@ -283,11 +294,20 @@ static bool startConditionsMet(uint8_t slotIndex, const FeedSlot *slot) {
 
   bool moistureOk = false;
   if (hasMoisture) {
+    if (!soilSensorReady()) return false;
     uint8_t moisturePercent = soilMoistureAsPercentage(getSoilMoisture());
     moistureOk = moisturePercent <= slot->moistureBelow;
   }
 
-  if (!timeOk && !moistureOk) return false;
+  bool weightOk = false;
+  if (hasWeight) {
+    if (!weightSensorReady()) return false;
+    float weightGrams = weightSensorLastValue();
+    uint16_t weightKg10 = static_cast<uint16_t>((weightGrams + 50.0f) / 100.0f);
+    weightOk = weightKg10 <= slot->weightBelowKg10;
+  }
+
+  if (!timeOk && !moistureOk && !weightOk) return false;
 
   if (slot->minGapMinutes > 0 && millisAtEndOfLastFeed) {
     unsigned long minDelayMs = (unsigned long)slot->minGapMinutes * 60000UL;

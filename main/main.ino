@@ -7,6 +7,8 @@
 #include "traySensors.h"
 #include "pumps.h"
 #include "moistureSensor.h"
+#include "weightSensor.h"
+#include "rootTemp.h"
 #include "settings.h"
 #include "feeding.h"
 #include "logs.h"
@@ -62,6 +64,8 @@ void setup() {
   initTraySensors();
   initPumps();
   initMoistureSensor();
+  initWeightSensor();
+  initRootTempSensor();
 
   // Init logs memory
   initLogs(&currentLogEntry, 1024, 256, 768, sizeof(currentLogEntry));
@@ -121,6 +125,9 @@ void loop() {
   // Necessary to run this consistently so that
   // lazy reads work
   runSoilSensorLazyReadings();
+  weightSensorPoll();
+  // Temp is blocking ~750ms; sample sparingly. Here we do a single quick poll.
+  // (Non-blocking: rootTempReadC10 returns false if no sensor.)
 
   maybeLogValues();
 
@@ -422,13 +429,18 @@ static bool getRtcTimeString(char *out) {
 }
 
 void printSoilAndWaterTrayStatus(bool fullRedraw) {
-  static const uint8_t kSoilValueCol = 10;
+  static const uint8_t kSoilValueCol = 9;
+  static const uint8_t kSoilFieldWidth = 4; // space for up to 3 digits + %
   static const uint8_t kTrayValueCol = 6;
   static const uint8_t kTrayFieldWidth = DISPLAY_COLUMNS - kTrayValueCol;
+  static const uint8_t kWeightCol = 14;
+  static const uint8_t kTempCol = 0;
 
   uint16_t soilMoisture = getSoilMoisture();
   uint16_t soilMoisturePercent = soilMoistureAsPercentage(soilMoisture);
   uint8_t trayState = trayWaterLevelAsState();
+  int16_t rootTempC10 = 0;
+  bool tempReady = rootTempReadC10(&rootTempC10);
  
   if (fullRedraw) {
     lcdSetCursor(0, 0);
@@ -440,24 +452,69 @@ void printSoilAndWaterTrayStatus(bool fullRedraw) {
     lcdPrint_P(MSG_SPACE);
   }
 
+  // Clear soil field then print
+  lcdSetCursor(kSoilValueCol, 0);
+  for (uint8_t i = 0; i < kSoilFieldWidth; i++) lcd.print(' ');
   lcdSetCursor(kSoilValueCol, 0);
   if (!soilSensorReady()) {
     lcd.print(F("--%")); // not ready yet
   } else {
-    if (soilMoisturePercent < 100) lcd.print(' ');
-    if (soilMoisturePercent < 10) lcd.print(' ');
-    lcd.print(soilMoisturePercent);
+    uint8_t shownPercent = (soilMoisturePercent > 99) ? 99 : soilMoisturePercent; // never show 100%
+    lcd.print(shownPercent);
     lcd.print('%');
+  }
+
+  // Weight (kg, 1 decimal) at end of line 0
+  lcdSetCursor(kWeightCol, 0);
+  if (!weightSensorReady()) {
+    lcd.print(F("W:--.-"));
+  } else {
+    long grams = (long)(weightSensorLastValue() + 0.5f);
+    if (grams < 0) grams = 0;
+    long kg10 = (grams + 5) / 10; // deci-kg
+    int kg = (int)(kg10 / 10);
+    int dec = (int)(kg10 % 10);
+    lcd.print(F("W:"));
+    lcd.print(kg);
+    lcd.print('.');
+    lcd.print(dec);
+  }
+
+  // Root temp (°C, 1 decimal) fixed at column 14 on line 1 (right edge)
+  if (tempReady) {
+    int16_t c10 = rootTempC10;
+    bool neg = c10 < 0;
+    if (neg) c10 = -c10;
+    int16_t c_int = c10 / 10;
+    int16_t c_dec = c10 % 10;
+    lcdSetCursor(14, 1);
+    if (neg) lcd.print('-');
+    lcd.print(c_int);
+    lcd.print('.');
+    lcd.print(c_dec);
+    lcd.print('C');
   }
 
   lcdSetCursor(kTrayValueCol, 1);
   PGM_P trayLabel = trayWaterLevelInEnglish(trayState);
   lcdPrintPadded_P(trayLabel, kTrayFieldWidth);
 
-  char timeStr[6];
-  if (getRtcTimeString(timeStr)) {
-    lcdSetCursor(DISPLAY_COLUMNS - 5, 1);
-    lcd.print(timeStr);
+  // Temp fixed at column 10 on line 1: XX.YC
+  lcdSetCursor(10, 1);
+  if (tempReady) {
+    int16_t c10 = rootTempC10;
+    bool neg = c10 < 0;
+    if (neg) c10 = -c10;
+    int16_t c_int = c10 / 10;
+    int16_t c_dec = c10 % 10;
+    if (neg) lcd.print('-');
+    lcd.print(c_int);
+    lcd.print('.');
+    lcd.print(c_dec);
+    lcd.write((uint8_t)223); // degree symbol on HD44780
+  } else {
+    lcd.print(F("--.-"));
+    lcd.write((uint8_t)223);
   }
 }
 
@@ -597,7 +654,7 @@ void showLogType2() {
                    currentLogEntry.startHour, currentLogEntry.startMinute);
 
   lcd.setCursor(0, 2);
-  lcdPrint_P(MSG_SOIL_MOISTURE_COLUMN);
+  lcdPrint_P(MSG_SOIL_NOW);
   lcdPrintNumber(currentLogEntry.soilMoistureBefore);
   lcdPrint_P(MSG_PERCENT);
 
