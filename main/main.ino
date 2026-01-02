@@ -138,7 +138,7 @@ void loop() {
     // int pinValue = digitalRead(12);
     // Serial.print(digitalRead(12));
   }
-  delay(10); // Let the CPU breathe
+  // No extra delay to keep UI responsive; loop work is already lightweight.
 }
 
 static bool handleUiInput(unsigned long now) {
