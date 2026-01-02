@@ -37,6 +37,7 @@ struct FeedSession {
   unsigned long startMillis;
   unsigned long lastPulseToggleAt;
   bool pumpOn;
+  unsigned long runoffStartAt;
   uint8_t soilBeforePercent;
   uint8_t trayBefore;
   uint8_t startYear;
@@ -114,6 +115,7 @@ static void startFeed(uint8_t slotIndex, const FeedSlot *slot, bool timeTriggere
   session.startMillis = millis();
   session.lastPulseToggleAt = session.startMillis;
   session.pumpOn = true;
+  session.runoffStartAt = 0;
   session.soilBeforePercent = soilMoistureAsPercentage(getSoilMoisture());
   session.trayBefore = trayWaterLevelAsState();
   session.startReason = timeTriggered ? LOG_START_TIME : LOG_START_MOISTURE;
@@ -240,7 +242,16 @@ static void tickActiveFeed(unsigned long now) {
 
   bool runoffStop = false;
   if (slotFlag(&session.slot, FEED_SLOT_RUNOFF_REQUIRED)) {
-    runoffStop = trayWaterLevelAsState() == TRAY_LITTLE;
+    bool runoffNow = trayWaterLevelAsState() == TRAY_LITTLE;
+    if (runoffNow) {
+      if (session.runoffStartAt == 0) session.runoffStartAt = now;
+      unsigned long holdMs = ticksToMs(session.slot.runoffHold5s);
+      if (session.runoffStartAt && (now - session.runoffStartAt) >= holdMs) {
+        runoffStop = true;
+      }
+    } else {
+      session.runoffStartAt = 0;
+    }
   }
 
   if (maxReached) {

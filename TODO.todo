@@ -1,14 +1,27 @@
-✔ Have defaults when it turns on for keypad @done(25-12-28 08:56)
-✔ Have defaults for calibration, do NOT ask for calibration to start with @done(25-12-28 08:56)
-✔ Add a custom chip to make the slider oscillate so that it is more like in real life @done(25-12-28 11:00)
-✔ Rearrange menues so that it makes sense @done(25-12-28 11:24)
-✔ Check the input library, improve it, move messages in cpp @done(25-12-28 12:41)
-✔ Improve input checking that polling is the way to go @done(25-12-28 15:32)
-✔ Improve sensor-fetching code, so that it flattens the input values to normal level, but still turning it on and off @done(25-12-28 20:43)
+ADD SENSORS:
+* Soil Temperature (?)
+* Water EC
+* Weight
 
-TODO:
-X Fix showing info of slot
-X Improve time input (date/time)
-X Write the actual feeding function!
 
-Define proper steps and values for input
+
+  - EEPROM wear & scalability: every boot writes a log entry (createBootLogEntry() main/main.ino:258) and
+    writeLogEntry() writes the entire slot byte‑by‑byte (main/logs.cpp:107+). Boot also scans all slots twice
+    (initLogs→goToLatestSlot main/logs.cpp:270+, and initialaverageMsBetweenFeeds() main/main.ino:298+). This is linear
+    in log size and will get slow with a larger EEPROM. Best practice: store head pointers/averages in metadata with a
+    small checksum, update incrementally, and avoid unconditional boot logs.
+  - Wear considerations: boot log and frequent full‑slot EEPROM updates don’t throttle writes. On AVRs with limited
+    write endurance, best practice is to minimize writes (only when values change materially, or buffer and batch).
+  
+
+
+  - Sensor init default value: async moisture seed returns 0 until warmup completes (initMoistureSensor main/
+    moistureSensor.cpp:86+). The UI shows 0% briefly, which can mislead. Best practice: gate display until seeded or
+    show “—/NA”.
+  - No integrity/CRC on stored logs/config: log metadata lacks checksum/versioning beyond a single byte
+    (LOG_FORMAT_VERSION only). Corruption isn’t detected; reads just proceed. Best practice: checksum or versioned
+    headers per record or per metadata block.
+  - Screensaver redraw inefficiency: screensaver path clears and redraws the LCD every loop iteration (displayInfo main/
+    main.ino:609+). That hammers I2C for no benefit and can slow wake. Prefer a timed update or only move the cursor
+    without full lcd.clear() each tick.
+

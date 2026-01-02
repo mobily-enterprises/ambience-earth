@@ -46,6 +46,7 @@ static uint16_t windowCount = 0;
 static uint16_t windowMinRaw = 0;
 static uint16_t windowMaxRaw = 0;
 static uint16_t windowLastRaw = 0;
+static bool windowQuickSample = false;
 
 static void sensorPowerOn() {
   if (sensorPowered) return;
@@ -116,6 +117,7 @@ static void finalizeWindow(SoilSensorWindowStats *out) {
 
 static void startWindow(WindowOwner owner) {
   windowOwner = owner;
+  windowQuickSample = (owner == WINDOW_OWNER_LAZY); // quick sample when idle; full window for calibration
   readMode = READ_MODE_LAZY;
   lazyState = LAZY_STATE_WARMING;
   windowStartAt = 0;
@@ -148,6 +150,15 @@ static bool tickWindow(SoilSensorWindowStats *out) {
         if (raw < windowMinRaw) windowMinRaw = raw;
         if (raw > windowMaxRaw) windowMaxRaw = raw;
         nextSampleAt = now + SENSOR_SAMPLE_INTERVAL;
+        if (windowQuickSample) {
+          finalizeWindow(out);
+          sensorPowerOff();
+          lazyState = LAZY_STATE_IDLE;
+          if (windowOwner == WINDOW_OWNER_LAZY) {
+            nextWindowAt = now + SENSOR_SLEEP_INTERVAL;
+          }
+          return true;
+        }
       }
 
       if (now - windowStartAt >= SENSOR_WINDOW_DURATION) {

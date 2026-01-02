@@ -10,7 +10,8 @@ constexpr uint16_t kBitMinRuntime = kBitMinSince + 12;
 constexpr uint16_t kBitMaxRuntime = kBitMinRuntime + 6;
 constexpr uint16_t kBitPulseOn = kBitMaxRuntime + 7;
 constexpr uint16_t kBitPulseOff = kBitPulseOn + 4;
-constexpr uint16_t kBitFlags = kBitPulseOff + 7;
+constexpr uint16_t kBitRunoffHold = kBitPulseOff + 7;
+constexpr uint16_t kBitFlags = kBitRunoffHold + 7;
 
 static void writeBits(uint8_t *buffer, uint16_t bitOffset, uint8_t bitCount, uint32_t value) {
   for (uint8_t i = 0; i < bitCount; ++i) {
@@ -47,6 +48,7 @@ void packFeedSlot(uint8_t out[FEED_SLOT_PACKED_SIZE], const FeedSlot *slot) {
   writeBits(out, kBitMaxRuntime, 7, slot->maxRuntime5s);
   writeBits(out, kBitPulseOn, 4, slot->pulseOn5s);
   writeBits(out, kBitPulseOff, 7, slot->pulseOff5s);
+  writeBits(out, kBitRunoffHold, 7, slot->runoffHold5s);
   writeBits(out, kBitFlags, 8, slot->flags);
 }
 
@@ -61,5 +63,6 @@ void unpackFeedSlot(FeedSlot *slot, const uint8_t in[FEED_SLOT_PACKED_SIZE]) {
   slot->maxRuntime5s = static_cast<uint8_t>(readBits(in, kBitMaxRuntime, 7));
   slot->pulseOn5s = static_cast<uint8_t>(readBits(in, kBitPulseOn, 4));
   slot->pulseOff5s = static_cast<uint8_t>(readBits(in, kBitPulseOff, 7));
+  slot->runoffHold5s = static_cast<uint8_t>(readBits(in, kBitRunoffHold, 7));
   slot->flags = static_cast<uint8_t>(readBits(in, kBitFlags, 8));
 }

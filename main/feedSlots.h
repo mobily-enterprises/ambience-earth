@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #define FEED_SLOT_COUNT 16
-#define FEED_SLOT_PACKED_SIZE 9
+#define FEED_SLOT_PACKED_SIZE 10
 
 enum FeedSlotFlags : uint8_t {
   FEED_SLOT_ENABLED = 1u << 0,
@@ -27,6 +27,7 @@ typedef struct {
   uint8_t maxRuntime5s;
   uint8_t pulseOn5s;
   uint8_t pulseOff5s;
+  uint8_t runoffHold5s;
   uint8_t flags;
 } FeedSlot;
 
