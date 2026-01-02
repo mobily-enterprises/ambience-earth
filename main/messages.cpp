@@ -66,6 +66,7 @@ const char PROGMEM MSG_AVG_SHORT[] = "Avg";
 const char PROGMEM MSG_SLOTS_1_8[] = "Slots 1-8";
 const char PROGMEM MSG_SLOTS_9_16[] = "Slots 9-16";
 const char PROGMEM MSG_SLOT[] = "Slot";
+const char PROGMEM MSG_SLOT_EMPTY[] = "(Empty)";
 const char PROGMEM MSG_ENABLED[] = "Enabled";
 const char PROGMEM MSG_STYLE[] = "Style";
 const char PROGMEM MSG_PULSE[] = "Pulse";

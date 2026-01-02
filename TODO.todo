@@ -1,27 +1,26 @@
-ADD SENSORS:
-* Soil Temperature (?)
-* Water EC
-* Weight
+TODO:
+  ☐ Install OptiBoot on every single arduino
+  ☐ Check for repeated code: make sure code is very tight, no repetitions
+  ☐ Add named slots, precursor to "common configs"
+  ☐ MEMORY COMES: Move all strings off progmem and onto new EPROM
+  ☐ SCALES COME: Add code that measures them, calibration, triggeer feeds based on weight
+  ☐ Soil Temperature, add it and show temperature, log it too
 
-
-
-  - EEPROM wear & scalability: every boot writes a log entry (createBootLogEntry() main/main.ino:258) and
+Other things reported:
+  ☐ EEPROM wear & scalability: every boot writes a log entry (createBootLogEntry() main/main.ino:258) and
     writeLogEntry() writes the entire slot byte‑by‑byte (main/logs.cpp:107+). Boot also scans all slots twice
     (initLogs→goToLatestSlot main/logs.cpp:270+, and initialaverageMsBetweenFeeds() main/main.ino:298+). This is linear
     in log size and will get slow with a larger EEPROM. Best practice: store head pointers/averages in metadata with a
     small checksum, update incrementally, and avoid unconditional boot logs.
-  - Wear considerations: boot log and frequent full‑slot EEPROM updates don’t throttle writes. On AVRs with limited
+  ☐ Wear considerations: boot log and frequent full‑slot EEPROM updates don’t throttle writes. On AVRs with limited
     write endurance, best practice is to minimize writes (only when values change materially, or buffer and batch).
-  
-
-
-  - Sensor init default value: async moisture seed returns 0 until warmup completes (initMoistureSensor main/
+  ☐ Sensor init default value: async moisture seed returns 0 until warmup completes (initMoistureSensor main/
     moistureSensor.cpp:86+). The UI shows 0% briefly, which can mislead. Best practice: gate display until seeded or
     show “—/NA”.
-  - No integrity/CRC on stored logs/config: log metadata lacks checksum/versioning beyond a single byte
+  ☐ No integrity/CRC on stored logs/config: log metadata lacks checksum/versioning beyond a single byte
     (LOG_FORMAT_VERSION only). Corruption isn’t detected; reads just proceed. Best practice: checksum or versioned
     headers per record or per metadata block.
-  - Screensaver redraw inefficiency: screensaver path clears and redraws the LCD every loop iteration (displayInfo main/
+  ☐ Screensaver redraw inefficiency: screensaver path clears and redraws the LCD every loop iteration (displayInfo main/
     main.ino:609+). That hammers I2C for no benefit and can slow wake. Prefer a timed update or only move the cursor
     without full lcd.clear() each tick.
 

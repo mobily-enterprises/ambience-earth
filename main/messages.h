@@ -69,6 +69,7 @@ extern const char PROGMEM MSG_AVG_SHORT[];
 extern const char PROGMEM MSG_SLOTS_1_8[];
 extern const char PROGMEM MSG_SLOTS_9_16[];
 extern const char PROGMEM MSG_SLOT[];
+extern const char PROGMEM MSG_SLOT_EMPTY[];
 extern const char PROGMEM MSG_ENABLED[];
 extern const char PROGMEM MSG_STYLE[];
 extern const char PROGMEM MSG_PULSE[];

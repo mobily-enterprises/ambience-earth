@@ -6,8 +6,8 @@
 #include "moistureSensor.h"
 
 // Private functions (not declared in ui.h)
-static void labelcpy_P(char *destination, PGM_P source);
 static void labelcpy_R(char *destination, const char *source);
+static void labelcpy_P(char *destination, PGM_P source);
 void upClick();
 void downClick();
 void leftClick();
@@ -145,6 +145,126 @@ void lcdSetCursor(uint8_t x, uint8_t y) {
   lcd.setCursor(x, y);
 }
 
+// --- String input support (cycling allowed characters) ---
+
+static const char allowedStringCharacters[] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+static char userInputString[LABEL_LENGTH + 1] = "";
+
+static char getNextCharacter(char currentChar) {
+  const char *pos = strchr(allowedStringCharacters, currentChar);
+  if (!pos || !*(pos + 1)) return allowedStringCharacters[0];
+  return *(pos + 1);
+}
+
+static char getPreviousCharacter(char currentChar) {
+  const char *pos = strchr(allowedStringCharacters, currentChar);
+  if (!pos || pos == allowedStringCharacters) return allowedStringCharacters[strlen(allowedStringCharacters) - 1];
+  return *(pos - 1);
+}
+
+static void sanitizeUserInput(char *str) {
+  uint8_t len = strnlen(str, LABEL_LENGTH);
+  for (uint8_t i = 0; i < len; i++) {
+    if (!strchr(allowedStringCharacters, str[i])) str[i] = ' ';
+  }
+  str[len] = '\0';
+}
+
+static uint8_t actualLength(const char *str) {
+  uint8_t len = strnlen(str, LABEL_LENGTH);
+  while (len > 0 && str[len - 1] == ' ') len--;
+  return len;
+}
+
+// Simple wrapper to copy from RAM; used by string input.
+
+// Simple wrapper to copy from RAM; used by string input.
+static void inputStringCommon(bool useProgmem, PGM_P promptP, const char *promptR, PGM_P optionalHeaderP, const char *optionalHeaderR, char *initialUserInput, bool asEdit) {
+  uint8_t cursorPosition = 0;
+  bool displayChanged = true;
+  bool cursorVisible = true;
+  unsigned long previousMillis = 0;
+
+  const uint8_t headerY = 0;
+  const uint8_t promptY = 2;
+  const uint8_t inputY = 3;
+
+  if (!strlen(initialUserInput) > 0) {
+    labelcpy_P(userInputString, MSG_SPACES);
+    userInputString[0] = allowedStringCharacters[0];
+  } else {
+    labelcpy_R(userInputString, initialUserInput);
+    sanitizeUserInput(userInputString);
+    cursorPosition = actualLength(userInputString);
+  }
+
+  lcd.clear();
+
+  lcd.setCursor(0, promptY);
+  if (useProgmem) lcdPrint_P(promptP);
+  else lcdPrint_R(promptR);
+
+  lcd.setCursor(0, headerY);
+  if (useProgmem) lcdPrint_P(optionalHeaderP);
+  else lcdPrint_R(optionalHeaderR);
+
+  while (true) {
+    unsigned long currentMillis = millis();
+    if (currentMillis - previousMillis >= 500) {
+      cursorVisible = !cursorVisible;
+      previousMillis = currentMillis;
+      displayChanged = true;
+    }
+
+    if (displayChanged) {
+      lcd.setCursor(0, inputY);
+      lcd.write((uint8_t)1);
+      lcd.setCursor(1, inputY);
+      lcd.print(userInputString);
+      if (cursorPosition > 0) {
+        lcd.setCursor(cursorPosition, inputY);
+        lcd.print(cursorVisible ? userInputString[cursorPosition - 1] : (char)0);
+      }
+      displayChanged = false;
+    }
+
+    analogButtonsCheck();
+
+    if (pressedButton == &okButton) {
+      if (cursorPosition == 0) labelcpy_P(userInputString, MSG_STAR);
+      if (asEdit) labelcpy_R(initialUserInput, userInputString);
+      return;
+    } else if (pressedButton == &downButton) {
+      if (cursorPosition != 0) {
+        userInputString[cursorPosition - 1] = getNextCharacter(userInputString[cursorPosition - 1]);
+        displayChanged = true;
+      }
+    } else if (pressedButton == &upButton) {
+      if (cursorPosition != 0) {
+        userInputString[cursorPosition - 1] = getPreviousCharacter(userInputString[cursorPosition - 1]);
+        displayChanged = true;
+      }
+    } else if (pressedButton == &rightButton) {
+      cursorPosition++;
+      if (cursorPosition >= DISPLAY_COLUMNS) cursorPosition = 0;
+      displayChanged = true;
+    } else if (pressedButton == &leftButton) {
+      if (cursorPosition == 0) {
+        labelcpy_R(userInputString, "*");
+        return;
+      }
+      cursorPosition--;
+      displayChanged = true;
+    }
+  }
+}
+
+// Public wrappers with sensible defaults for header/asEdit.
+void inputString_P(PGM_P prompt, char *initialUserInput, PGM_P optionalHeader /*=MSG_LITTLE*/, bool asEdit /*=false*/) {
+  inputStringCommon(true, prompt, nullptr, optionalHeader ? optionalHeader : MSG_LITTLE, nullptr, initialUserInput, asEdit);
+}
+
+// R-variant not needed in current codepaths; keep PGM version for consistency.
 
 const byte fullSquare[8] = {
   B11111,
@@ -259,17 +379,13 @@ static void labelcpy_P(char *destination, PGM_P source) {
 
 static bool label_is_empty(const LabelRef *label) {
   if (!label || !label->ptr) return true;
-  if (label->is_progmem) return pgm_read_byte(label->ptr) == '\0';
-  return label->ptr[0] == '\0';
+  return label->is_progmem ? pgm_read_byte(label->ptr) == '\0' : label->ptr[0] == '\0';
 }
 
 static void lcdPrintLabel(const LabelRef *label) {
   if (!label || !label->ptr) return;
-  if (label->is_progmem) {
-    lcdPrint_P((PGM_P)label->ptr);
-  } else {
-    lcdPrint_R(label->ptr);
-  }
+  if (label->is_progmem) lcdPrint_P((PGM_P)label->ptr);
+  else lcdPrint_R(label->ptr);
 }
 
 void setChoices_P(PGM_P label0 = MSG_LITTLE, int value0 = 0, PGM_P label1 = MSG_LITTLE, int value1 = 0, PGM_P label2 = MSG_LITTLE, int value2 = 0, PGM_P label3 = MSG_LITTLE, int value3 = 0, PGM_P label4 = MSG_LITTLE, int value4 = 0, PGM_P label5 = MSG_LITTLE, int value5 = 0, PGM_P label6 = MSG_LITTLE, int value6 = 0, PGM_P label7 = MSG_LITTLE, int value7 = 0, PGM_P label8 = MSG_LITTLE, int value8 = 0, PGM_P label9 = MSG_LITTLE, int value9 = 0) {

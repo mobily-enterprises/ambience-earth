@@ -19,14 +19,11 @@ extern Button rightButton;
 extern Button okButton;
 
 namespace {
-const uint8_t kSlotsPerPage = 8;
 const uint8_t kTickSeconds = 5;
 const uint8_t kMaxMinRuntimeTicks = 48;   // 240s
 const uint8_t kMaxMaxRuntimeTicks = 120;  // 600s
 const uint8_t kMaxPulseOnTicks = 12;      // 60s
 const uint8_t kMaxPulseOffTicks = 120;    // 600s
-const uint8_t kListLabelSize = 14;
-static char slotListLabels[kSlotsPerPage][kListLabelSize];
 
 static int8_t promptYesNoWithHeader(PGM_P header, PGM_P question, bool initialYes) {
   bool yesSelected = initialYes;
@@ -163,16 +160,6 @@ static void saveFeedSlot(uint8_t index, const FeedSlot *slot) {
     memcpy(config.feedSlotsPacked[index], packed, FEED_SLOT_PACKED_SIZE);
     saveConfig();
   }
-}
-
-static void buildSlotListLabel(char *out, uint8_t slotNumber, const FeedSlot *slot) {
-  char *p = out;
-  p = append_P(p, MSG_SLOT);
-  *p++ = ' ';
-  p = appendNumber(p, slotNumber);
-  *p++ = ' ';
-  p = append_P(p, slotFlag(slot, FEED_SLOT_ENABLED) ? MSG_ON : MSG_OFF);
-  *p = '\0';
 }
 
 static void buildSummaryLine0(char *out, uint8_t slotNumber, const FeedSlot *slot) {
@@ -569,30 +556,17 @@ static void viewFeedSlot(uint8_t slotIndex) {
   saveFeedSlot(slotIndex, &updated);
 }
 
-static void feedingSlotsPage(uint8_t startIndex) {
+static void feedingSlotsPage() {
   int8_t choice = 0;
-  uint8_t count = FEED_SLOT_COUNT - startIndex;
-  if (count > kSlotsPerPage) count = kSlotsPerPage;
 
   while (choice != -1) {
-    for (uint8_t i = 0; i < count; ++i) {
-      FeedSlot slot;
-      uint8_t slotNumber = startIndex + i + 1;
-      loadFeedSlot(startIndex + i, &slot);
-      buildSlotListLabel(slotListLabels[i], slotNumber, &slot);
+    resetChoicesAndHeader();
+    for (uint8_t i = 0; i < FEED_SLOT_COUNT; ++i) {
+      setChoice_P(i, MSG_SLOT_EMPTY, static_cast<int>(i + 1));
     }
 
-    setChoices_R(slotListLabels[0], startIndex + 1,
-                 slotListLabels[1], startIndex + 2,
-                 slotListLabels[2], startIndex + 3,
-                 slotListLabels[3], startIndex + 4,
-                 slotListLabels[4], startIndex + 5,
-                 slotListLabels[5], startIndex + 6,
-                 slotListLabels[6], startIndex + 7,
-                 slotListLabels[7], startIndex + 8);
-
-    setChoicesHeader_P(startIndex == 0 ? MSG_SLOTS_1_8 : MSG_SLOTS_9_16);
-    choice = selectChoice(count, startIndex + 1);
+    setChoicesHeader_P(MSG_FEEDING_MENU);
+    choice = selectChoice(FEED_SLOT_COUNT, 1);
     if (choice != -1) viewFeedSlot(static_cast<uint8_t>(choice - 1));
   }
 }
@@ -600,12 +574,5 @@ static void feedingSlotsPage(uint8_t startIndex) {
 } /* End of namespace */
 
 void feedingMenu() {
-  int8_t choice = 0;
-  while (choice != -1) {
-    setChoices_P(MSG_SLOTS_1_8, 1, MSG_SLOTS_9_16, 2);
-    setChoicesHeader_P(MSG_FEEDING_MENU);
-    choice = selectChoice(2, 1);
-    if (choice == 1) feedingSlotsPage(0);
-    else if (choice == 2) feedingSlotsPage(8);
-  }
+  feedingSlotsPage();
 }

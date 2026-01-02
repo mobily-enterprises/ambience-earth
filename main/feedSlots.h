@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define FEED_SLOT_COUNT 16
+#define FEED_SLOT_COUNT 8
 #define FEED_SLOT_PACKED_SIZE 10
 
 enum FeedSlotFlags : uint8_t {
