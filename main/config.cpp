@@ -80,6 +80,7 @@ void restoreDefaultConfig() {
   config.dripperMsPerLiter = 0;
   config.lightsOnMinutes = 0;
   config.lightsOffMinutes = 0;
+  config.maxDailyWaterMl = 0;
 
   config.kbdUp = 0;
   config.kbdDown = 0;

@@ -6,7 +6,7 @@
 #include "feedSlots.h"
 
 #define CONFIG_ADDRESS 0
-#define CONFIG_VERSION 7
+#define CONFIG_VERSION 8
 #define CONFIG_FLAG_MUST_RUN_INITIAL_SETUP 0x01
 #define CONFIG_FLAG_FEEDING_DISABLED 0x02
 
@@ -25,6 +25,7 @@ typedef struct {
     uint32_t dripperMsPerLiter;
     uint16_t lightsOnMinutes;
     uint16_t lightsOffMinutes;
+    uint16_t maxDailyWaterMl;
 
     uint16_t kbdUp;
     uint16_t kbdDown;

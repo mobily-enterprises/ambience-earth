@@ -226,7 +226,9 @@ static void buildStopSummaryLine(char *out, const FeedSlot *slot) {
   char *p = out;
   p = append_P(p, PSTR("Stop: "));
   bool hasTarget = slotFlag(slot, FEED_SLOT_HAS_MOISTURE_TARGET);
-  bool hasRunoff = slotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED);
+  bool mustRunoff = slotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED);
+  bool avoidRunoff = slotFlag(slot, FEED_SLOT_RUNOFF_AVOID);
+  bool hasRunoff = mustRunoff || avoidRunoff;
 
   if (!hasTarget && !hasRunoff) {
     p = append_P(p, PSTR("N/A"));
@@ -238,7 +240,7 @@ static void buildStopSummaryLine(char *out, const FeedSlot *slot) {
       if (hasRunoff) *p++ = ' ';
     }
     if (hasRunoff) {
-      p = append_P(p, PSTR("Runoff"));
+      p = append_P(p, mustRunoff ? MSG_RUNOFF_REQUIRED : MSG_AVOID_RUNOFF);
     }
   }
   *p = '\0';
@@ -423,9 +425,21 @@ static bool editMaxRuntime(FeedSlot *slot) {
 }
 
 static bool editRunoffRequired(FeedSlot *slot) {
-  int8_t enable = promptYesNoWithHeader(MSG_END_CONDITIONS, MSG_RUNOFF_REQUIRED, slotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED));
-  if (enable == -1) return false;
-  setSlotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED, enable);
+  enum Preference : uint8_t { PREF_NEITHER = 3, PREF_MUST = 1, PREF_AVOID = 2 };
+  Preference current = PREF_NEITHER;
+  if (slotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED)) current = PREF_MUST;
+  else if (slotFlag(slot, FEED_SLOT_RUNOFF_AVOID)) current = PREF_AVOID;
+
+  PGM_P question = (current == PREF_MUST) ? MSG_MUST_RUNOFF : MSG_AVOID_RUNOFF;
+  setChoices_P(MSG_YES, PREF_MUST, MSG_NO, PREF_AVOID, MSG_NEITHER, PREF_NEITHER);
+  setChoicesHeader_P(question);
+  int8_t choice = selectChoice(3, current);
+  if (choice == -1) return false;
+
+  setSlotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED, false);
+  setSlotFlag(slot, FEED_SLOT_RUNOFF_AVOID, false);
+  if (choice == PREF_MUST) setSlotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED, true);
+  else if (choice == PREF_AVOID) setSlotFlag(slot, FEED_SLOT_RUNOFF_AVOID, true);
   return true;
 }
 
@@ -558,5 +572,25 @@ static void feedingSlotsPage() {
 } /* End of namespace */
 
 void feedingMenu() {
-  feedingSlotsPage();
+  int8_t choice = 0;
+  while (choice != -1) {
+    setChoices_P(
+      MSG_FEEDING_SCHEDULE, 1,
+      MSG_MAX_DAILY_WATER, 2);
+    setChoicesHeader_P(MSG_FEEDING_MENU);
+    choice = selectChoice(2, 1);
+
+    if (choice == 1) {
+      feedingSlotsPage();
+    } else if (choice == 2) {
+      long int initial = config.maxDailyWaterMl;
+      if (initial < 100 || initial > 5000) initial = 100;
+      long int ml = inputNumber_P(MSG_MAX_DAILY_WATER, initial, 100, 100, 5000, PSTR("ml"), MSG_FEEDING_MENU);
+      if (ml >= 0) {
+        config.maxDailyWaterMl = static_cast<uint16_t>(ml);
+        saveConfig();
+        lcdFlashMessage_P(MSG_DONE);
+      }
+    }
+  }
 }

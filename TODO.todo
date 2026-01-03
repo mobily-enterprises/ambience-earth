@@ -1,10 +1,29 @@
 TODO:
   ✔ Add named slots, precursor to "common configs" @done(26-01-02 23:16)
-  ☐ Install OptiBoot on every single arduino
-  ☐ Check for repeated code: make sure code is very tight, no repetitions
-  ☐ Add code that measures them, calibration, triggeer feeds based on weight
+  ✔ Check for repeated code: make sure code is very tight, no repetitions @done(26-01-03 11:07)
+  ☐ Add settings:
+    ✔ Delete pulses completely @done(26-01-03 23:53)
+    ✔ Environment -> lights on, lights off times @done(26-01-03 23:53)
+    ✔ Settings: max daily water @done(26-01-04 06:37)
+    ✔ Set "must runoff", "must not runoff", or "Neither" @done(26-01-04 06:48)
+
+    ☐ Change inputs in slots so that it never talks about time, but it talkes about delivered water
+    ☐ Allow ranges for slots, check every minute
+
+    ☐ Somewhere, calculate total water provided by reading the logs
+
+    ☐ 
+
+
+MAYBE LATER:
   ☐ MEMORY COMES: Move all strings off progmem and onto new EPROM
-  ☐ MAYBE, if there is space: Soil Temperature, add it and show temperature, log it too
+  ☐ Install OptiBoot on every single arduino
+
+VERSION 2 (runoff counter):
+  Arduino Mega + Pin shield
+  Load cell sensor + solenoid
+  Water flow sensor
+  EC sensor
 
 Other things reported:
   ☐ EEPROM wear & scalability: every boot writes a log entry (createBootLogEntry() main/main.ino:258) and

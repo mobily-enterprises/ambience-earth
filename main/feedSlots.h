@@ -15,7 +15,8 @@ enum FeedSlotFlags : uint8_t {
   FEED_SLOT_HAS_MIN_SINCE = 1u << 3,
   FEED_SLOT_HAS_MOISTURE_TARGET = 1u << 4,
   FEED_SLOT_HAS_MIN_RUNTIME = 1u << 5,
-  FEED_SLOT_RUNOFF_REQUIRED = 1u << 6
+  FEED_SLOT_RUNOFF_REQUIRED = 1u << 6,
+  FEED_SLOT_RUNOFF_AVOID = 1u << 7
 };
 
 typedef struct {
