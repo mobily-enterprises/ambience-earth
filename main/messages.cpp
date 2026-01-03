@@ -37,6 +37,9 @@ const char PROGMEM MSG_OK_START[] = "OK start";
 const char PROGMEM MSG_OK_WHEN_FULL[] = "OK when full";
 const char PROGMEM MSG_FILLING[] = "Filling...";
 const char PROGMEM MSG_ENABLE_FEEDING_FIRST[] = "Enable feeding first";
+const char PROGMEM MSG_ENVIRONMENT[] = "Environment";
+const char PROGMEM MSG_LIGHTS_ON_TIME[] = "Lights ON time";
+const char PROGMEM MSG_LIGHTS_OFF_TIME[] = "Lights OFF time";
 
 const char PROGMEM MSG_ABORTED[] = "Aborted!";
 

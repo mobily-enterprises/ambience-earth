@@ -180,6 +180,33 @@ static void calibrateSensorsMenu() {
   }
 }
 
+static void environmentMenu() {
+  int8_t choice = 0;
+  auto sanitizeMinutes = [](uint16_t minutes) {
+    if (minutes > 1439) return (uint16_t)0;
+    return minutes;
+  };
+
+  lcdClear();
+  while (choice != -1) {
+    setChoices_P(MSG_LIGHTS_ON_TIME, 1, MSG_LIGHTS_OFF_TIME, 2);
+    setChoicesHeader_P(MSG_ENVIRONMENT);
+    choice = selectChoice(2, 1);
+
+    if (choice == 1 || choice == 2) {
+      bool setOn = (choice == 1);
+      uint16_t minutes = setOn ? config.lightsOnMinutes : config.lightsOffMinutes;
+      minutes = sanitizeMinutes(minutes);
+      if (inputTime_P(MSG_ENVIRONMENT, setOn ? MSG_LIGHTS_ON_TIME : MSG_LIGHTS_OFF_TIME, minutes, &minutes)) {
+        if (setOn) config.lightsOnMinutes = minutes;
+        else config.lightsOffMinutes = minutes;
+        saveConfig();
+        lcdFlashMessage_P(MSG_DONE);
+      }
+    }
+  }
+}
+
 static void testPeripheralsMenu() {
   int8_t choice = 0;
 
@@ -201,14 +228,16 @@ void settings() {
     setChoices_P(
       MSG_SET_TIME_DATE, 1,
       MSG_CALIBRATE_SENSORS, 2,
-      MSG_TEST_PERIPHERALS, 3,
-      MSG_RESET, 4);
-    choice = selectChoice(4, 1);
+      MSG_ENVIRONMENT, 3,
+      MSG_TEST_PERIPHERALS, 4,
+      MSG_RESET, 5);
+    choice = selectChoice(5, 1);
 
     if (choice == 1) setTimeAndDate();
     else if (choice == 2) calibrateSensorsMenu();
-    else if (choice == 3) testPeripheralsMenu();
-    else if (choice == 4) settingsReset();
+    else if (choice == 3) environmentMenu();
+    else if (choice == 4) testPeripheralsMenu();
+    else if (choice == 5) settingsReset();
   }
 }
 

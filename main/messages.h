@@ -40,6 +40,9 @@ extern const char PROGMEM MSG_OK_START[];
 extern const char PROGMEM MSG_OK_WHEN_FULL[];
 extern const char PROGMEM MSG_FILLING[];
 extern const char PROGMEM MSG_ENABLE_FEEDING_FIRST[];
+extern const char PROGMEM MSG_ENVIRONMENT[];
+extern const char PROGMEM MSG_LIGHTS_ON_TIME[];
+extern const char PROGMEM MSG_LIGHTS_OFF_TIME[];
 
 extern const char PROGMEM MSG_ABORTED[];
 
