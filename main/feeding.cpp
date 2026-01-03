@@ -22,8 +22,6 @@ namespace {
 const uint8_t kTickSeconds = 5;
 const uint8_t kMaxMinRuntimeTicks = 48;   // 240s
 const uint8_t kMaxMaxRuntimeTicks = 120;  // 600s
-const uint8_t kMaxPulseOnTicks = 12;      // 60s
-const uint8_t kMaxPulseOffTicks = 120;    // 600s
 static char slotListLabels[FEED_SLOT_COUNT][LABEL_LENGTH + 1];
 
 static int8_t promptYesNoWithHeader(PGM_P header, PGM_P question, bool initialYes) {
@@ -171,9 +169,7 @@ static void buildSummaryLine0(char *out, uint8_t slotNumber, const FeedSlot *slo
   else p = append_P(p, MSG_SLOT_EMPTY);
   *p++ = ' ';
   *p++ = '(';
-  if (!slotFlag(slot, FEED_SLOT_ENABLED)) p = append_P(p, MSG_OFF);
-  else if (slotFlag(slot, FEED_SLOT_PULSED)) p = append_P(p, PSTR("pulse"));
-  else p = append_P(p, PSTR("cont"));
+  p = append_P(p, slotFlag(slot, FEED_SLOT_ENABLED) ? MSG_ON : MSG_OFF);
   *p++ = ')';
   *p++ = ' ';
   p = append_P(p, MSG_SLOT);
@@ -440,42 +436,15 @@ enum SlotStepAction : uint8_t {
   STEP_SAVE
 };
 
-static SlotStepAction editPulseSettings(FeedSlot *slot) {
-  if (!slotFlag(slot, FEED_SLOT_PULSED)) return STEP_NEXT;
-
-  long int onSeconds = ticksToSeconds(slot->pulseOn5s);
-  long int offSeconds = ticksToSeconds(slot->pulseOff5s);
-  if (onSeconds <= 0) onSeconds = 20;
-  if (offSeconds <= 0) offSeconds = 60;
-  if (onSeconds > ticksToSeconds(kMaxPulseOnTicks)) onSeconds = ticksToSeconds(kMaxPulseOnTicks);
-  if (offSeconds > ticksToSeconds(kMaxPulseOffTicks)) offSeconds = ticksToSeconds(kMaxPulseOffTicks);
-
-  long int newOn = inputNumber_P(MSG_PULSE_ON, onSeconds, kTickSeconds, kTickSeconds,
-                                 ticksToSeconds(kMaxPulseOnTicks), MSG_SECONDS, MSG_STYLE);
-  if (newOn < 0) return STEP_BACK;
-
-  long int newOff = inputNumber_P(MSG_PULSE_OFF, offSeconds, kTickSeconds, kTickSeconds,
-                                  ticksToSeconds(kMaxPulseOffTicks), MSG_SECONDS, MSG_STYLE);
-  if (newOff < 0) return STEP_BACK;
-
-  uint16_t clampedOn = clampSeconds(newOn, kTickSeconds, ticksToSeconds(kMaxPulseOnTicks));
-  uint16_t clampedOff = clampSeconds(newOff, kTickSeconds, ticksToSeconds(kMaxPulseOffTicks));
-  slot->pulseOn5s = secondsToTicks(clampedOn, kMaxPulseOnTicks);
-  slot->pulseOff5s = secondsToTicks(clampedOff, kMaxPulseOffTicks);
-  return STEP_NEXT;
-}
-
 static bool editSlotSequence(FeedSlot *slot, char *slotName) {
   enum Step : uint8_t {
-    STEP_ENABLE = 0,
-    STEP_NAME,
-    STEP_STYLE,
-    STEP_PULSE,
-    STEP_START_TIME,
-    STEP_START_MOIST,
-    STEP_STOP_MOIST,
-    STEP_STOP_RUNOFF,
-    STEP_MIN_RUNTIME,
+  STEP_ENABLE = 0,
+  STEP_NAME,
+  STEP_START_TIME,
+  STEP_START_MOIST,
+  STEP_STOP_MOIST,
+  STEP_STOP_RUNOFF,
+  STEP_MIN_RUNTIME,
     STEP_MAX_RUNTIME,
     STEP_MIN_BETWEEN,
     STEP_CONFIRM
@@ -491,30 +460,16 @@ static bool editSlotSequence(FeedSlot *slot, char *slotName) {
         int8_t enable = yesOrNo_P(MSG_ENABLE_SLOT, slotFlag(slot, FEED_SLOT_ENABLED));
         if (enable == -1) action = STEP_BACK;
         else {
-          setSlotFlag(slot, FEED_SLOT_ENABLED, enable);
-          action = STEP_NEXT;
-        }
-        break;
-      }
+      setSlotFlag(slot, FEED_SLOT_ENABLED, enable);
+      action = STEP_NEXT;
+    }
+    break;
+  }
       case STEP_NAME: {
         bool accepted = inputString_P(MSG_SLOT_NAME, slotName, MSG_FEEDING_MENU, true, FEED_SLOT_NAME_LENGTH);
         action = accepted ? STEP_NEXT : STEP_BACK;
         break;
       }
-      case STEP_STYLE: {
-        setChoices_P(MSG_CONTINUOUS, 0, MSG_PULSED, 1);
-        setChoicesHeader_P(MSG_STYLE);
-        int8_t style = selectChoice(2, slotFlag(slot, FEED_SLOT_PULSED) ? 1 : 0);
-        if (style == -1) action = STEP_BACK;
-        else {
-          setSlotFlag(slot, FEED_SLOT_PULSED, style == 1);
-          action = STEP_NEXT;
-        }
-        break;
-      }
-      case STEP_PULSE:
-        action = editPulseSettings(slot);
-        break;
       case STEP_START_TIME:
         action = editTimeWindow(slot) ? STEP_NEXT : STEP_BACK;
         break;
@@ -551,19 +506,12 @@ static bool editSlotSequence(FeedSlot *slot, char *slotName) {
     if (action == STEP_NEXT) {
       if (step == STEP_CONFIRM) return true;
       uint8_t next = static_cast<uint8_t>(step + 1);
-      while (next == STEP_PULSE && !slotFlag(slot, FEED_SLOT_PULSED)) {
-        next = static_cast<uint8_t>(next + 1);
-      }
       step = next;
       continue;
     }
     if (action == STEP_BACK) {
       if (step == STEP_ENABLE) return false;
       uint8_t prev = static_cast<uint8_t>(step - 1);
-      while (prev == STEP_PULSE && !slotFlag(slot, FEED_SLOT_PULSED)) {
-        if (prev == STEP_ENABLE) break;
-        prev = static_cast<uint8_t>(prev - 1);
-      }
       step = prev;
       continue;
     }

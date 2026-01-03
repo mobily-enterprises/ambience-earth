@@ -16,7 +16,6 @@ typedef struct {
   bool active;
   uint8_t slotIndex;
   bool pumpOn;
-  bool pulsed;
   bool moistureReady;
   uint8_t moisturePercent;
   bool hasMoistureTarget;

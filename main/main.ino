@@ -711,8 +711,6 @@ static void displayFeedingStatus(bool fullRedraw) {
     lcdSetCursor(0, 0);
     lcd.print(F("Feeding S"));
     lcd.print(status.slotIndex + 1);
-    lcd.print(' ');
-    lcd.print(status.pulsed ? F("pulse") : F("cont"));
 
     lcdClearLine(2);
     lcdSetCursor(0, 2);

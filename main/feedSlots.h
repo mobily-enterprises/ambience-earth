@@ -6,17 +6,16 @@
 
 #define FEED_SLOT_COUNT 8
 #define FEED_SLOT_NAME_LENGTH 6
-#define FEED_SLOT_PACKED_SIZE 10
+#define FEED_SLOT_PACKED_SIZE 9
 
 enum FeedSlotFlags : uint8_t {
   FEED_SLOT_ENABLED = 1u << 0,
-  FEED_SLOT_PULSED = 1u << 1,
-  FEED_SLOT_HAS_TIME_WINDOW = 1u << 2,
-  FEED_SLOT_HAS_MOISTURE_BELOW = 1u << 3,
-  FEED_SLOT_HAS_MIN_SINCE = 1u << 4,
-  FEED_SLOT_HAS_MOISTURE_TARGET = 1u << 5,
-  FEED_SLOT_HAS_MIN_RUNTIME = 1u << 6,
-  FEED_SLOT_RUNOFF_REQUIRED = 1u << 7
+  FEED_SLOT_HAS_TIME_WINDOW = 1u << 1,
+  FEED_SLOT_HAS_MOISTURE_BELOW = 1u << 2,
+  FEED_SLOT_HAS_MIN_SINCE = 1u << 3,
+  FEED_SLOT_HAS_MOISTURE_TARGET = 1u << 4,
+  FEED_SLOT_HAS_MIN_RUNTIME = 1u << 5,
+  FEED_SLOT_RUNOFF_REQUIRED = 1u << 6
 };
 
 typedef struct {
@@ -26,8 +25,6 @@ typedef struct {
   uint16_t minGapMinutes;
   uint8_t minRuntime5s;
   uint8_t maxRuntime5s;
-  uint8_t pulseOn5s;
-  uint8_t pulseOff5s;
   uint8_t runoffHold5s;
   uint8_t flags;
 } FeedSlot;
@@ -42,9 +39,8 @@ typedef struct {
  *   Bits 25-36 : minGapMinutes (0-4095)
  *   Bits 37-42 : minRuntime5s (0-48)        [5-second ticks]
  *   Bits 43-49 : maxRuntime5s (0-120)       [5-second ticks]
- *   Bits 50-53 : pulseOn5s (0-12)           [5-second ticks]
- *   Bits 54-60 : pulseOff5s (0-120)         [5-second ticks]
- *   Bits 61-68 : flags (see FeedSlotFlags)
+ *   Bits 50-56 : runoffHold5s (0-120)       [5-second ticks]
+ *   Bits 57-64 : flags (see FeedSlotFlags)
  *
  * Fields can span byte boundaries; packing/unpacking writes/reads individual
  * bits so split fields are handled automatically.

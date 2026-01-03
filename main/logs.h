@@ -21,10 +21,6 @@ enum LogStartReason : uint8_t {
   LOG_START_MOISTURE = 2
 };
 
-enum LogFlags : uint8_t {
-  LOG_FLAG_PULSED = 1u << 0
-};
-
 typedef struct {
   uint8_t seq;
   uint8_t entryType : 3;

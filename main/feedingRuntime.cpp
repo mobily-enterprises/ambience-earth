@@ -35,7 +35,6 @@ struct FeedSession {
   uint8_t slotIndex;
   FeedSlot slot;
   unsigned long startMillis;
-  unsigned long lastPulseToggleAt;
   bool pumpOn;
   unsigned long runoffStartAt;
   uint8_t soilBeforePercent;
@@ -90,10 +89,6 @@ static uint16_t ticksToSeconds(uint8_t ticks) {
 
 static void clampSlotDurations(FeedSlot *slot) {
   if (slot->maxRuntime5s == 0) slot->maxRuntime5s = 1;
-  if (slotFlag(slot, FEED_SLOT_PULSED)) {
-    if (slot->pulseOn5s == 0) slot->pulseOn5s = 1;
-    if (slot->pulseOff5s == 0) slot->pulseOff5s = 1;
-  }
 }
 
 static bool updateRtcCache() {
@@ -113,13 +108,12 @@ static void startFeed(uint8_t slotIndex, const FeedSlot *slot, bool timeTriggere
   session.slot = *slot;
   clampSlotDurations(&session.slot);
   session.startMillis = millis();
-  session.lastPulseToggleAt = session.startMillis;
   session.pumpOn = true;
   session.runoffStartAt = 0;
   session.soilBeforePercent = soilMoistureAsPercentage(getSoilMoisture());
   session.trayBefore = trayWaterLevelAsState();
   session.startReason = timeTriggered ? LOG_START_TIME : LOG_START_MOISTURE;
-  session.flags = slotFlag(slot, FEED_SLOT_PULSED) ? LOG_FLAG_PULSED : 0;
+  session.flags = 0;
 
   rtcStamp(&session.startYear, &session.startMonth, &session.startDay,
            &session.startHour, &session.startMinute);
@@ -172,35 +166,6 @@ static void stopFeed(FeedStopReason reason, unsigned long now) {
   session.active = false;
 }
 
-static void updatePumpState(unsigned long now) {
-  if (!slotFlag(&session.slot, FEED_SLOT_PULSED)) {
-    if (!session.pumpOn) {
-      session.pumpOn = true;
-      openLineIn();
-    }
-    return;
-  }
-
-  unsigned long onMs = ticksToMs(session.slot.pulseOn5s);
-  unsigned long offMs = ticksToMs(session.slot.pulseOff5s);
-  if (onMs == 0) onMs = kTickSeconds * 1000UL;
-  if (offMs == 0) offMs = kTickSeconds * 1000UL;
-
-  if (session.pumpOn) {
-    if (now - session.lastPulseToggleAt >= onMs) {
-      session.pumpOn = false;
-      session.lastPulseToggleAt = now;
-      closeLineIn();
-    }
-  } else {
-    if (now - session.lastPulseToggleAt >= offMs) {
-      session.pumpOn = true;
-      session.lastPulseToggleAt = now;
-      openLineIn();
-    }
-  }
-}
-
 static void tickActiveFeed(unsigned long now) {
   uint8_t moisturePercent = soilMoistureAsPercentage(getSoilMoisture());
   bool moistureReady = soilSensorRealtimeReady();
@@ -239,8 +204,6 @@ static void tickActiveFeed(unsigned long now) {
     stopFeed(moistureStop ? FEED_STOP_MOISTURE : FEED_STOP_RUNOFF, now);
     return;
   }
-
-  updatePumpState(now);
 }
 
 static bool startConditionsMet(uint8_t slotIndex, const FeedSlot *slot) {
@@ -330,7 +293,6 @@ bool feedingGetStatus(FeedStatus *outStatus) {
   outStatus->active = true;
   outStatus->slotIndex = session.slotIndex;
   outStatus->pumpOn = session.pumpOn;
-  outStatus->pulsed = slotFlag(&session.slot, FEED_SLOT_PULSED);
   outStatus->moistureReady = soilSensorRealtimeReady();
   outStatus->moisturePercent = soilMoistureAsPercentage(getSoilMoisture());
   outStatus->hasMoistureTarget = slotFlag(&session.slot, FEED_SLOT_HAS_MOISTURE_TARGET);
