@@ -121,20 +121,8 @@ static void startFeed(uint8_t slotIndex, const FeedSlot *slot, bool timeTriggere
   session.startReason = timeTriggered ? LOG_START_TIME : LOG_START_MOISTURE;
   session.flags = slotFlag(slot, FEED_SLOT_PULSED) ? LOG_FLAG_PULSED : 0;
 
-  uint8_t hour = 0, minute = 0, day = 0, month = 0, year = 0;
-  if (rtcReadDateTime(&hour, &minute, &day, &month, &year)) {
-    session.startYear = year;
-    session.startMonth = month;
-    session.startDay = day;
-    session.startHour = hour;
-    session.startMinute = minute;
-  } else {
-    session.startYear = 0;
-    session.startMonth = 0;
-    session.startDay = 0;
-    session.startHour = 0;
-    session.startMinute = 0;
-  }
+  rtcStamp(&session.startYear, &session.startMonth, &session.startDay,
+           &session.startHour, &session.startMinute);
 
   setSoilSensorRealTime();
   openLineIn();
@@ -171,20 +159,8 @@ static void stopFeed(FeedStopReason reason, unsigned long now) {
   newLogEntry.startHour = session.startHour;
   newLogEntry.startMinute = session.startMinute;
 
-  uint8_t hour = 0, minute = 0, day = 0, month = 0, year = 0;
-  if (rtcReadDateTime(&hour, &minute, &day, &month, &year)) {
-    newLogEntry.endYear = year;
-    newLogEntry.endMonth = month;
-    newLogEntry.endDay = day;
-    newLogEntry.endHour = hour;
-    newLogEntry.endMinute = minute;
-  } else {
-    newLogEntry.endYear = 0;
-    newLogEntry.endMonth = 0;
-    newLogEntry.endDay = 0;
-    newLogEntry.endHour = 0;
-    newLogEntry.endMinute = 0;
-  }
+  rtcStamp(&newLogEntry.endYear, &newLogEntry.endMonth, &newLogEntry.endDay,
+           &newLogEntry.endHour, &newLogEntry.endMinute);
 
   writeLogEntry((void *)&newLogEntry);
 

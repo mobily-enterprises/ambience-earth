@@ -203,20 +203,8 @@ void maybeLogValues() {
       newLogEntry.trayWaterLevelBefore = trayState;
       newLogEntry.trayWaterLevelAfter = 0;
       newLogEntry.soilMoistureAfter = 0;
-      uint8_t hour = 0, minute = 0, day = 0, month = 0, year = 0;
-      if (rtcReadDateTime(&hour, &minute, &day, &month, &year)) {
-        newLogEntry.startYear = year;
-        newLogEntry.startMonth = month;
-        newLogEntry.startDay = day;
-        newLogEntry.startHour = hour;
-        newLogEntry.startMinute = minute;
-      } else {
-        newLogEntry.startYear = 0;
-        newLogEntry.startMonth = 0;
-        newLogEntry.startDay = 0;
-        newLogEntry.startHour = 0;
-        newLogEntry.startMinute = 0;
-      }
+      rtcStamp(&newLogEntry.startYear, &newLogEntry.startMonth, &newLogEntry.startDay,
+               &newLogEntry.startHour, &newLogEntry.startMinute);
       newLogEntry.endYear = 0;
       newLogEntry.endMonth = 0;
       newLogEntry.endDay = 0;
@@ -266,20 +254,8 @@ void createBootLogEntry() {
   newLogEntry.soilMoistureAfter = 0;
   newLogEntry.trayWaterLevelBefore = 0;
   newLogEntry.trayWaterLevelAfter = 0;
-  uint8_t hour = 0, minute = 0, day = 0, month = 0, year = 0;
-  if (rtcReadDateTime(&hour, &minute, &day, &month, &year)) {
-    newLogEntry.startYear = year;
-    newLogEntry.startMonth = month;
-    newLogEntry.startDay = day;
-    newLogEntry.startHour = hour;
-    newLogEntry.startMinute = minute;
-  } else {
-    newLogEntry.startYear = 0;
-    newLogEntry.startMonth = 0;
-    newLogEntry.startDay = 0;
-    newLogEntry.startHour = 0;
-    newLogEntry.startMinute = 0;
-  }
+  rtcStamp(&newLogEntry.startYear, &newLogEntry.startMonth, &newLogEntry.startDay,
+           &newLogEntry.startHour, &newLogEntry.startMinute);
   newLogEntry.endYear = 0;
   newLogEntry.endMonth = 0;
   newLogEntry.endDay = 0;
