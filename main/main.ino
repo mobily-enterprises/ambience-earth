@@ -219,18 +219,11 @@ void initialPinSetup() {
   //pinMode(0, OUTPUT); digitalWrite(0, LOW); // D0 (RX) left alone, serial comms
   //pinMode(1, OUTPUT); digitalWrite(1, LOW); // D1 (TX) left alone, serial comms
 
-  pinMode(2, OUTPUT); digitalWrite(2, LOW); 
-  pinMode(3, OUTPUT); digitalWrite(3, LOW); 
-  pinMode(4, OUTPUT); digitalWrite(4, LOW);
-  pinMode(5, OUTPUT); digitalWrite(5, LOW);
-  pinMode(6, OUTPUT); digitalWrite(6, LOW);
-  pinMode(7, OUTPUT); digitalWrite(7, LOW);
-  pinMode(8, OUTPUT); digitalWrite(8, LOW);
-  pinMode(9, OUTPUT); digitalWrite(9, LOW);
-  pinMode(10, OUTPUT); digitalWrite(10, LOW);
-  pinMode(11, OUTPUT); digitalWrite(11, LOW);
-  pinMode(12, OUTPUT); digitalWrite(12, LOW);
-  pinMode(13, OUTPUT); digitalWrite(13, LOW);
+  static const uint8_t kOwnedPins[] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
+  for (uint8_t pin : kOwnedPins) {
+    pinMode(pin, OUTPUT);
+    digitalWrite(pin, LOW);
+  }
 
   // Leave A0-A3 alone until their respective modules configure them.
   // A4/A5 are SDA/SCL for I2C (LCD), leave them alone.
