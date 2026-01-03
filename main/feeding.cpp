@@ -425,21 +425,24 @@ static bool editMaxRuntime(FeedSlot *slot) {
 }
 
 static bool editRunoffRequired(FeedSlot *slot) {
-  enum Preference : uint8_t { PREF_NEITHER = 3, PREF_MUST = 1, PREF_AVOID = 2 };
-  Preference current = PREF_NEITHER;
-  if (slotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED)) current = PREF_MUST;
-  else if (slotFlag(slot, FEED_SLOT_RUNOFF_AVOID)) current = PREF_AVOID;
+  // Functional question: should this feed stop on runoff?
+  int8_t stopOnRunoff = promptYesNoWithHeader(MSG_END_CONDITIONS, MSG_RUNOFF_PRESENT, slotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED));
+  if (stopOnRunoff == -1) return false;
+  setSlotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED, stopOnRunoff);
 
-  PGM_P question = (current == PREF_MUST) ? MSG_MUST_RUNOFF : MSG_AVOID_RUNOFF;
+  // Expectation question: record intent for future warnings (does not affect control).
+  enum Preference : uint8_t { PREF_NEITHER = 0, PREF_MUST = 1, PREF_AVOID = 2 };
+  uint8_t currentPref = config.runoffExpectation;
+  if (currentPref > PREF_AVOID) currentPref = PREF_NEITHER;
+  if (stopOnRunoff && currentPref == PREF_NEITHER) currentPref = PREF_MUST; // default to Yes when stopping on runoff
+  PGM_P expectationQuestion = stopOnRunoff ? MSG_MUST_RUNOFF : MSG_AVOID_RUNOFF;
   setChoices_P(MSG_YES, PREF_MUST, MSG_NO, PREF_AVOID, MSG_NEITHER, PREF_NEITHER);
-  setChoicesHeader_P(question);
-  int8_t choice = selectChoice(3, current);
-  if (choice == -1) return false;
-
-  setSlotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED, false);
-  setSlotFlag(slot, FEED_SLOT_RUNOFF_AVOID, false);
-  if (choice == PREF_MUST) setSlotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED, true);
-  else if (choice == PREF_AVOID) setSlotFlag(slot, FEED_SLOT_RUNOFF_AVOID, true);
+  setChoicesHeader_P(expectationQuestion);
+  int8_t pref = selectChoice(3, currentPref);
+  if (pref != -1) {
+    config.runoffExpectation = static_cast<uint8_t>(pref);
+    saveConfig();
+  }
   return true;
 }
 

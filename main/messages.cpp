@@ -98,6 +98,7 @@ const char PROGMEM MSG_MIN_SINCE[] = "Minimum time between";
 const char PROGMEM MSG_MIN_RUNTIME[] = "Set minimum duration";
 const char PROGMEM MSG_MAX_RUNTIME[] = "Set max duration";
 const char PROGMEM MSG_RUNOFF_REQUIRED[] = "Runoff present";
+const char PROGMEM MSG_RUNOFF_PRESENT[] = "Runoff present?";
 const char PROGMEM MSG_MUST_RUNOFF[] = "Must runoff?";
 const char PROGMEM MSG_AVOID_RUNOFF[] = "Avoid runoff?";
 const char PROGMEM MSG_NEITHER[] = "Neither";

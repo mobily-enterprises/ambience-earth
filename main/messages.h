@@ -101,6 +101,7 @@ extern const char PROGMEM MSG_MIN_SINCE[];
 extern const char PROGMEM MSG_MIN_RUNTIME[];
 extern const char PROGMEM MSG_MAX_RUNTIME[];
 extern const char PROGMEM MSG_RUNOFF_REQUIRED[];
+extern const char PROGMEM MSG_RUNOFF_PRESENT[];
 extern const char PROGMEM MSG_MUST_RUNOFF[];
 extern const char PROGMEM MSG_AVOID_RUNOFF[];
 extern const char PROGMEM MSG_NEITHER[];
