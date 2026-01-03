@@ -452,6 +452,10 @@ static void lcdPrintHoursMinutes(unsigned long totalMinutes) {
   lcd.print('m');
 }
 
+static void lcdPrintElapsedMinutes(unsigned long millisValue) {
+  lcdPrintHoursMinutes(millisValue / 60000UL);
+}
+
 void lcdPrintTime(unsigned long milliseconds) {
   unsigned long totalMinutes = milliseconds / 1000 / 60;
   unsigned long tenths = (totalMinutes + 3) / 6;
@@ -465,7 +469,7 @@ void lcdPrintTime(unsigned long milliseconds) {
 
 void lcdPrintTimeSince(unsigned long milliseconds) {
   unsigned long elapsedMillis = millis() - milliseconds;
-  lcdPrintHoursMinutes(elapsedMillis / 1000 / 60);
+  lcdPrintElapsedMinutes(elapsedMillis);
 }
 
 
@@ -492,8 +496,7 @@ static void lcdPrintDateTime(uint8_t day, uint8_t month, uint8_t year, uint8_t h
 
 
 void lcdPrintTimeDuration(unsigned long start, unsigned long finish) {
-  unsigned long elapsedMillis = finish - start;
-  lcdPrintHoursMinutes(elapsedMillis / 1000 / 60);
+  lcdPrintElapsedMinutes(finish - start);
 }
 
 void showLogType0() {

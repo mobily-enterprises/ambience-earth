@@ -86,6 +86,33 @@ static void drawYesNoPrompt(bool yesSelected) {
   else lcdPrint_P(MSG_SPACE);
   lcdPrint_P(MSG_NO);
 }
+
+static void calibrateSensorsMenu() {
+  int8_t choice = 0;
+
+  lcdClear();
+  while (choice != -1) {
+    setChoices_P(MSG_CAL_MOISTURE_SENSOR, 1);
+    setChoicesHeader_P(MSG_CALIBRATE_SENSORS);
+    choice = selectChoice(1, 1);
+
+    if (choice == 1) calibrateMoistureSensor();
+  }
+}
+
+static void testPeripheralsMenu() {
+  int8_t choice = 0;
+
+  lcdClear();
+  while (choice != -1) {
+    setChoices_P(MSG_TEST_PUMPS, 1, MSG_TEST_SENSORS, 2);
+    setChoicesHeader_P(MSG_TEST_PERIPHERALS);
+    choice = selectChoice(2, 1);
+
+    if (choice == 1) pumpTest();
+    else if (choice == 2) testSensors();
+  }
+}
 void settings() {
   int8_t choice = 0;
 
@@ -93,17 +120,15 @@ void settings() {
   while (choice != -1) {
     setChoices_P(
       MSG_SET_TIME_DATE, 1,
-      MSG_CAL_MOISTURE_SENSOR, 2,
-      MSG_TEST_PUMPS, 3,
-      MSG_TEST_SENSORS, 4,
-      MSG_RESET, 5);
-    choice = selectChoice(5, 1);
+      MSG_CALIBRATE_SENSORS, 2,
+      MSG_TEST_PERIPHERALS, 3,
+      MSG_RESET, 4);
+    choice = selectChoice(4, 1);
 
     if (choice == 1) setTimeAndDate();
-    else if (choice == 2) calibrateMoistureSensor();
-    else if (choice == 3) pumpTest();
-    else if (choice == 4) testSensors();
-    else if (choice == 5) settingsReset();
+    else if (choice == 2) calibrateSensorsMenu();
+    else if (choice == 3) testPeripheralsMenu();
+    else if (choice == 4) settingsReset();
   }
 }
 

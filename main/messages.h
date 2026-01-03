@@ -64,6 +64,8 @@ extern const char PROGMEM MSG_TEST_PUMPS[];
 extern const char PROGMEM MSG_LOGS[];
 extern const char PROGMEM MSG_FEEDING[];
 extern const char PROGMEM MSG_SETTINGS[];
+extern const char PROGMEM MSG_CALIBRATE_SENSORS[];
+extern const char PROGMEM MSG_TEST_PERIPHERALS[];
 extern const char PROGMEM MSG_RAW_COLUMN[];
 extern const char PROGMEM MSG_AVG_SHORT[];
 extern const char PROGMEM MSG_SLOTS_1_8[];
