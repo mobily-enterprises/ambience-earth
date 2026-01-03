@@ -7,6 +7,7 @@
 #include "messages.h"
 #include "moistureSensor.h"
 #include "pumps.h"
+#include "feeding.h"
 #include "rtc.h"
 #include "settings.h"
 #include "traySensors.h"
@@ -87,16 +88,95 @@ static void drawYesNoPrompt(bool yesSelected) {
   lcdPrint_P(MSG_NO);
 }
 
+static void drawDripperPrompt(bool filling, unsigned long startMillis, bool fullRedraw) {
+  if (!filling) {
+    lcdClear();
+    lcdPrint_P(MSG_FILL_ONE_L, 0);
+    lcdPrint_P(MSG_OK_START, 1);
+    lcdPrint_P(MSG_OK_WHEN_FULL, 2);
+    return;
+  }
+
+  if (fullRedraw) {
+    lcdClear();
+    lcdPrint_P(MSG_FILLING, 0);
+    lcdPrint_P(MSG_OK_WHEN_FULL, 1);
+    lcdSetCursor(0, 2);
+    lcd.print(F("t:"));
+  }
+
+  lcdSetCursor(2, 2);
+  lcd.print(F("     "));
+  lcdSetCursor(2, 2);
+  unsigned long seconds = (millis() - startMillis) / 1000UL;
+  if (seconds < 1000) {
+    lcd.print(seconds);
+    lcd.print(F("s"));
+  }
+}
+
+void calibrateDripperFlow() {
+  if (!feedingIsEnabled()) {
+    lcdFlashMessage_P(MSG_ENABLE_FEEDING_FIRST);
+    return;
+  }
+
+  setSoilSensorLazy(); // ensure not in realtime mode
+
+  bool filling = false;
+  unsigned long startMillis = 0;
+  unsigned long lastUpdate = 0;
+
+  drawDripperPrompt(filling, startMillis, true);
+
+  while (true) {
+    runSoilSensorLazyReadings();
+    analogButtonsCheck();
+
+    unsigned long now = millis();
+    if (filling && now - lastUpdate >= 1000) {
+      lastUpdate = now;
+      drawDripperPrompt(true, startMillis, false);
+    }
+
+    if (pressedButton == &leftButton) {
+      if (filling) closeLineIn();
+      pressedButton = nullptr;
+      return;
+    }
+
+    if (pressedButton == &okButton) {
+      pressedButton = nullptr;
+      if (!filling) {
+        filling = true;
+        startMillis = now;
+        lastUpdate = now;
+        openLineIn();
+        drawDripperPrompt(true, startMillis, true);
+      } else {
+        closeLineIn();
+        unsigned long elapsed = now - startMillis;
+        if (elapsed == 0) elapsed = 1;
+        config.dripperMsPerLiter = elapsed;
+        saveConfig();
+        lcdFlashMessage_P(MSG_DONE);
+        return;
+      }
+    }
+  }
+}
+
 static void calibrateSensorsMenu() {
   int8_t choice = 0;
 
   lcdClear();
   while (choice != -1) {
-    setChoices_P(MSG_CAL_MOISTURE_SENSOR, 1);
+    setChoices_P(MSG_CAL_MOISTURE_SENSOR, 1, MSG_CAL_DRIPPER_FLOW, 2);
     setChoicesHeader_P(MSG_CALIBRATE_SENSORS);
-    choice = selectChoice(1, 1);
+    choice = selectChoice(2, 1);
 
     if (choice == 1) calibrateMoistureSensor();
+    else if (choice == 2) calibrateDripperFlow();
   }
 }
 

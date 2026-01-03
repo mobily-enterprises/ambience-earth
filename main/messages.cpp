@@ -31,6 +31,12 @@ const char PROGMEM MSG_SURE_QUESTION[] = "Sure?";
 const char PROGMEM MSG_DONE[] = "Done!";
 
 const char PROGMEM MSG_MOISTURE_SENSOR[] = "Moisture sensor";
+const char PROGMEM MSG_CAL_DRIPPER_FLOW[] = "Cal dripper flow";
+const char PROGMEM MSG_FILL_ONE_L[] = "Fill 1L";
+const char PROGMEM MSG_OK_START[] = "OK start";
+const char PROGMEM MSG_OK_WHEN_FULL[] = "OK when full";
+const char PROGMEM MSG_FILLING[] = "Filling...";
+const char PROGMEM MSG_ENABLE_FEEDING_FIRST[] = "Enable feeding first";
 
 const char PROGMEM MSG_ABORTED[] = "Aborted!";
 

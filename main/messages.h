@@ -34,6 +34,12 @@ extern const char PROGMEM MSG_SURE_QUESTION[];
 extern const char PROGMEM MSG_DONE[];
 
 extern const char PROGMEM MSG_MOISTURE_SENSOR[];
+extern const char PROGMEM MSG_CAL_DRIPPER_FLOW[];
+extern const char PROGMEM MSG_FILL_ONE_L[];
+extern const char PROGMEM MSG_OK_START[];
+extern const char PROGMEM MSG_OK_WHEN_FULL[];
+extern const char PROGMEM MSG_FILLING[];
+extern const char PROGMEM MSG_ENABLE_FEEDING_FIRST[];
 
 extern const char PROGMEM MSG_ABORTED[];
 

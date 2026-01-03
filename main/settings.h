@@ -7,6 +7,7 @@ void settingsDefaultMoistLevels();
 void settingsReset();
 void testSensors();
 void calibrateMoistureSensor();
+void calibrateDripperFlow();
 void pumpTest();
 int runInitialSetup();
 void runButtonsSetup();
