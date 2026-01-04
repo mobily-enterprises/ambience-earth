@@ -6,14 +6,9 @@ TODO:
     ✔ Environment -> lights on, lights off times @done(26-01-03 23:53)
     ✔ Settings: max daily water @done(26-01-04 06:37)
     ✔ Set "must runoff", "must not runoff", or "Neither" @done(26-01-04 06:48)
-
-    ☐ Change inputs in slots so that it never talks about time, but it talkes about delivered water
+    ✔ Change inputs in slots so that it never talks about time, but it talks about delivered water @done(26-01-04 07:50)
+    ✔ Somewhere, calculate total water provided by reading the logs, stop feeding if daily max reached @done(26-01-04 08:01)
     ☐ Allow ranges for slots, check every minute
-
-    ☐ Somewhere, calculate total water provided by reading the logs
-
-    ☐ 
-
 
 MAYBE LATER:
   ☐ MEMORY COMES: Move all strings off progmem and onto new EPROM
