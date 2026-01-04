@@ -6,7 +6,7 @@
 
 #define FEED_SLOT_COUNT 8
 #define FEED_SLOT_NAME_LENGTH 6
-#define FEED_SLOT_PACKED_SIZE 9
+#define FEED_SLOT_PACKED_SIZE 10
 
 enum FeedSlotFlags : uint8_t {
   FEED_SLOT_ENABLED = 1u << 0,
@@ -24,8 +24,8 @@ typedef struct {
   uint8_t moistureBelow;
   uint8_t moistureTarget;
   uint16_t minGapMinutes;
-  uint8_t minRuntime5s;
-  uint8_t maxRuntime5s;
+  uint16_t minVolumeMl;
+  uint16_t maxVolumeMl;
   uint8_t runoffHold5s;
   uint8_t flags;
 } FeedSlot;
@@ -38,10 +38,10 @@ typedef struct {
  *   Bits 11-17 : moistureBelow (0-100)
  *   Bits 18-24 : moistureTarget (0-100)
  *   Bits 25-36 : minGapMinutes (0-4095)
- *   Bits 37-42 : minRuntime5s (0-48)        [5-second ticks]
- *   Bits 43-49 : maxRuntime5s (0-120)       [5-second ticks]
- *   Bits 50-56 : runoffHold5s (0-120)       [5-second ticks]
- *   Bits 57-64 : flags (see FeedSlotFlags)
+ *   Bits 37-49 : minVolumeMl (0-8191 ml)
+ *   Bits 50-62 : maxVolumeMl (0-8191 ml)
+ *   Bits 63-69 : runoffHold5s (0-120)       [5-second ticks]
+ *   Bits 70-77 : flags (see FeedSlotFlags)
  *
  * Fields can span byte boundaries; packing/unpacking writes/reads individual
  * bits so split fields are handled automatically.

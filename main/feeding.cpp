@@ -19,9 +19,8 @@ extern Button rightButton;
 extern Button okButton;
 
 namespace {
-const uint8_t kTickSeconds = 5;
-const uint8_t kMaxMinRuntimeTicks = 48;   // 240s
-const uint8_t kMaxMaxRuntimeTicks = 120;  // 600s
+const uint16_t kMinVolumeMl = 50;   // minimum adjustable volume per feed
+const uint16_t kMaxVolumeMl = 5000; // upper bound for volume
 static char slotListLabels[FEED_SLOT_COUNT][LABEL_LENGTH + 1];
 
 static int8_t promptYesNoWithHeader(PGM_P header, PGM_P question, bool initialYes) {
@@ -121,21 +120,11 @@ static void formatTimeCompact(char *out, uint16_t minutesOfDay) {
   out[4] = '\0';
 }
 
-static uint16_t ticksToSeconds(uint8_t ticks) {
-  return static_cast<uint16_t>(ticks) * kTickSeconds;
-}
-
-static uint8_t secondsToTicks(uint16_t seconds, uint8_t maxTicks) {
-  uint16_t ticks = seconds / kTickSeconds;
-  if (ticks > maxTicks) ticks = maxTicks;
-  return static_cast<uint8_t>(ticks);
-}
-
-static uint16_t clampSeconds(long int seconds, uint16_t minSeconds, uint16_t maxSeconds) {
-  if (seconds < 0) return minSeconds;
-  uint16_t value = static_cast<uint16_t>(seconds);
-  if (value < minSeconds) value = minSeconds;
-  if (value > maxSeconds) value = maxSeconds;
+static uint16_t clampVolume(long int ml) {
+  if (ml < 0) return kMinVolumeMl;
+  uint16_t value = static_cast<uint16_t>(ml);
+  if (value < kMinVolumeMl) value = kMinVolumeMl;
+  if (value > kMaxVolumeMl) value = kMaxVolumeMl;
   return value;
 }
 
@@ -249,17 +238,17 @@ static void buildStopSummaryLine(char *out, const FeedSlot *slot) {
 static void buildFeedSummaryLine(char *out, const FeedSlot *slot) {
   char *p = out;
   bool hasMinRuntime = slotFlag(slot, FEED_SLOT_HAS_MIN_RUNTIME);
-  bool hasMaxRuntime = slot->maxRuntime5s > 0;
+  bool hasMaxRuntime = slot->maxVolumeMl > 0;
   bool tightGap = slot->minGapMinutes >= 1000;
 
   if (hasMaxRuntime || hasMinRuntime) {
-    uint16_t minSeconds = hasMinRuntime ? ticksToSeconds(slot->minRuntime5s) : 0;
-    uint16_t maxSeconds = hasMaxRuntime ? ticksToSeconds(slot->maxRuntime5s) : 0;
+    uint16_t minMl = hasMinRuntime ? slot->minVolumeMl : 0;
+    uint16_t maxMl = hasMaxRuntime ? slot->maxVolumeMl : 0;
     p = append_P(p, PSTR("Feed:"));
-    p = appendNumber(p, minSeconds);
+    p = appendNumber(p, minMl);
     *p++ = '-';
-    p = appendNumber(p, maxSeconds);
-    *p++ = 's';
+    p = appendNumber(p, maxMl);
+    p = append_P(p, PSTR("ml"));
   }
 
   if (p != out && !tightGap) *p++ = ' ';
@@ -378,53 +367,47 @@ static bool editMoistureTarget(FeedSlot *slot) {
   return true;
 }
 
-static bool editMinRuntime(FeedSlot *slot) {
+static bool editMinVolume(FeedSlot *slot) {
   int8_t enable = promptYesNoWithHeader(MSG_FEED_OVERRIDES, MSG_MIN_RUNTIME, slotFlag(slot, FEED_SLOT_HAS_MIN_RUNTIME));
   if (enable == -1) return false;
   if (!enable) {
     setSlotFlag(slot, FEED_SLOT_HAS_MIN_RUNTIME, false);
+    slot->minVolumeMl = 0;
     return true;
   }
 
-  long int initialSeconds = ticksToSeconds(slot->minRuntime5s);
-  if (initialSeconds < kTickSeconds) initialSeconds = kTickSeconds;
-  if (initialSeconds > ticksToSeconds(kMaxMinRuntimeTicks)) {
-    initialSeconds = ticksToSeconds(kMaxMinRuntimeTicks);
-  }
-  long int seconds = inputNumber_P(MSG_MIN_RUNTIME, initialSeconds, kTickSeconds,
-                                   kTickSeconds, ticksToSeconds(kMaxMinRuntimeTicks), MSG_SECONDS, MSG_FEED_OVERRIDES);
-  if (seconds < 0) return false;
+  long int initialMl = slot->minVolumeMl;
+  if (initialMl < kMinVolumeMl || initialMl > kMaxVolumeMl) initialMl = kMinVolumeMl;
 
-  uint16_t clamped = clampSeconds(seconds, kTickSeconds, ticksToSeconds(kMaxMinRuntimeTicks));
-  slot->minRuntime5s = secondsToTicks(clamped, kMaxMinRuntimeTicks);
+  long int ml = inputNumber_P(MSG_MIN_RUNTIME, initialMl, 50, kMinVolumeMl, kMaxVolumeMl, PSTR("ml"), MSG_FEED_OVERRIDES);
+  if (ml < 0) return false;
+
+  slot->minVolumeMl = clampVolume(ml);
   setSlotFlag(slot, FEED_SLOT_HAS_MIN_RUNTIME, true);
   return true;
 }
 
-static bool editMaxRuntime(FeedSlot *slot) {
-  long int initialSeconds = ticksToSeconds(slot->maxRuntime5s);
-  if (initialSeconds <= 0) initialSeconds = 60;
-  if (initialSeconds < kTickSeconds) initialSeconds = kTickSeconds;
-  if (initialSeconds > ticksToSeconds(kMaxMaxRuntimeTicks)) {
-    initialSeconds = ticksToSeconds(kMaxMaxRuntimeTicks);
-  }
-  uint16_t minBound = kTickSeconds;
+static bool editMaxVolume(FeedSlot *slot) {
+  long int initialMl = slot->maxVolumeMl;
+  if (initialMl <= 0) initialMl = 500;
+  if (initialMl < kMinVolumeMl) initialMl = kMinVolumeMl;
+  if (initialMl > kMaxVolumeMl) initialMl = kMaxVolumeMl;
+
+  uint16_t minBound = kMinVolumeMl;
   if (slotFlag(slot, FEED_SLOT_HAS_MIN_RUNTIME)) {
-    minBound = ticksToSeconds(slot->minRuntime5s);
-    if (minBound < kTickSeconds) minBound = kTickSeconds;
+    minBound = slot->minVolumeMl;
+    if (minBound < kMinVolumeMl) minBound = kMinVolumeMl;
   }
-  if (initialSeconds < minBound) initialSeconds = minBound;
+  if (initialMl < minBound) initialMl = minBound;
 
-  long int seconds = inputNumber_P(MSG_MAX_RUNTIME, initialSeconds, 15, minBound,
-                                   ticksToSeconds(kMaxMaxRuntimeTicks), MSG_SECONDS, MSG_FEED_OVERRIDES);
-  if (seconds < 0) return false;
+  long int ml = inputNumber_P(MSG_MAX_RUNTIME, initialMl, 50, minBound, kMaxVolumeMl, PSTR("ml"), MSG_FEED_OVERRIDES);
+  if (ml < 0) return false;
 
-  uint16_t clamped = clampSeconds(seconds, kTickSeconds, ticksToSeconds(kMaxMaxRuntimeTicks));
-  slot->maxRuntime5s = secondsToTicks(clamped, kMaxMaxRuntimeTicks);
+  slot->maxVolumeMl = clampVolume(ml);
   return true;
 }
 
-static bool editRunoffRequired(FeedSlot *slot) {
+static bool editRunoffRequired(FeedSlot *slot, uint8_t slotIndex) {
   // Functional question: should this feed stop on runoff?
   int8_t stopOnRunoff = promptYesNoWithHeader(MSG_END_CONDITIONS, MSG_RUNOFF_PRESENT, slotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED));
   if (stopOnRunoff == -1) return false;
@@ -432,7 +415,7 @@ static bool editRunoffRequired(FeedSlot *slot) {
 
   // Expectation question: record intent for future warnings (does not affect control).
   enum Preference : uint8_t { PREF_NEITHER = 0, PREF_MUST = 1, PREF_AVOID = 2 };
-  uint8_t currentPref = config.runoffExpectation;
+  uint8_t currentPref = config.runoffExpectation[slotIndex];
   if (currentPref > PREF_AVOID) currentPref = PREF_NEITHER;
   if (stopOnRunoff && currentPref == PREF_NEITHER) currentPref = PREF_MUST; // default to Yes when stopping on runoff
   PGM_P expectationQuestion = stopOnRunoff ? MSG_MUST_RUNOFF : MSG_AVOID_RUNOFF;
@@ -440,7 +423,8 @@ static bool editRunoffRequired(FeedSlot *slot) {
   setChoicesHeader_P(expectationQuestion);
   int8_t pref = selectChoice(3, currentPref);
   if (pref != -1) {
-    config.runoffExpectation = static_cast<uint8_t>(pref);
+    config.runoffExpectation[slotIndex] = static_cast<uint8_t>(pref);
+    setSlotFlag(slot, FEED_SLOT_RUNOFF_AVOID, pref == PREF_AVOID);
     saveConfig();
   }
   return true;
@@ -453,7 +437,7 @@ enum SlotStepAction : uint8_t {
   STEP_SAVE
 };
 
-static bool editSlotSequence(FeedSlot *slot, char *slotName) {
+static bool editSlotSequence(uint8_t slotIndex, FeedSlot *slot, char *slotName) {
   enum Step : uint8_t {
   STEP_ENABLE = 0,
   STEP_NAME,
@@ -461,10 +445,10 @@ static bool editSlotSequence(FeedSlot *slot, char *slotName) {
   STEP_START_MOIST,
   STEP_STOP_MOIST,
   STEP_STOP_RUNOFF,
-  STEP_MIN_RUNTIME,
-    STEP_MAX_RUNTIME,
-    STEP_MIN_BETWEEN,
-    STEP_CONFIRM
+  STEP_MIN_VOLUME,
+  STEP_MAX_VOLUME,
+  STEP_MIN_BETWEEN,
+  STEP_CONFIRM
   };
 
   uint8_t step = STEP_ENABLE;
@@ -497,13 +481,13 @@ static bool editSlotSequence(FeedSlot *slot, char *slotName) {
         action = editMoistureTarget(slot) ? STEP_NEXT : STEP_BACK;
         break;
       case STEP_STOP_RUNOFF:
-        action = editRunoffRequired(slot) ? STEP_NEXT : STEP_BACK;
+        action = editRunoffRequired(slot, slotIndex) ? STEP_NEXT : STEP_BACK;
         break;
-      case STEP_MIN_RUNTIME:
-        action = editMinRuntime(slot) ? STEP_NEXT : STEP_BACK;
+      case STEP_MIN_VOLUME:
+        action = editMinVolume(slot) ? STEP_NEXT : STEP_BACK;
         break;
-      case STEP_MAX_RUNTIME:
-        action = editMaxRuntime(slot) ? STEP_NEXT : STEP_BACK;
+      case STEP_MAX_VOLUME:
+        action = editMaxVolume(slot) ? STEP_NEXT : STEP_BACK;
         break;
       case STEP_MIN_BETWEEN:
         action = editMinBetweenFeeds(slot) ? STEP_NEXT : STEP_BACK;
@@ -548,7 +532,7 @@ static void viewFeedSlot(uint8_t slotIndex) {
   if (!edit) return;
 
   FeedSlot updated = slot;
-  if (!editSlotSequence(&updated, slotName)) return;
+  if (!editSlotSequence(slotIndex, &updated, slotName)) return;
 
   bool nameChanged = memcmp(originalName, slotName, FEED_SLOT_NAME_LENGTH + 1) != 0;
   bool slotChanged = saveFeedSlot(slotIndex, &updated);

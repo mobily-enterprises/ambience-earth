@@ -22,8 +22,8 @@ typedef struct {
   uint8_t moistureTarget;
   bool runoffRequired;
   bool hasMinRuntime;
-  uint16_t minRuntimeSeconds;
-  uint16_t maxRuntimeSeconds;
+  uint16_t minVolumeMl;
+  uint16_t maxVolumeMl;
   uint16_t elapsedSeconds;
 } FeedStatus;
 

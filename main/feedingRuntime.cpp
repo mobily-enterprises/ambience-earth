@@ -11,6 +11,7 @@
 #include "rtc.h"
 #include "settings.h"
 #include "traySensors.h"
+#include "volume.h"
 
 extern Config config;
 extern LogEntry newLogEntry;
@@ -35,6 +36,8 @@ struct FeedSession {
   uint8_t slotIndex;
   FeedSlot slot;
   unsigned long startMillis;
+  uint32_t minVolumeMs;
+  uint32_t maxVolumeMs;
   bool pumpOn;
   unsigned long runoffStartAt;
   uint8_t soilBeforePercent;
@@ -83,14 +86,6 @@ static uint32_t ticksToMs(uint8_t ticks) {
   return static_cast<uint32_t>(ticks) * kTickSeconds * 1000UL;
 }
 
-static uint16_t ticksToSeconds(uint8_t ticks) {
-  return static_cast<uint16_t>(ticks) * kTickSeconds;
-}
-
-static void clampSlotDurations(FeedSlot *slot) {
-  if (slot->maxRuntime5s == 0) slot->maxRuntime5s = 1;
-}
-
 static bool updateRtcCache() {
   unsigned long now = millis();
   if (now - rtcLastReadAt < kRtcReadIntervalMs) return rtcValid;
@@ -106,8 +101,9 @@ static void startFeed(uint8_t slotIndex, const FeedSlot *slot, bool timeTriggere
   session.active = true;
   session.slotIndex = slotIndex;
   session.slot = *slot;
-  clampSlotDurations(&session.slot);
   session.startMillis = millis();
+  session.minVolumeMs = volumeMlToMs(slot->minVolumeMl, config.dripperMsPerLiter);
+  session.maxVolumeMs = volumeMlToMs(slot->maxVolumeMl, config.dripperMsPerLiter);
   session.pumpOn = true;
   session.runoffStartAt = 0;
   session.soilBeforePercent = soilMoistureAsPercentage(getSoilMoisture());
@@ -170,10 +166,12 @@ static void tickActiveFeed(unsigned long now) {
   uint8_t moisturePercent = soilMoistureAsPercentage(getSoilMoisture());
   bool moistureReady = soilSensorRealtimeReady();
 
-  bool maxReached = (now - session.startMillis) >= ticksToMs(session.slot.maxRuntime5s);
+  unsigned long elapsed = now - session.startMillis;
+
+  bool maxReached = (session.maxVolumeMs > 0) && (elapsed >= session.maxVolumeMs);
   bool minReached = true;
-  if (slotFlag(&session.slot, FEED_SLOT_HAS_MIN_RUNTIME)) {
-    minReached = (now - session.startMillis) >= ticksToMs(session.slot.minRuntime5s);
+  if (slotFlag(&session.slot, FEED_SLOT_HAS_MIN_RUNTIME) && session.minVolumeMs > 0) {
+    minReached = elapsed >= session.minVolumeMs;
   }
 
   bool moistureStop = false;
@@ -299,8 +297,8 @@ bool feedingGetStatus(FeedStatus *outStatus) {
   outStatus->moistureTarget = session.slot.moistureTarget;
   outStatus->runoffRequired = slotFlag(&session.slot, FEED_SLOT_RUNOFF_REQUIRED);
   outStatus->hasMinRuntime = slotFlag(&session.slot, FEED_SLOT_HAS_MIN_RUNTIME);
-  outStatus->minRuntimeSeconds = ticksToSeconds(session.slot.minRuntime5s);
-  outStatus->maxRuntimeSeconds = ticksToSeconds(session.slot.maxRuntime5s);
+  outStatus->minVolumeMl = session.slot.minVolumeMl;
+  outStatus->maxVolumeMl = session.slot.maxVolumeMl;
   outStatus->elapsedSeconds = (uint16_t)((millis() - session.startMillis) / 1000UL);
   return true;
 }
