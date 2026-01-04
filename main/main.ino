@@ -12,6 +12,7 @@
 #include "logs.h"
 #include "rtc.h"
 #include "LiquidCrystal_I2C.h"
+#include "volume.h"
 #include <avr/pgmspace.h>
 
 /* YOU ARE HERE
@@ -531,9 +532,12 @@ void showLogType1() {
                    currentLogEntry.startHour, currentLogEntry.startMinute);
 
   lcd.setCursor(0, 2);
-  lcd.print(F("Dur:"));
-  lcdPrintTimeDuration(currentLogEntry.millisStart, currentLogEntry.millisEnd);
-  lcd.print(F(" Stop:"));
+  lcd.print(F("Vol:"));
+  unsigned long elapsedMs = currentLogEntry.millisEnd - currentLogEntry.millisStart;
+  uint16_t volMl = msToVolumeMl(elapsedMs, config.dripperMsPerLiter);
+  if (volMl) lcd.print(volMl);
+  else lcd.print(F("n/a"));
+  lcd.print(F("ml Stop:"));
   switch (currentLogEntry.stopReason) {
     case LOG_STOP_MOISTURE: lcd.print(F("Mst")); break;
     case LOG_STOP_RUNOFF: lcd.print(F("Run")); break;
@@ -730,13 +734,14 @@ static void displayFeedingStatus(bool fullRedraw) {
     if (!anyStop) lcd.print(F(" N/A"));
 
     lcdClearLine(3);
-    lcdSetCursor(0, 3);
-    lcd.print(F("Min:"));
-    if (status.hasMinRuntime) lcd.print(status.minRuntimeSeconds);
-    else lcd.print('-');
-    lcd.print(F("s Max:"));
-    lcd.print(status.maxRuntimeSeconds);
-    lcd.print('s');
+  lcdSetCursor(0, 3);
+  lcd.print(F("Min:"));
+  if (status.hasMinRuntime && status.minVolumeMl) lcd.print(status.minVolumeMl);
+  else lcd.print('-');
+  lcd.print(F("ml Max:"));
+  if (status.maxVolumeMl) lcd.print(status.maxVolumeMl);
+  else lcd.print('-');
+  lcd.print(F("ml"));
   }
 
   lcdClearLine(1);
