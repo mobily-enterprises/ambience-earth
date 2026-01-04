@@ -3,7 +3,6 @@
 
 void settings();
 void resetOnlyLogs();
-void settingsDefaultMoistLevels();
 void settingsReset();
 void testSensors();
 void calibrateMoistureSensor();
@@ -11,10 +10,8 @@ void calibrateDripperFlow();
 void pumpTest();
 int runInitialSetup();
 void runButtonsSetup();
-int readSensor(int sensor);
 int calibrateSoilMoistureSensor();
 void resetData();
-void activatePumps();
 void createBootLogEntry();
 
 #endif SETTINGS_H
