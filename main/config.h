@@ -6,9 +6,10 @@
 #include "feedSlots.h"
 
 #define CONFIG_ADDRESS 0
-#define CONFIG_VERSION 11
+#define CONFIG_VERSION 12
 #define CONFIG_FLAG_MUST_RUN_INITIAL_SETUP 0x01
 #define CONFIG_FLAG_FEEDING_DISABLED 0x02
+#define CONFIG_FLAG_DRIPPER_CALIBRATED 0x04
 
 // ************************************************************
 // ** TYPE DEFINITIONS

@@ -30,10 +30,6 @@ Config& getConfig() {
 }
 */
 
-void initEeprom() {
-  EEPROM.begin();
-}
-
 uint8_t calculateConfigChecksum() {
   const uint64_t FNV_offset_basis = 14695981039346656037ULL;
   const uint64_t FNV_prime = 1099511628211ULL;
@@ -77,7 +73,7 @@ void restoreDefaultConfig() {
 
   config.moistSensorCalibrationSoaked = 0;
   config.moistSensorCalibrationDry = 1024;
-  config.dripperMsPerLiter = 0;
+  config.dripperMsPerLiter = 30000;
   config.lightsOnMinutes = 0;
   config.lightsOffMinutes = 0;
   config.maxDailyWaterMl = 0;

@@ -28,7 +28,9 @@ enum FeedStopReason : uint8_t {
   FEED_STOP_RUNOFF,
   FEED_STOP_MAX_RUNTIME,
   FEED_STOP_DISABLED,
-  FEED_STOP_UI_PAUSE
+  FEED_STOP_UI_PAUSE,
+  FEED_STOP_MAX_DAILY_FEED_REACHED,
+  FEED_STOP_FEED_NOT_CALIBRATED
 };
 
 struct FeedSession {
@@ -52,13 +54,17 @@ struct FeedSession {
 };
 
 static FeedSession session = {};
-static uint16_t lastTimeTriggerDay[FEED_SLOT_COUNT] = {};
 static bool rtcValid = false;
 static uint16_t rtcMinutes = 0;
 static uint16_t rtcDayKey = 0;
 static unsigned long rtcLastReadAt = 0;
+static uint16_t lastEvaluatedRtcMinutes = 0xFFFF;
+static uint16_t lastOffsetMinutes = 0;
+static bool lastOffsetValid = false;
 static bool feedingDisabledCached = false;
 static bool feedingPausedForUi = false;
+static uint32_t lastRefusalLightKey = 0xFFFFFFFFUL;
+static uint8_t lastRefusalReason = 0xFF;
 
 static inline bool feedingDisabledFlag() {
   return (config.flags & CONFIG_FLAG_FEEDING_DISABLED) != 0;
@@ -78,8 +84,31 @@ static inline void setFeedingPausedFlag(bool paused) {
   feedingPausedForUi = paused;
 }
 
+static inline bool dripperCalibrated() {
+  return (config.flags & CONFIG_FLAG_DRIPPER_CALIBRATED) != 0;
+}
+
 static bool slotFlag(const FeedSlot *slot, uint8_t flag) {
   return (slot->flags & flag) != 0;
+}
+
+static bool isWithinWindow(uint16_t nowOffset, uint16_t startOffset, uint16_t duration) {
+  if (duration == 0) return false;
+  if (duration > 1439) duration = 1439;
+  if (startOffset > 1439) startOffset = 1439;
+  uint16_t endOffset = startOffset + duration;
+  if (endOffset >= 1440) endOffset -= 1440;
+  if (startOffset <= endOffset) {
+    return nowOffset >= startOffset && nowOffset < endOffset;
+  }
+  return nowOffset >= startOffset || nowOffset < endOffset;
+}
+
+static uint16_t minutesSinceLightsOn() {
+  uint16_t lightsOn = config.lightsOnMinutes;
+  if (lightsOn > 1439) lightsOn = 0;
+  if (rtcMinutes >= lightsOn) return static_cast<uint16_t>(rtcMinutes - lightsOn);
+  return static_cast<uint16_t>(rtcMinutes + 1440 - lightsOn);
 }
 
 static uint32_t ticksToMs(uint8_t ticks) {
@@ -117,9 +146,51 @@ static void startFeed(uint8_t slotIndex, const FeedSlot *slot, bool timeTriggere
   setSoilSensorRealTime();
   openLineIn();
 
-  if (timeTriggered && rtcValid) {
-    lastTimeTriggerDay[slotIndex] = rtcDayKey;
+  (void)rtcValid;
+}
+
+static void logFeedRefusal(uint8_t slotIndex, bool timeTriggered, FeedStopReason reason) {
+  uint32_t lightKey = getLightDayKeyNow();
+  uint8_t reasonCode = static_cast<uint8_t>(reason);
+  if (lightKey == lastRefusalLightKey && reasonCode == lastRefusalReason) return;
+  lastRefusalLightKey = lightKey;
+  lastRefusalReason = reasonCode;
+
+  uint8_t trayState = trayWaterLevelAsState();
+  uint8_t soilPercent = soilMoistureAsPercentage(getSoilMoisture());
+  unsigned long now = millis();
+
+  clearLogEntry((void *)&newLogEntry);
+  newLogEntry.entryType = 1;
+  newLogEntry.millisStart = now;
+  newLogEntry.millisEnd = now;
+  newLogEntry.stopReason = reasonCode;
+  newLogEntry.startReason = timeTriggered ? LOG_START_TIME : LOG_START_MOISTURE;
+  newLogEntry.slotIndex = slotIndex;
+  newLogEntry.flags = 0;
+  newLogEntry.trayWaterLevelBefore = trayState;
+  newLogEntry.trayWaterLevelAfter = trayState;
+  newLogEntry.soilMoistureBefore = soilPercent;
+  newLogEntry.soilMoistureAfter = soilPercent;
+
+  rtcStamp(&newLogEntry.startYear, &newLogEntry.startMonth, &newLogEntry.startDay,
+           &newLogEntry.startHour, &newLogEntry.startMinute);
+  newLogEntry.endYear = newLogEntry.startYear;
+  newLogEntry.endMonth = newLogEntry.startMonth;
+  newLogEntry.endDay = newLogEntry.startDay;
+  newLogEntry.endHour = newLogEntry.startHour;
+  newLogEntry.endMinute = newLogEntry.startMinute;
+
+  uint16_t dailyTotal = 0;
+  if (newLogEntry.startMonth && newLogEntry.startDay) {
+    dailyTotal = getDailyFeedTotalMlAt(newLogEntry.startYear, newLogEntry.startMonth,
+                                       newLogEntry.startDay, newLogEntry.startHour,
+                                       newLogEntry.startMinute);
   }
+  newLogEntry.feedMl = 0;
+  newLogEntry.dailyTotalMl = dailyTotal;
+
+  writeLogEntry((void *)&newLogEntry);
 }
 
 static void stopFeed(FeedStopReason reason, unsigned long now) {
@@ -130,6 +201,8 @@ static void stopFeed(FeedStopReason reason, unsigned long now) {
   uint16_t realtimeAvg = soilSensorGetRealtimeAvg();
   uint8_t soilAfterPercent = soilMoistureAsPercentage(realtimeAvg);
   setSoilSensorLazySeed(realtimeAvg);
+  unsigned long elapsedMs = now - session.startMillis;
+  uint16_t feedMl = msToVolumeMl(elapsedMs, config.dripperMsPerLiter);
 
   clearLogEntry((void *)&newLogEntry);
   newLogEntry.entryType = 1;
@@ -151,6 +224,16 @@ static void stopFeed(FeedStopReason reason, unsigned long now) {
 
   rtcStamp(&newLogEntry.endYear, &newLogEntry.endMonth, &newLogEntry.endDay,
            &newLogEntry.endHour, &newLogEntry.endMinute);
+  uint16_t dailyTotal = 0;
+  if (newLogEntry.endMonth && newLogEntry.endDay) {
+    uint16_t previousTotal = getDailyFeedTotalMlAt(newLogEntry.endYear, newLogEntry.endMonth,
+                                                   newLogEntry.endDay, newLogEntry.endHour,
+                                                   newLogEntry.endMinute);
+    if (UINT16_MAX - previousTotal < feedMl) dailyTotal = UINT16_MAX;
+    else dailyTotal = static_cast<uint16_t>(previousTotal + feedMl);
+  }
+  newLogEntry.feedMl = feedMl;
+  newLogEntry.dailyTotalMl = dailyTotal;
 
   writeLogEntry((void *)&newLogEntry);
 
@@ -204,7 +287,7 @@ static void tickActiveFeed(unsigned long now) {
   }
 }
 
-static bool startConditionsMet(uint8_t slotIndex, const FeedSlot *slot) {
+static bool startConditionsMet(const FeedSlot *slot, bool *timeOkOut, bool *moistureOkOut) {
   if (!soilSensorReady()) return false;
 
   bool hasTime = slotFlag(slot, FEED_SLOT_HAS_TIME_WINDOW);
@@ -213,9 +296,16 @@ static bool startConditionsMet(uint8_t slotIndex, const FeedSlot *slot) {
 
   bool timeOk = false;
   if (hasTime && updateRtcCache()) {
-    if (rtcMinutes == slot->startMinute && lastTimeTriggerDay[slotIndex] != rtcDayKey) {
-      timeOk = true;
+    if (rtcMinutes != lastEvaluatedRtcMinutes) {
+      lastEvaluatedRtcMinutes = rtcMinutes;
+      lastOffsetMinutes = minutesSinceLightsOn();
+      lastOffsetValid = true;
     }
+    if (lastOffsetValid) {
+      timeOk = isWithinWindow(lastOffsetMinutes, slot->windowStartMinutes, slot->windowDurationMinutes);
+    }
+  } else if (hasTime) {
+    lastOffsetValid = false;
   }
 
   bool moistureOk = false;
@@ -231,17 +321,41 @@ static bool startConditionsMet(uint8_t slotIndex, const FeedSlot *slot) {
     if ((millis() - millisAtEndOfLastFeed) < minDelayMs) return false;
   }
 
+  if (timeOkOut) *timeOkOut = timeOk;
+  if (moistureOkOut) *moistureOkOut = moistureOk;
   return true;
 }
 
 static void maybeStartFeed() {
+  bool calibrated = dripperCalibrated();
+  uint16_t maxDaily = config.maxDailyWaterMl;
+  uint16_t dailyTotal = 0;
+  bool dailyTotalValid = false;
+
   for (uint8_t i = 0; i < FEED_SLOT_COUNT; ++i) {
     FeedSlot slot;
     unpackFeedSlot(&slot, config.feedSlotsPacked[i]);
     if (!slotFlag(&slot, FEED_SLOT_ENABLED)) continue;
-    if (!startConditionsMet(i, &slot)) continue;
+    bool timeOk = false;
+    bool moistureOk = false;
+    if (!startConditionsMet(&slot, &timeOk, &moistureOk)) continue;
 
-    bool timeTriggered = slotFlag(&slot, FEED_SLOT_HAS_TIME_WINDOW) && rtcValid && (rtcMinutes == slot.startMinute);
+    bool timeTriggered = timeOk && rtcValid;
+    if (!calibrated) {
+      logFeedRefusal(i, timeTriggered, FEED_STOP_FEED_NOT_CALIBRATED);
+      return;
+    }
+    if (maxDaily > 0) {
+      if (!dailyTotalValid) {
+        dailyTotal = getDailyFeedTotalMlNow();
+        dailyTotalValid = true;
+      }
+      if (dailyTotal >= maxDaily) {
+        logFeedRefusal(i, timeTriggered, FEED_STOP_MAX_DAILY_FEED_REACHED);
+        return;
+      }
+    }
+
     startFeed(i, &slot, timeTriggered);
     break;
   }

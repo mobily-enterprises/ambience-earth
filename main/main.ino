@@ -532,18 +532,25 @@ void showLogType1() {
                    currentLogEntry.startHour, currentLogEntry.startMinute);
 
   lcd.setCursor(0, 2);
-  lcd.print(F("Vol:"));
-  unsigned long elapsedMs = currentLogEntry.millisEnd - currentLogEntry.millisStart;
-  uint16_t volMl = msToVolumeMl(elapsedMs, config.dripperMsPerLiter);
+  lcd.print(F("V:"));
+  uint16_t volMl = currentLogEntry.feedMl;
+  if (!volMl && currentLogEntry.millisEnd > currentLogEntry.millisStart) {
+    unsigned long elapsedMs = currentLogEntry.millisEnd - currentLogEntry.millisStart;
+    volMl = msToVolumeMl(elapsedMs, config.dripperMsPerLiter);
+  }
   if (volMl) lcd.print(volMl);
   else lcd.print(F("n/a"));
-  lcd.print(F("ml Stop:"));
+  lcd.print(F(" T:"));
+  lcd.print(currentLogEntry.dailyTotalMl);
+  lcd.print(F(" S:"));
   switch (currentLogEntry.stopReason) {
     case LOG_STOP_MOISTURE: lcd.print(F("Mst")); break;
     case LOG_STOP_RUNOFF: lcd.print(F("Run")); break;
     case LOG_STOP_MAX_RUNTIME: lcd.print(F("Max")); break;
     case LOG_STOP_DISABLED: lcd.print(F("Off")); break;
     case LOG_STOP_UI_PAUSE: lcd.print(F("Cfg")); break;
+    case LOG_STOP_MAX_DAILY_FEED_REACHED: lcd.print(F("Day")); break;
+    case LOG_STOP_FEED_NOT_CALIBRATED: lcd.print(F("Cal")); break;
     default: lcd.print(F("---")); break;
   }
 
@@ -680,6 +687,9 @@ void displayInfo1(bool fullRedraw) {
     return;
   }
   static const uint8_t kLastFeedValueCol = 11;
+  static const uint8_t kDailyValueCol = 4;
+  static const uint8_t kDailyFieldWidth = 7;  // "65535ml" max
+  static const uint8_t kAvgLabelCol = 12;
   static const uint8_t kAvgValueCol = 14;
   static const uint8_t kLastFeedFieldWidth = DISPLAY_COLUMNS - kLastFeedValueCol;
   static const uint8_t kAvgFieldWidth = DISPLAY_COLUMNS - kAvgValueCol;
@@ -688,7 +698,10 @@ void displayInfo1(bool fullRedraw) {
 
   if (fullRedraw) {
     lcdPrint_P(MSG_LAST_FEED, 2);
-    lcdPrint_P(MSG_AVG_COLUMN, 3);
+    lcdSetCursor(0, 3);
+    lcd.print(F("Day:"));
+    lcdSetCursor(kAvgLabelCol, 3);
+    lcd.print(F("A:"));
   }
 
   lcdSetCursor(kLastFeedValueCol, 2);
@@ -698,11 +711,17 @@ void displayInfo1(bool fullRedraw) {
   else lcdPrintTimeSince(millisAtEndOfLastFeed);
   // lcdPrintNumber(actionPreviousMillis);
 
+  uint16_t dailyTotal = getDailyFeedTotalMlNow();
+  lcdSetCursor(kDailyValueCol, 3);
+  lcdPrintSpaces(kDailyFieldWidth);
+  lcdSetCursor(kDailyValueCol, 3);
+  lcd.print(dailyTotal);
+  lcd.print(F("ml"));
+
   lcdSetCursor(kAvgValueCol, 3);
   lcdPrintSpaces(kAvgFieldWidth);
   lcdSetCursor(kAvgValueCol, 3);
   if (!averageMsBetweenFeeds) lcdPrintPadded_P(MSG_NA, kAvgFieldWidth);
-  // else lcdPrintNumber(averageMsBetweenFeeds);
   else lcdPrintTime(averageMsBetweenFeeds);
 }
 

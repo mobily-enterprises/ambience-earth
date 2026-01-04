@@ -2,8 +2,9 @@
 #include "feedSlots.h"
 
 namespace {
-constexpr uint16_t kBitStartMinute = 0;
-constexpr uint16_t kBitMoistureBelow = kBitStartMinute + 11;
+constexpr uint16_t kBitWindowStart = 0;
+constexpr uint16_t kBitWindowDuration = kBitWindowStart + 11;
+constexpr uint16_t kBitMoistureBelow = kBitWindowDuration + 11;
 constexpr uint16_t kBitMoistureTarget = kBitMoistureBelow + 7;
 constexpr uint16_t kBitMinSince = kBitMoistureTarget + 7;
 constexpr uint16_t kBitMinVolume = kBitMinSince + 12;
@@ -38,7 +39,8 @@ void packFeedSlot(uint8_t out[FEED_SLOT_PACKED_SIZE], const FeedSlot *slot) {
   if (!out || !slot) return;
 
   memset(out, 0, FEED_SLOT_PACKED_SIZE);
-  writeBits(out, kBitStartMinute, 11, slot->startMinute);
+  writeBits(out, kBitWindowStart, 11, slot->windowStartMinutes);
+  writeBits(out, kBitWindowDuration, 11, slot->windowDurationMinutes);
   writeBits(out, kBitMoistureBelow, 7, slot->moistureBelow);
   writeBits(out, kBitMoistureTarget, 7, slot->moistureTarget);
   writeBits(out, kBitMinSince, 12, slot->minGapMinutes);
@@ -51,7 +53,8 @@ void packFeedSlot(uint8_t out[FEED_SLOT_PACKED_SIZE], const FeedSlot *slot) {
 void unpackFeedSlot(FeedSlot *slot, const uint8_t in[FEED_SLOT_PACKED_SIZE]) {
   if (!slot || !in) return;
 
-  slot->startMinute = static_cast<uint16_t>(readBits(in, kBitStartMinute, 11));
+  slot->windowStartMinutes = static_cast<uint16_t>(readBits(in, kBitWindowStart, 11));
+  slot->windowDurationMinutes = static_cast<uint16_t>(readBits(in, kBitWindowDuration, 11));
   slot->moistureBelow = static_cast<uint8_t>(readBits(in, kBitMoistureBelow, 7));
   slot->moistureTarget = static_cast<uint8_t>(readBits(in, kBitMoistureTarget, 7));
   slot->minGapMinutes = static_cast<uint16_t>(readBits(in, kBitMinSince, 12));

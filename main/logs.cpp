@@ -1,6 +1,8 @@
 #include "logs.h"
 #include <EEPROM.h>
 #include <Arduino.h>
+#include "config.h"
+#include "rtc.h"
 
 int EEPROM_SIZE;
 int EEPROM_START_ADDRESS;   // start of log slots (after metadata)
@@ -15,6 +17,8 @@ static uint16_t logEpoch = 0;     // Persisted across boots (EEPROM)
 static uint16_t browseEpoch = 0;  // Session epoch aligned to current slot for UI
 static const uint8_t kLogMetaSize = 3;
 
+extern Config config;
+
 // Treat 8-bit sequence numbers with wrap-around semantics.
 // Returns true if 'a' is later than 'b' assuming differences < 128.
 static inline bool seqIsLater(uint8_t a, uint8_t b) {
@@ -24,6 +28,63 @@ static inline bool seqIsLater(uint8_t a, uint8_t b) {
 // A slot is considered empty if seq == 0 (we always avoid writing 0).
 static inline bool slotIsEmpty(uint8_t seq) {
   return seq == 0;
+}
+
+static bool findLatestFeedEntry(LogEntry *out) {
+  bool found = false;
+  uint8_t bestSeq = 0;
+  LogEntry bestEntry = {};
+
+  for (int slot = 0; slot < EEPROM_TOTAL_SLOTS; slot++) {
+    readLogEntry(slot);
+    LogEntry *entry = static_cast<LogEntry*>(logBuffer);
+    if (slotIsEmpty(entry->seq)) continue;
+    if (entry->entryType != 1) continue;
+
+    if (!found || seqIsLater(entry->seq, bestSeq)) {
+      bestSeq = entry->seq;
+      bestEntry = *entry;
+      found = true;
+    }
+  }
+
+  if (found && out) *out = bestEntry;
+  return found;
+}
+
+static uint16_t normalizeMinutes(uint16_t minutes) {
+  if (minutes > 1439) return 0;
+  return minutes;
+}
+
+static uint32_t yearToDays(uint8_t year) {
+  return static_cast<uint32_t>(year) * 365u + static_cast<uint32_t>((year + 3u) / 4u);
+}
+
+static uint32_t dateToSerialDays(uint8_t year, uint8_t month, uint8_t day) {
+  if (month == 0 || month > 12 || day == 0 || day > 31) return 0xFFFFFFFFUL;
+
+  static const uint16_t kDaysBeforeMonth[] = {
+    0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334
+  };
+
+  bool leap = (year % 4u) == 0;
+  uint16_t daysBefore = kDaysBeforeMonth[month - 1];
+  if (leap && month > 2) daysBefore++;
+
+  return yearToDays(year) + static_cast<uint32_t>(daysBefore) + static_cast<uint32_t>(day - 1);
+}
+
+static uint32_t lightDayKeyFor(uint8_t year, uint8_t month, uint8_t day,
+                               uint8_t hour, uint8_t minute, uint16_t lightsOnMinutes) {
+  if (hour > 23 || minute > 59) return 0xFFFFFFFFUL;
+
+  uint32_t serial = dateToSerialDays(year, month, day);
+  if (serial == 0xFFFFFFFFUL) return serial;
+
+  uint16_t minutes = static_cast<uint16_t>(hour) * 60u + minute;
+  if (minutes < lightsOnMinutes && serial > 0) serial--;
+  return serial;
 }
 
 static uint16_t readEpochFromEeprom() {
@@ -331,4 +392,52 @@ uint16_t getBrowseEpoch() { return browseEpoch; }
 uint32_t getAbsoluteLogNumber() {
   uint8_t seq = *static_cast<uint8_t*>(logBuffer);
   return ((uint32_t)browseEpoch << 8) | seq;
+}
+
+uint16_t getDailyFeedTotalMlAt(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute) {
+  uint16_t lightsOn = normalizeMinutes(config.lightsOnMinutes);
+  uint32_t targetKey = lightDayKeyFor(year, month, day, hour, minute, lightsOn);
+  if (targetKey == 0xFFFFFFFFUL) return 0;
+
+  int8_t savedSlot = currentSlot;
+  LogEntry latestFeed;
+  bool found = findLatestFeedEntry(&latestFeed);
+
+  if (savedSlot >= 0) readLogEntry(savedSlot);
+
+  if (!found) return 0;
+  if (latestFeed.endMonth == 0 || latestFeed.endDay == 0) return 0;
+
+  uint32_t entryKey = lightDayKeyFor(latestFeed.endYear, latestFeed.endMonth, latestFeed.endDay,
+                                     latestFeed.endHour, latestFeed.endMinute, lightsOn);
+  if (entryKey != targetKey) return 0;
+
+  return latestFeed.dailyTotalMl;
+}
+
+uint16_t getDailyFeedTotalMlNow() {
+  uint8_t hour = 0;
+  uint8_t minute = 0;
+  uint8_t day = 0;
+  uint8_t month = 0;
+  uint8_t year = 0;
+
+  if (!rtcReadDateTime(&hour, &minute, &day, &month, &year)) return 0;
+  return getDailyFeedTotalMlAt(year, month, day, hour, minute);
+}
+
+uint32_t getLightDayKeyAt(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute) {
+  uint16_t lightsOn = normalizeMinutes(config.lightsOnMinutes);
+  return lightDayKeyFor(year, month, day, hour, minute, lightsOn);
+}
+
+uint32_t getLightDayKeyNow() {
+  uint8_t hour = 0;
+  uint8_t minute = 0;
+  uint8_t day = 0;
+  uint8_t month = 0;
+  uint8_t year = 0;
+
+  if (!rtcReadDateTime(&hour, &minute, &day, &month, &year)) return 0xFFFFFFFFUL;
+  return getLightDayKeyAt(year, month, day, hour, minute);
 }

@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 
-#define LOG_FORMAT_VERSION 2
+#define LOG_FORMAT_VERSION 3
 
 enum LogStopReason : uint8_t {
   LOG_STOP_NONE = 0,
@@ -12,7 +12,9 @@ enum LogStopReason : uint8_t {
   LOG_STOP_RUNOFF = 2,
   LOG_STOP_MAX_RUNTIME = 3,
   LOG_STOP_DISABLED = 4,
-  LOG_STOP_UI_PAUSE = 5
+  LOG_STOP_UI_PAUSE = 5,
+  LOG_STOP_MAX_DAILY_FEED_REACHED = 6,
+  LOG_STOP_FEED_NOT_CALIBRATED = 7
 };
 
 enum LogStartReason : uint8_t {
@@ -32,6 +34,8 @@ typedef struct {
   uint8_t trayWaterLevelAfter;
   uint8_t soilMoistureBefore;
   uint8_t soilMoistureAfter;
+  uint16_t feedMl;
+  uint16_t dailyTotalMl;
   uint8_t startYear;
   uint8_t startMonth;
   uint8_t startDay;
@@ -64,5 +68,9 @@ void goToLogSlot (uint8_t slot);
 uint16_t getLogEpoch();
 uint16_t getBrowseEpoch();
 uint32_t getAbsoluteLogNumber();
+uint16_t getDailyFeedTotalMlAt(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute);
+uint16_t getDailyFeedTotalMlNow();
+uint32_t getLightDayKeyAt(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute);
+uint32_t getLightDayKeyNow();
 
 #endif LOGS_H

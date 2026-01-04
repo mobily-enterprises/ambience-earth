@@ -108,6 +108,20 @@ static void formatTime(char *out, uint16_t minutesOfDay) {
   out[5] = '\0';
 }
 
+static void formatOffset(char *out, uint16_t minutes) {
+  if (minutes > 1439) minutes = 1439;
+  uint8_t hour = minutes / 60;
+  uint8_t minute = minutes % 60;
+
+  out[0] = '+';
+  out[1] = static_cast<char>('0' + (hour / 10));
+  out[2] = static_cast<char>('0' + (hour % 10));
+  out[3] = ':';
+  out[4] = static_cast<char>('0' + (minute / 10));
+  out[5] = static_cast<char>('0' + (minute % 10));
+  out[6] = '\0';
+}
+
 static void formatTimeCompact(char *out, uint16_t minutesOfDay) {
   if (minutesOfDay > 1439) minutesOfDay = 1439;
   uint8_t hour = minutesOfDay / 60;
@@ -189,7 +203,6 @@ static void buildSlotListEntry(uint8_t index, const FeedSlot *slot, char out[LAB
 
 static void buildStartSummaryLine(char *out, const FeedSlot *slot) {
   char *p = out;
-  p = append_P(p, PSTR("Start: "));
   bool hasTime = slotFlag(slot, FEED_SLOT_HAS_TIME_WINDOW);
   bool hasMoist = slotFlag(slot, FEED_SLOT_HAS_MOISTURE_BELOW);
 
@@ -197,9 +210,14 @@ static void buildStartSummaryLine(char *out, const FeedSlot *slot) {
     p = append_P(p, PSTR("N/A"));
   } else {
     if (hasTime) {
-      char start[6];
-      formatTime(start, slot->startMinute);
+      char start[7];
+      char duration[6];
+      formatOffset(start, slot->windowStartMinutes);
+      formatTime(duration, slot->windowDurationMinutes);
+      *p++ = 'T';
       p = append_R(p, start);
+      *p++ = '/';
+      p = append_R(p, duration);
       if (hasMoist) *p++ = ' ';
     }
     if (hasMoist) {
@@ -303,14 +321,25 @@ static bool editTimeWindow(FeedSlot *slot) {
     return true;
   }
 
-  uint16_t initialStart = slot->startMinute;
+  uint16_t initialStart = slot->windowStartMinutes;
   if (initialStart > 1439) initialStart = 1439;
   uint16_t newStartMinute = initialStart;
-  if (!inputTimeWithHeader(MSG_START_CONDITIONS, MSG_WINDOW, initialStart, &newStartMinute)) {
+  if (!inputTimeWithHeader(MSG_START_CONDITIONS, PSTR("L+ start"), initialStart, &newStartMinute)) {
     return false;
   }
 
-  slot->startMinute = newStartMinute;
+  uint16_t initialDuration = slot->windowDurationMinutes;
+  if (initialDuration == 0 || initialDuration > 1439) initialDuration = 60;
+  uint16_t newDurationMinutes = initialDuration;
+  if (!inputTimeWithHeader(MSG_START_CONDITIONS, PSTR("Run for"), initialDuration, &newDurationMinutes)) {
+    return false;
+  }
+
+  if (newDurationMinutes == 0) newDurationMinutes = 1;
+  if (newDurationMinutes > 1439) newDurationMinutes = 1439;
+
+  slot->windowStartMinutes = newStartMinute;
+  slot->windowDurationMinutes = newDurationMinutes;
   setSlotFlag(slot, FEED_SLOT_HAS_TIME_WINDOW, true);
   return true;
 }

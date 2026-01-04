@@ -158,6 +158,7 @@ void calibrateDripperFlow() {
         unsigned long elapsed = now - startMillis;
         if (elapsed == 0) elapsed = 1;
         config.dripperMsPerLiter = elapsed;
+        config.flags |= CONFIG_FLAG_DRIPPER_CALIBRATED;
         saveConfig();
         lcdFlashMessage_P(MSG_DONE);
         return;
@@ -527,8 +528,4 @@ void resetData() {
     while (!runInitialSetup())
       ;
   }
-}
-
-void activatePumps() {
-  pumpTest();
 }
