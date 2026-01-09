@@ -621,7 +621,7 @@ void feedingBaselineInit() {
     baselineFromLatest = (latestSetter.baselinePercent != LOG_BASELINE_UNSET);
   }
 
-  if (latestFeed.entryType == 1) {
+  if (latestFeed.entryType == 1 && latestFeed.feedMl > 0) {
     uint32_t endMinutes = 0;
     uint32_t nowMinutes = 0;
     lastFeedMl = latestFeed.feedMl;
