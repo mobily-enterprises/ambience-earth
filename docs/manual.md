@@ -1,11 +1,8 @@
 # ambience-earth - User Manual
 
-This is a very verbose, step-by-step guide for someone who has never used the device before.
-If you just want build steps and wiring, see `README.md`.
+## What this device does
 
-## What this device does (plain English)
-
-This controller waters plants based on soil moisture. You define one or more "feed slots."
+This controller waters plants based on soil moisture and runoff. You define one or more "feed slots."
 Each slot says when watering is allowed (time window), when it should start (soil is too dry),
 and when it should stop (soil is wet enough, runoff detected, max volume reached).
 
@@ -15,22 +12,7 @@ of feed called a "baseline setter."
 
 It also keeps a log, so you can see when feeds happened and what the moisture was.
 
-## Controls and navigation (very important)
-
-The device has 5 buttons (UP, DOWN, LEFT, RIGHT, OK).
-
-- UP/DOWN: change a value or move the selection.
-- RIGHT or OK: go forward or accept a value.
-- LEFT: go back or cancel.
-
-In menus, a small triangle cursor points at the current choice.
-Press OK to enter that item.
-
-Whenever you see a number field (time, percentage, ml), use UP/DOWN to change it.
-RIGHT/OK moves to the next field or accepts the value.
-LEFT goes back.
-
-## First power-on (what you will see)
+## First power-on
 
 ### 1) Button calibration
 
@@ -68,26 +50,25 @@ The menu will keep returning until everything is complete.
 
 When the device is idle, you see a compact status screen:
 
-Line 1:
+Line 1 (soil moisture):
 - `Moist: 57%` = current soil moisture percent
 - `Db: --%` or `Db: 12%` = dryback percent (see "Dryback" below)
 
-Line 2:
+Line 2 (time):
 - `DAY` or `NIGHT` = based on Lights on/off schedule
 - time on the right, like `09:27`
 
-Line 3:
+Line 3 (last feed):
 - `Last 0.1h ago 3ml`
   - how long since the last feed ended
   - how many ml were delivered in that feed
 
-Line 4:
+Line 4 (important values):
 - `Td:3ml` = total delivered today
 - `B/l: N/A` or `B/l: 80%` = current baseline moisture (only shown if a baseline setter exists)
 
 Also:
-- A `!` on the bottom line means a runoff warning happened.
-  - This warning clears when you open Logs or Settings.
+- A `!` on the bottom line means a runoff warning happened. This warning clears when you open Logs or Settings.
 
 ### Dryback (Db)
 
