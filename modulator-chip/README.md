@@ -19,7 +19,8 @@ float and disable the output. Tie VCC to 5V if you do not need enable control.
 
 ## Building
 
-Open the dev container and run `make`.
+Prebuilt `dist/chip.wasm` and `dist/chip.json` are committed for zero-setup
+Wokwi. Run `make` in the dev container if you change the chip sources.
 
 ## Testing
 

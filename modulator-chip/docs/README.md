@@ -22,6 +22,9 @@ an analog input signal and outputs the modulated voltage.
 
 ## Usage
 
+Prebuilt `dist/chip.wasm` and `dist/chip.json` are committed so Wokwi runs out
+of the box. Run `make` in this folder if you change the chip sources.
+
 Add the chip to your `wokwi.toml`:
 
 ```toml

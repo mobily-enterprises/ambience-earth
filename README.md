@@ -101,6 +101,7 @@ Friendly rule of thumb: **power everything off the Nano 5V/GND, and use A4/A5 fo
 - Open the Wokwi project using `wokwi.toml` + `diagram.json`
 
 Notes:
+- Prebuilt custom chip binaries live in `buttons-chip/dist`, `modulator-chip/dist`, and `eeprom-chip/dist` so Wokwi runs without a local build. Rebuild with `make` in each chip folder if you change sources.
 - `tools/compile-sim.sh` calls `tools/build-eeprom-chip.sh`, which uses a local WASM toolchain if available, otherwise the devcontainer/Docker image.
 
 ## Use in a Real device (Arduino Nano)

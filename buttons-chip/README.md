@@ -19,7 +19,8 @@ When multiple buttons are held, priority is A -> F -> E -> X -> D.
 
 ## Building
 
-Open the dev container and run `make`.
+Prebuilt `dist/chip.wasm` and `dist/chip.json` are committed for zero-setup
+Wokwi. Run `make` in the dev container if you change the chip sources.
 
 ## Testing
 
