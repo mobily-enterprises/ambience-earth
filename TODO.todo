@@ -1,0 +1,18 @@
+TODO:
+  ☐ MEMORY COMES: Move all strings off progmem and onto new EPROM
+  ☐ Version 2 (Arduino Mega + 2 sets of scales + solenoid valve to empty catchment + temperature sensor)
+  ☐ Version 3 (Wifi module + app)
+
+VERSION 2 (runoff counter):
+  Arduino Mega + Pin shield
+  Load cell sensor + solenoid
+  Water flow sensor
+  EC sensor
+
+  BUGS:
+    - Min‑gap enforcement resets after reboot because millisAtEndOfLastFeed is RAM‑only; a power cycle can
+      allow an immediate feed even when minGapMinutes is set. main/feedingRuntime.cpp:370
+   
+
+    › Plus do log entry record the END of the feed, and does current code guarantee the min time between the END
+  of that feed and the beginning of a possible new one?

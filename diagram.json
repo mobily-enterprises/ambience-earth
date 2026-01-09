@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "author": "ambience-earth",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-mega", "id": "nano", "top": -40, "left": -200, "attrs": {} },
+    { "type": "wokwi-lcd2004", "id": "lcd1", "top": -170, "left": 220, "attrs": { "pins": "i2c", "i2cAddress": "0x27" } },
+    { "type": "wokwi-ds1307", "id": "rtc1", "top": -170, "left": 620, "attrs": { "label": "RTC" } },
+    { "type": "chip-eeprom", "id": "eeprom1", "top": -170, "left": 780, "attrs": {} },
+    { "type": "wokwi-slide-potentiometer", "id": "soilPot", "top": 70, "left": 420, "attrs": { "value": "512", "travelLength": "60", "label": "Soil" } },
+    { "type": "chip-modulator", "id": "mod1", "top": 150, "left": 430, "attrs": {} },
+    { "type": "wokwi-slide-switch", "id": "runoff", "top": 80, "left": 120, "attrs": { "label": "Runoff" } },
+    { "type": "wokwi-pushbutton", "id": "btnUp", "top": 40, "left": 300, "attrs": { "label": "UP", "key": "e" } },
+    { "type": "wokwi-pushbutton", "id": "btnLeft", "top": 80, "left": 260, "attrs": { "label": "LEFT", "key": "a" } },
+    { "type": "wokwi-pushbutton", "id": "btnRight", "top": 80, "left": 340, "attrs": { "label": "RIGHT", "key": "f" } },
+    { "type": "wokwi-pushbutton", "id": "btnDown", "top": 120, "left": 300, "attrs": { "label": "DOWN", "key": "x" } },
+    { "type": "wokwi-pushbutton", "id": "btnOk", "top": 80, "left": 200, "attrs": { "label": "OK", "key": "d" } },
+    { "type": "chip-keyladder", "id": "keys", "top": 170, "left": 260, "attrs": {} },
+    { "type": "wokwi-led", "id": "pumpInLed", "top": 10, "left": 120, "attrs": { "color": "white", "lightColor": "#00ff3c", "label": "PUMP IN ON" } }
+  ],
+  "connections": [
+    ["nano:5V", "lcd1:VCC", "#5a2e2e", ["v0"]],
+    ["nano:GND.1", "lcd1:GND", "#333333", ["v0"]],
+    ["nano:SDA", "lcd1:SDA", "#2e5a2e", ["v0"]],
+    ["nano:SCL", "lcd1:SCL", "#2e5a2e", ["v0"]],
+
+    ["nano:5V", "rtc1:VCC", "#5a2e2e", ["v0"]],
+    ["nano:GND.1", "rtc1:GND", "#333333", ["v0"]],
+    ["nano:SDA", "rtc1:SDA", "#2e5a2e", ["v0"]],
+    ["nano:SCL", "rtc1:SCL", "#2e5a2e", ["v0"]],
+
+    ["nano:5V", "eeprom1:VCC", "#5a2e2e", ["v0"]],
+    ["nano:GND.1", "eeprom1:GND", "#333333", ["v0"]],
+    ["nano:SDA", "eeprom1:SDA", "#2e5a2e", ["v0"]],
+    ["nano:SCL", "eeprom1:SCL", "#2e5a2e", ["v0"]],
+
+    ["nano:12", "soilPot:VCC", "#5a2e2e", ["v0"]],
+    ["nano:GND.2", "soilPot:GND", "#333333", ["v0"]],
+    ["soilPot:SIG", "mod1:IN", "#2e5a2e", ["v0"]],
+    ["nano:12", "mod1:VCC", "#5a2e2e", ["v0"]],
+    ["nano:GND.2", "mod1:GND", "#333333", ["v0"]],
+    ["mod1:OUT", "nano:A0", "#2e5a2e", ["v0"]],
+
+    ["nano:GND.1", "runoff:2", "#333333", ["v0"]],
+    ["nano:5", "runoff:3", "#2e5a2e", ["v0"]],
+
+    ["nano:5V", "pumpInLed:A", "#5a2e2e", ["v0"]],
+    ["nano:2", "pumpInLed:C", "#2e5a2e", ["v0"]],
+
+    ["nano:5V", "keys:VCC", "#5a2e2e", ["v0"]],
+    ["nano:GND.1", "keys:GND", "#333333", ["v0"]],
+    ["keys:OUT", "nano:A7", "#2e5a2e", ["v0"]],
+
+    ["keys:E", "btnUp:1.r", "#2e5a2e", ["v0"]],
+    ["btnUp:2.l", "nano:GND.1", "#333333", ["v0"]],
+
+    ["keys:X", "btnDown:1.r", "#2e5a2e", ["v0"]],
+    ["btnDown:2.l", "nano:GND.1", "#333333", ["v0"]],
+
+    ["keys:A", "btnLeft:1.r", "#2e5a2e", ["v0"]],
+    ["btnLeft:2.l", "nano:GND.1", "#333333", ["v0"]],
+
+    ["keys:D", "btnRight:1.r", "#2e5a2e", ["v0"]],
+    ["btnRight:2.l", "nano:GND.1", "#333333", ["v0"]],
+
+    ["keys:F", "btnOk:1.r", "#2e5a2e", ["v0"]],
+    ["btnOk:2.l", "nano:GND.1", "#333333", ["v0"]]
+  ]
+}

@@ -1,0 +1,6 @@
+[wokwi]
+version = 1
+
+[[chip]]
+name = "eeprom"
+binary = "dist/chip.wasm"

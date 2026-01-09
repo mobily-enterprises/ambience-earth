@@ -1,0 +1,15 @@
+[wokwi]
+version = 1
+firmware = "main/build/arduino.avr.mega/main.ino.hex"
+
+[[chip]]
+name = "keyladder"
+binary = "buttons-chip/dist/chip.wasm"
+
+[[chip]]
+name = "modulator"
+binary = "modulator-chip/dist/chip.wasm"
+
+[[chip]]
+name = "eeprom"
+binary = "eeprom-chip/dist/chip.wasm"
