@@ -71,6 +71,7 @@ Friendly rule of thumb: **power everything off the Nano 5V/GND, and use A4/A5 fo
   - GND -> GND
 
 - **Runoff sensor (simple switch)**
+  - Two dupont cables go to two stainless steel bolts hot-glued in the runoff spot; the bolts act as a simple switch when water bridges them.
   - Signal -> D5
   - Other side -> GND
   - The pin uses `INPUT_PULLUP`, so the switch pulls it to ground when active.
