@@ -112,6 +112,41 @@ size_t LiquidCrystal_I2C::write(uint8_t value) {
   return 1;
 }
 
+void LiquidCrystal_I2C::print(char value) {
+  write(static_cast<uint8_t>(value));
+}
+
+void LiquidCrystal_I2C::print(const char *value) {
+  if (!value) return;
+  while (*value) {
+    write(static_cast<uint8_t>(*value++));
+  }
+}
+
+void LiquidCrystal_I2C::print(uint8_t value) {
+  printUnsigned(static_cast<unsigned long>(value));
+}
+
+void LiquidCrystal_I2C::print(int value) {
+  printSigned(static_cast<long>(value));
+}
+
+void LiquidCrystal_I2C::print(unsigned int value) {
+  printUnsigned(static_cast<unsigned long>(value));
+}
+
+void LiquidCrystal_I2C::print(long value) {
+  printSigned(value);
+}
+
+void LiquidCrystal_I2C::print(unsigned long value) {
+  printUnsigned(value);
+}
+
+void LiquidCrystal_I2C::print(bool value) {
+  printUnsigned(value ? 1UL : 0UL);
+}
+
 void LiquidCrystal_I2C::command(uint8_t value) {
   send(value, 0);
 }
@@ -155,4 +190,27 @@ void LiquidCrystal_I2C::setRowOffsets(uint8_t row0, uint8_t row1, uint8_t row2, 
   _rowOffsets[1] = row1;
   _rowOffsets[2] = row2;
   _rowOffsets[3] = row3;
+}
+
+void LiquidCrystal_I2C::printUnsigned(unsigned long value) {
+  char buf[10];
+  uint8_t i = 0;
+  do {
+    buf[i++] = static_cast<char>('0' + (value % 10));
+    value /= 10;
+  } while (value && i < sizeof(buf));
+  while (i--) {
+    write(static_cast<uint8_t>(buf[i]));
+  }
+}
+
+void LiquidCrystal_I2C::printSigned(long value) {
+  if (value < 0) {
+    write(static_cast<uint8_t>('-'));
+    unsigned long mag = static_cast<unsigned long>(value);
+    mag = 0UL - mag;
+    printUnsigned(mag);
+    return;
+  }
+  printUnsigned(static_cast<unsigned long>(value));
 }
