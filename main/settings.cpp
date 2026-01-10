@@ -124,6 +124,17 @@ static void drawYesNoPrompt(bool yesSelected) {
   lcdPrint_P(MSG_NO);
 }
 
+static void drawPrimePrompt(bool priming) {
+  lcdClear();
+  lcdPrint_P(MSG_PRIME_PUMP, 0);
+  if (!priming) {
+    lcdPrint_P(MSG_OK_START, 1);
+    lcdPrint_P(MSG_OK_STOP, 2);
+    return;
+  }
+  lcdPrint_P(MSG_OK_STOP, 1);
+}
+
 static void drawDripperPrompt(bool filling, unsigned long startMillis, bool fullRedraw) {
   if (!filling) {
     lcdClear();
@@ -156,11 +167,13 @@ void calibrateDripperFlow() {
   setSoilSensorLazy(); // ensure not in realtime mode
   screenSaverSuspend();
 
+  bool priming = true;
+  bool primeActive = false;
   bool filling = false;
   unsigned long startMillis = 0;
   unsigned long lastUpdate = 0;
 
-  drawDripperPrompt(filling, startMillis, true);
+  drawPrimePrompt(false);
 
   while (true) {
     runSoilSensorLazyReadings();
@@ -173,7 +186,7 @@ void calibrateDripperFlow() {
     }
 
     if (pressedButton == &leftButton) {
-      if (filling) closeLineIn();
+      if (primeActive || filling) closeLineIn();
       pressedButton = nullptr;
       screenSaverResume();
       return;
@@ -181,7 +194,18 @@ void calibrateDripperFlow() {
 
     if (pressedButton == &okButton) {
       pressedButton = nullptr;
-      if (!filling) {
+      if (priming) {
+        if (!primeActive) {
+          primeActive = true;
+          openLineIn();
+          drawPrimePrompt(true);
+        } else {
+          primeActive = false;
+          closeLineIn();
+          priming = false;
+          drawDripperPrompt(false, startMillis, true);
+        }
+      } else if (!filling) {
         filling = true;
         startMillis = now;
         lastUpdate = now;

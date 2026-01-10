@@ -22,6 +22,37 @@ static const uint8_t LCD_1LINE = 0x00;
 static const uint8_t LCD_2LINE = 0x08;
 static const uint8_t LCD_5x8DOTS = 0x00;
 
+namespace {
+bool sRecovering = false;
+unsigned long sNextRetryAt = 0;
+
+static void i2cBusReset() {
+#if defined(TWCR) && defined(TWEN)
+  TWCR &= static_cast<uint8_t>(~_BV(TWEN));
+#endif
+#if defined(SCL) && defined(SDA)
+  pinMode(SCL, INPUT_PULLUP);
+  pinMode(SDA, INPUT_PULLUP);
+  delayMicroseconds(5);
+  for (uint8_t i = 0; i < 9 && digitalRead(SDA) == LOW; ++i) {
+    pinMode(SCL, OUTPUT);
+    digitalWrite(SCL, LOW);
+    delayMicroseconds(5);
+    pinMode(SCL, INPUT_PULLUP);
+    delayMicroseconds(5);
+  }
+  pinMode(SDA, OUTPUT);
+  digitalWrite(SDA, LOW);
+  delayMicroseconds(5);
+  pinMode(SCL, INPUT_PULLUP);
+  delayMicroseconds(5);
+  pinMode(SDA, INPUT_PULLUP);
+  delayMicroseconds(5);
+#endif
+  Wire.begin();
+}
+}
+
 LiquidCrystal_I2C::LiquidCrystal_I2C(uint8_t address, uint8_t cols, uint8_t rows)
     : _addr(address),
       _cols(cols),
@@ -112,6 +143,41 @@ size_t LiquidCrystal_I2C::write(uint8_t value) {
   return 1;
 }
 
+void LiquidCrystal_I2C::print(char value) {
+  write(static_cast<uint8_t>(value));
+}
+
+void LiquidCrystal_I2C::print(const char *value) {
+  if (!value) return;
+  while (*value) {
+    write(static_cast<uint8_t>(*value++));
+  }
+}
+
+void LiquidCrystal_I2C::print(uint8_t value) {
+  printUnsigned(static_cast<unsigned long>(value));
+}
+
+void LiquidCrystal_I2C::print(int value) {
+  printSigned(static_cast<long>(value));
+}
+
+void LiquidCrystal_I2C::print(unsigned int value) {
+  printUnsigned(static_cast<unsigned long>(value));
+}
+
+void LiquidCrystal_I2C::print(long value) {
+  printSigned(value);
+}
+
+void LiquidCrystal_I2C::print(unsigned long value) {
+  printUnsigned(value);
+}
+
+void LiquidCrystal_I2C::print(bool value) {
+  printUnsigned(value ? 1UL : 0UL);
+}
+
 void LiquidCrystal_I2C::command(uint8_t value) {
   send(value, 0);
 }
@@ -129,16 +195,31 @@ void LiquidCrystal_I2C::write4bits(uint8_t value) {
 }
 
 bool LiquidCrystal_I2C::expanderWrite(uint8_t data) {
+  unsigned long now = millis();
+  if (!_ok && now < sNextRetryAt) return false;
   for (uint8_t attempt = 0; attempt < 2; ++attempt) {
     Wire.beginTransmission(_addr);
     Wire.write(data | _backlightMask);
     if (Wire.endTransmission() == 0) {
+      bool wasOk = _ok;
       _ok = true;
+      sNextRetryAt = 0;
+      if (!wasOk && !sRecovering) {
+        sRecovering = true;
+        begin(_cols, _rows);
+        sRecovering = false;
+      }
       return true;
     }
     delay(1);
   }
   _ok = false;
+  sNextRetryAt = now + 1500UL;
+  if (!sRecovering) {
+    sRecovering = true;
+    i2cBusReset();
+    sRecovering = false;
+  }
   return false;
 }
 
@@ -155,4 +236,27 @@ void LiquidCrystal_I2C::setRowOffsets(uint8_t row0, uint8_t row1, uint8_t row2, 
   _rowOffsets[1] = row1;
   _rowOffsets[2] = row2;
   _rowOffsets[3] = row3;
+}
+
+void LiquidCrystal_I2C::printUnsigned(unsigned long value) {
+  char buf[10];
+  uint8_t i = 0;
+  do {
+    buf[i++] = static_cast<char>('0' + (value % 10));
+    value /= 10;
+  } while (value && i < sizeof(buf));
+  while (i--) {
+    write(static_cast<uint8_t>(buf[i]));
+  }
+}
+
+void LiquidCrystal_I2C::printSigned(long value) {
+  if (value < 0) {
+    write(static_cast<uint8_t>('-'));
+    unsigned long mag = static_cast<unsigned long>(value);
+    mag = 0UL - mag;
+    printUnsigned(mag);
+    return;
+  }
+  printUnsigned(static_cast<unsigned long>(value));
 }

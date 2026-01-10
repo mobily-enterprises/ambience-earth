@@ -2,9 +2,8 @@
 #define LIQUIDCRYSTAL_I2C_H
 
 #include <Arduino.h>
-#include <Print.h>
 
-class LiquidCrystal_I2C : public Print {
+class LiquidCrystal_I2C {
 public:
   LiquidCrystal_I2C(uint8_t address, uint8_t cols, uint8_t rows);
 
@@ -17,8 +16,16 @@ public:
   void noBacklight();
   void createChar(uint8_t location, const uint8_t charmap[]);
   bool isOk() const { return _ok; }
-  virtual size_t write(uint8_t value);
-  using Print::write;
+  size_t write(uint8_t value);
+
+  void print(char value);
+  void print(const char *value);
+  void print(uint8_t value);
+  void print(int value);
+  void print(unsigned int value);
+  void print(long value);
+  void print(unsigned long value);
+  void print(bool value);
 
 private:
   void command(uint8_t value);
@@ -27,6 +34,8 @@ private:
   bool expanderWrite(uint8_t data);
   bool pulseEnable(uint8_t data);
   void setRowOffsets(uint8_t row0, uint8_t row1, uint8_t row2, uint8_t row3);
+  void printUnsigned(unsigned long value);
+  void printSigned(long value);
 
   uint8_t _addr;
   uint8_t _cols;
