@@ -1,3 +1,9 @@
 TODO:
-  ☐ Version 2 (Arduino Mega + 2 sets of scales plants/runoff + solenoid valve to empty catchment + temperature sensor + PH and EC sensors)
+  ☐ Version 2 (Arduino Mega + 2 sets of scales plants/runoff + solenoid valve to empty catchment + temperature sensor + PH and EC sensors + better moisture sensor)
   ☐ Version 3 (Wifi module + monitoring app)
+
+  Sensors:
+  ☐ Vegetronix VH400 https://vegetronix.com/soil-moisture-sensor
+  ☐ ECH2O EC-5 https://metergroup.com/products/ech20-ec-5-soil-moisture-sensor
+  ☐ OpenSprinkler SMT 100 https://www.opensprinkler.com.au/product/smt100/
+  
