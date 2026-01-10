@@ -50,6 +50,12 @@ static uint8_t nextScreenSaverRand() {
   return screenSaverRand;
 }
 
+static char idleStatusChar() {
+  if (feedingRunoffWarning()) return '!';
+  if (!feedingIsEnabled()) return 'z';
+  return '*';
+}
+
 void setup() {
   initLcd();
   initRtc();
@@ -704,7 +710,7 @@ void displayInfo(uint8_t screen) {
     lcd.setCursor(x, y);
     // lcd.setCursor(1, 1);
     
-    lcd.write(feedingRunoffWarning() ? '!' : '*');
+    lcd.write(idleStatusChar());
 
     return;
   }
@@ -762,7 +768,8 @@ void displayInfo1(bool fullRedraw) {
   }
 
   lcdSetCursor(kDailyWarnCol, 3);
-  lcd.print(feedingRunoffWarning() ? '!' : ' ');
+  char statusChar = idleStatusChar();
+  lcd.print(statusChar == '*' ? ' ' : statusChar);
 
   uint16_t minutes = 0;
   bool dayNow = false;
