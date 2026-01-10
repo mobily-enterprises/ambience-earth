@@ -1,3 +1,4 @@
 main/build/
 tools/strings_writer/build/
 .arduino-cache/
+.cache
