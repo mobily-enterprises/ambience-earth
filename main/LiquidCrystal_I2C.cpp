@@ -24,6 +24,7 @@ static const uint8_t LCD_5x8DOTS = 0x00;
 
 namespace {
 bool sRecovering = false;
+unsigned long sNextRetryAt = 0;
 
 static void i2cBusReset() {
 #if defined(TWCR) && defined(TWEN)
@@ -194,12 +195,15 @@ void LiquidCrystal_I2C::write4bits(uint8_t value) {
 }
 
 bool LiquidCrystal_I2C::expanderWrite(uint8_t data) {
+  unsigned long now = millis();
+  if (!_ok && now < sNextRetryAt) return false;
   for (uint8_t attempt = 0; attempt < 2; ++attempt) {
     Wire.beginTransmission(_addr);
     Wire.write(data | _backlightMask);
     if (Wire.endTransmission() == 0) {
       bool wasOk = _ok;
       _ok = true;
+      sNextRetryAt = 0;
       if (!wasOk && !sRecovering) {
         sRecovering = true;
         begin(_cols, _rows);
@@ -210,6 +214,7 @@ bool LiquidCrystal_I2C::expanderWrite(uint8_t data) {
     delay(1);
   }
   _ok = false;
+  sNextRetryAt = now + 1500UL;
   if (!sRecovering) {
     sRecovering = true;
     i2cBusReset();
