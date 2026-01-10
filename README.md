@@ -14,7 +14,7 @@ Arduino Nano is expected to have Optiboot.
 
 Manual: [docs/manual.md](docs/manual.md)
 
-## Hardware overview (friendly, practical)
+## Hardware overview
 
 This project uses an Arduino Nano plus a few I2C modules and simple sensors. The links below are examples (not endorsements of specific vendors). Parts are interchangeable as long as they match the interface.
 
