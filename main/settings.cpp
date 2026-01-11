@@ -98,56 +98,33 @@ static void setTimeAndDate() {
   lcdFlashMessage_P(MSG_DONE);
 }
 
-static void drawOkPrompt(MsgId header, MsgId prompt, MsgId line2, MsgId line3) {
+static void drawHeaderLines(MsgId line0, MsgId line1, char line1Suffix) {
   lcdClear();
-  lcdPrint_P(header, 0);
-  lcdClearLine(1);
+  lcdSetCursor(0, 0);
+  lcdPrint_P(line0);
   lcdSetCursor(0, 1);
-  lcd.write((uint8_t)2);
-  lcdPrint_P(prompt);
-  lcdPrint_P(line2, 2);
-  lcdPrint_P(line3, 3);
-}
-
-static void drawYesNoPrompt(bool yesSelected) {
-  lcdClear();
-  lcdPrint_P(MSG_SAVE_QUESTION, 0);
-  lcdClearLine(1);
-  lcdSetCursor(0, 1);
-  if (yesSelected) lcd.write((uint8_t)2);
-  else lcd.print(' ');
-  lcdPrint_P(MSG_YES);
-  lcdClearLine(2);
-  lcdSetCursor(0, 2);
-  if (!yesSelected) lcd.write((uint8_t)2);
-  else lcd.print(' ');
-  lcdPrint_P(MSG_NO);
+  lcdPrint_P(line1);
+  if (line1Suffix) lcd.print(line1Suffix);
 }
 
 static void drawPrimePrompt(bool priming) {
-  lcdClear();
-  lcdPrint_P(MSG_PRIME_PUMP, 0);
   if (!priming) {
-    lcdPrint_P(MSG_OK_START, 1);
+    drawHeaderLines(MSG_PRIME_PUMP, MSG_OK_START, '\0');
     lcdPrint_P(MSG_OK_STOP, 2);
     return;
   }
-  lcdPrint_P(MSG_OK_STOP, 1);
+  drawHeaderLines(MSG_PRIME_PUMP, MSG_OK_STOP, '\0');
 }
 
 static void drawDripperPrompt(bool filling, unsigned long startMillis, bool fullRedraw) {
   if (!filling) {
-    lcdClear();
-    lcdPrint_P(MSG_FILL_ONE_L, 0);
-    lcdPrint_P(MSG_OK_START, 1);
+    drawHeaderLines(MSG_FILL_ONE_L, MSG_OK_START, '\0');
     lcdPrint_P(MSG_OK_WHEN_FULL, 2);
     return;
   }
 
   if (fullRedraw) {
-    lcdClear();
-    lcdPrint_P(MSG_FILLING, 0);
-    lcdPrint_P(MSG_OK_WHEN_FULL, 1);
+    drawHeaderLines(MSG_FILLING, MSG_OK_WHEN_FULL, '\0');
     lcdSetCursor(0, 2);
     lcd.print('t');
     lcd.print(':');
@@ -163,13 +140,9 @@ static void drawDripperPrompt(bool filling, unsigned long startMillis, bool full
   }
 }
 
-static void drawHeaderLines(MsgId line0, MsgId line1, char line1Suffix) {
+static void drawWiping() {
   lcdClear();
-  lcdSetCursor(0, 0);
-  lcdPrint_P(line0);
-  lcdSetCursor(0, 1);
-  lcdPrint_P(line1);
-  if (line1Suffix) lcd.print(line1Suffix);
+  lcdPrint_P(MSG_WIPING, 2);
 }
 
 void calibrateDripperFlow() {
@@ -547,8 +520,7 @@ void resetOnlyLogs() {
   if (confirmWipe == -1) return;
 
   if (confirmWipe) {
-    lcdClear();
-    lcdPrint_P(MSG_WIPING, 2);
+    drawWiping();
     wipeLogsAndResetVars();
     createBootLogEntry();
   };
@@ -663,8 +635,7 @@ void resetData() {
   if (reset == -1) return;
 
   if (reset) {
-    lcdClear();
-    lcdPrint_P(MSG_WIPING, 2);
+    drawWiping();
     restoreDefaultConfig();
     saveConfig();
     wipeLogsAndResetVars();
