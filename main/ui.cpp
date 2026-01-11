@@ -623,9 +623,7 @@ int16_t inputNumber_P(MsgId prompt, int16_t initialUserInput, int stepSize, int1
       lcd.setCursor(0, inputY);
       lcd.print(userInput);
       lcdPrint_P(postFix);    // Display postFix after userInput
-      lcdPrint_P(MSG_SPACE);  // Clear the remaining characters
-      lcdPrint_P(MSG_SPACE);  // Clear the remaining characters
-      lcdPrint_P(MSG_SPACE);  // Clear the remaining characters
+      lcdPrintSpaces(3);      // Clear the remaining characters
 
       displayChanged = false;
     }
@@ -839,7 +837,7 @@ int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear) {
             if (choiceIndex == selectedIndex) {
               lcd.write((uint8_t)2);  // Print cursor
             } else {
-              lcdPrint_P(MSG_SPACE);
+              lcd.print(' ');
             }
 
             lcdPrintLabel(&choices[choiceIndex].label);
@@ -850,7 +848,7 @@ int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear) {
         int nextRow = selectedIndex - firstVisibleIndex;
         if (prevRow >= 0 && prevRow < maxVisibleChoices) {
           lcd.setCursor(0, choicesStartY + prevRow);
-          lcdPrint_P(MSG_SPACE);
+          lcd.print(' ');
         }
         if (nextRow >= 0 && nextRow < maxVisibleChoices) {
           lcd.setCursor(0, choicesStartY + nextRow);

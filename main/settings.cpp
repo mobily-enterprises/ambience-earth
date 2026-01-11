@@ -115,12 +115,12 @@ static void drawYesNoPrompt(bool yesSelected) {
   lcdClearLine(1);
   lcdSetCursor(0, 1);
   if (yesSelected) lcd.write((uint8_t)2);
-  else lcdPrint_P(MSG_SPACE);
+  else lcd.print(' ');
   lcdPrint_P(MSG_YES);
   lcdClearLine(2);
   lcdSetCursor(0, 2);
   if (!yesSelected) lcd.write((uint8_t)2);
-  else lcdPrint_P(MSG_SPACE);
+  else lcd.print(' ');
   lcdPrint_P(MSG_NO);
 }
 
@@ -250,13 +250,13 @@ void calibrateDripperFlow() {
         saveConfig();
         lcdClear();
         lcdPrint_P(MSG_PULSE_COLON);
-        lcdPrint_P(MSG_SPACE);
+        lcd.print(' ');
         lcd.print(config.pulseOnSeconds);
-        lcdPrint_P(MSG_SPACE);
+        lcd.print(' ');
         lcdPrint_P(MSG_ON);
-        lcdPrint_P(MSG_SPACE);
+        lcd.print(' ');
         lcd.print(config.pulseOffSeconds);
-        lcdPrint_P(MSG_SPACE);
+        lcd.print(' ');
         lcdPrint_P(MSG_OFF);
         delay(3000);
         lcdFlashMessage_P(MSG_DONE);
@@ -415,7 +415,7 @@ static uint16_t calibrateOnePoint(bool isDry) {
   lcdPrint_P(isDry ? MSG_CAL_DRY_ONLY : MSG_CAL_WET_ONLY);
   lcdSetCursor(0, 1);
   lcdPrint_P(isDry ? MSG_DRY_COLUMN : MSG_WET_COLUMN);
-  lcdPrint_P(MSG_SPACE);
+  lcd.print(' ');
 
   soilSensorWindowStart();
   uint16_t lastRaw = 0xFFFF;
@@ -430,7 +430,7 @@ static uint16_t calibrateOnePoint(bool isDry) {
     if (sample != lastRaw && now - lastPrint >= 300) {
       lcdSetCursor(5, 1);
       lcd.print(sample);
-      lcdPrint_P(MSG_SPACE);
+      lcd.print(' ');
       lastRaw = sample;
       lastPrint = now;
     }
