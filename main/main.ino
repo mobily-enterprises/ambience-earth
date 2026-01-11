@@ -283,22 +283,10 @@ void maybeLogValues() {
       lastRunTime = currentMillis; // Update the last run time
 
       uint8_t soilMoisture = soilMoistureAsPercentage(getSoilMoisture());
-      clearLogEntry((void *)&newLogEntry);
-      newLogEntry.entryType = 2;  // VALUES
+      initLogEntryCommon(&newLogEntry, 2, LOG_STOP_NONE, LOG_START_NONE, 0, 0, soilMoisture, 0);
       newLogEntry.millisStart = millis();
-      newLogEntry.stopReason = LOG_STOP_NONE;
-      newLogEntry.startReason = LOG_START_NONE;
-      newLogEntry.slotIndex = 0;
-      newLogEntry.flags = 0;
-      newLogEntry.soilMoistureBefore = soilMoisture;
-      newLogEntry.soilMoistureAfter = 0;
       rtcStamp(&newLogEntry.startYear, &newLogEntry.startMonth, &newLogEntry.startDay,
                &newLogEntry.startHour, &newLogEntry.startMinute);
-      newLogEntry.endYear = 0;
-      newLogEntry.endMonth = 0;
-      newLogEntry.endDay = 0;
-      newLogEntry.endHour = 0;
-      newLogEntry.endMinute = 0;
       writeLogEntry((void *)&newLogEntry);
   }
 }
@@ -324,23 +312,11 @@ void initialPinSetup() {
 void createBootLogEntry() {
   uint8_t soilMoistureBefore = soilMoistureAsPercentage(getSoilMoisture());
 
-  clearLogEntry((void *)&newLogEntry);
+  initLogEntryCommon(&newLogEntry, 0, LOG_STOP_NONE, LOG_START_NONE, 0, 0, soilMoistureBefore, 0);
   newLogEntry.millisStart = 0;
   newLogEntry.millisEnd = millis();
-  newLogEntry.entryType = 0;  // BOOTED UP
-  newLogEntry.stopReason = LOG_STOP_NONE;
-  newLogEntry.startReason = LOG_START_NONE;
-  newLogEntry.slotIndex = 0;
-  newLogEntry.flags = 0;
-  newLogEntry.soilMoistureBefore = soilMoistureBefore;
-  newLogEntry.soilMoistureAfter = 0;
   rtcStamp(&newLogEntry.startYear, &newLogEntry.startMonth, &newLogEntry.startDay,
            &newLogEntry.startHour, &newLogEntry.startMinute);
-  newLogEntry.endYear = 0;
-  newLogEntry.endMonth = 0;
-  newLogEntry.endDay = 0;
-  newLogEntry.endHour = 0;
-  newLogEntry.endMinute = 0;
 
   // Serial.println("Writing initial boot entry...");
   writeLogEntry((void *)&newLogEntry);

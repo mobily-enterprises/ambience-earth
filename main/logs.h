@@ -68,6 +68,9 @@ int16_t getCurrentLogSlot();
 
 void goToLatestSlot();
 void clearLogEntry(void *buffer);
+void initLogEntryCommon(LogEntry *entry, uint8_t entryType, uint8_t stopReason,
+                        uint8_t startReason, uint8_t slotIndex, uint8_t flags,
+                        uint8_t soilBefore, uint8_t soilAfter);
 void wipeLogs();
 bool patchLogBaselinePercent(int16_t slot, uint8_t baselinePercent);
 bool findLatestBaselineEntries(LogEntry *outLatestSetter, int16_t *outLatestSetterSlot,

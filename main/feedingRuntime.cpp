@@ -256,16 +256,11 @@ static void logFeedRefusal(uint8_t slotIndex, bool timeTriggered, FeedStopReason
   uint8_t soilPercent = soilMoistureAsPercentage(getSoilMoisture());
   unsigned long now = millis();
 
-  clearLogEntry((void *)&newLogEntry);
-  newLogEntry.entryType = 1;
+  initLogEntryCommon(&newLogEntry, 1, reasonCode,
+                     timeTriggered ? LOG_START_TIME : LOG_START_MOISTURE,
+                     slotIndex, 0, soilPercent, soilPercent);
   newLogEntry.millisStart = now;
   newLogEntry.millisEnd = now;
-  newLogEntry.stopReason = reasonCode;
-  newLogEntry.startReason = timeTriggered ? LOG_START_TIME : LOG_START_MOISTURE;
-  newLogEntry.slotIndex = slotIndex;
-  newLogEntry.flags = 0;
-  newLogEntry.soilMoistureBefore = soilPercent;
-  newLogEntry.soilMoistureAfter = soilPercent;
 
   rtcStamp(&newLogEntry.startYear, &newLogEntry.startMonth, &newLogEntry.startDay,
            &newLogEntry.startHour, &newLogEntry.startMinute);
@@ -299,13 +294,6 @@ static void stopFeed(FeedStopReason reason, unsigned long now) {
   uint16_t feedMl = msToVolumeMl(deliveredMs, config.dripperMsPerLiter);
   lastFeedMl = feedMl;
 
-  clearLogEntry((void *)&newLogEntry);
-  newLogEntry.entryType = 1;
-  newLogEntry.millisStart = session.startMillis;
-  newLogEntry.millisEnd = now;
-  newLogEntry.stopReason = static_cast<uint8_t>(reason);
-  newLogEntry.startReason = session.startReason;
-  newLogEntry.slotIndex = session.slotIndex;
   uint8_t logFlags = 0;
   if (slotFlag(&session.slot, FEED_SLOT_RUNOFF_REQUIRED) &&
       !(session.flags & kSessionFlagRunoffSeen)) {
@@ -321,10 +309,11 @@ static void stopFeed(FeedStopReason reason, unsigned long now) {
   if (session.flags & kSessionFlagRunoffSeen) {
     logFlags |= LOG_FLAG_RUNOFF_SEEN;
   }
-  newLogEntry.flags = logFlags;
+  initLogEntryCommon(&newLogEntry, 1, static_cast<uint8_t>(reason), session.startReason,
+                     session.slotIndex, logFlags, session.soilBeforePercent, soilAfterPercent);
+  newLogEntry.millisStart = session.startMillis;
+  newLogEntry.millisEnd = now;
   if (logFlags & LOG_FLAG_RUNOFF_ANY) runoffWarning = 1;
-  newLogEntry.soilMoistureBefore = session.soilBeforePercent;
-  newLogEntry.soilMoistureAfter = soilAfterPercent;
   newLogEntry.startYear = session.startYear;
   newLogEntry.startMonth = session.startMonth;
   newLogEntry.startDay = session.startDay;

@@ -405,6 +405,20 @@ void clearLogEntry(void *buffer) {
   static_cast<LogEntry*>(buffer)->baselinePercent = LOG_BASELINE_UNSET;
 }
 
+void initLogEntryCommon(LogEntry *entry, uint8_t entryType, uint8_t stopReason,
+                        uint8_t startReason, uint8_t slotIndex, uint8_t flags,
+                        uint8_t soilBefore, uint8_t soilAfter) {
+  if (!entry) return;
+  clearLogEntry(entry);
+  entry->entryType = entryType;
+  entry->stopReason = stopReason;
+  entry->startReason = startReason;
+  entry->slotIndex = slotIndex;
+  entry->flags = flags;
+  entry->soilMoistureBefore = soilBefore;
+  entry->soilMoistureAfter = soilAfter;
+}
+
 void wipeLogs() {
   // Clear slots
   memset(logBuffer, 0, EEPROM_SLOT_SIZE);
