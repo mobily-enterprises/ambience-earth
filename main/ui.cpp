@@ -517,6 +517,13 @@ static void lcdPrintLabel(const LabelRef *label) {
   }
 }
 
+static void drawYesNoCursor(bool yesSelected) {
+  lcdSetCursor(0, 2);
+  lcd.write((uint8_t)(yesSelected ? 2 : ' '));
+  lcdSetCursor(0, 3);
+  lcd.write((uint8_t)(yesSelected ? ' ' : 2));
+}
+
 void setChoices_P(MsgId label0, int value0, MsgId label1, int value1, MsgId label2, int value2, MsgId label3, int value3, MsgId label4, int value4, MsgId label5, int value5, MsgId label6, int value6, MsgId label7, int value7, MsgId label8, int value8, MsgId label9, int value9) {
   choices[0].label.ptr = nullptr;
   choices[0].label.id = label0;
@@ -916,6 +923,39 @@ bool alert_P(MsgId warning) {
 
   int8_t userInput = selectChoice(1, 1);
   return 1;
+}
+
+int8_t promptYesNoWithHeader(MsgId header, MsgId question, bool initialYes) {
+  bool yesSelected = initialYes;
+
+  lcdClear();
+  lcdPrint_P(header, 0);
+  lcdPrint_P(question, 1);
+
+  lcdClearLine(2);
+  lcdSetCursor(1, 2);
+  lcdPrint_P(MSG_YES);
+
+  lcdClearLine(3);
+  lcdSetCursor(1, 3);
+  lcdPrint_P(MSG_NO);
+
+  drawYesNoCursor(yesSelected);
+
+  while (true) {
+    analogButtonsCheck();
+
+    if (pressedButton == &okButton || pressedButton == &rightButton) {
+      return yesSelected ? 1 : 0;
+    }
+    if (pressedButton == &leftButton) {
+      return -1;
+    }
+    if (pressedButton == &upButton || pressedButton == &downButton) {
+      yesSelected = !yesSelected;
+      drawYesNoCursor(yesSelected);
+    }
+  }
 }
 
 int8_t yesOrNo_P(MsgId question, bool initialUserInput) {

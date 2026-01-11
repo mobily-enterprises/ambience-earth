@@ -26,45 +26,6 @@ const uint8_t kBaselineMax = 20;
 const uint8_t kBaselineStep = 2;
 static char slotListLabels[FEED_SLOT_COUNT][LABEL_LENGTH + 1];
 
-static int8_t promptYesNoWithHeader(MsgId header, MsgId question, bool initialYes) {
-  bool yesSelected = initialYes;
-
-  lcdClear();
-  lcdPrint_P(header, 0);
-  lcdPrint_P(question, 1);
-
-  lcdClearLine(2);
-  lcdSetCursor(1, 2);
-  lcdPrint_P(MSG_YES);
-
-  lcdClearLine(3);
-  lcdSetCursor(1, 3);
-  lcdPrint_P(MSG_NO);
-
-  lcdSetCursor(0, 2);
-  lcd.write((uint8_t)(yesSelected ? 2 : ' '));
-  lcdSetCursor(0, 3);
-  lcd.write((uint8_t)(yesSelected ? ' ' : 2));
-
-  while (true) {
-    analogButtonsCheck();
-
-    if (pressedButton == &okButton || pressedButton == &rightButton) {
-      return yesSelected ? 1 : 0;
-    }
-    if (pressedButton == &leftButton) {
-      return -1;
-    }
-    if (pressedButton == &upButton || pressedButton == &downButton) {
-      yesSelected = !yesSelected;
-      lcdSetCursor(0, 2);
-      lcd.write((uint8_t)(yesSelected ? 2 : ' '));
-      lcdSetCursor(0, 3);
-      lcd.write((uint8_t)(yesSelected ? ' ' : 2));
-    }
-  }
-}
-
 static char *append_P(char *dst, MsgId src) {
   if (src == MSG_LITTLE) {
     *dst = '\0';

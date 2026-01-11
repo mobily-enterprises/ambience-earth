@@ -38,6 +38,7 @@ struct Choice {
 void initLcd();
 int8_t yesOrNo_P(MsgId question, bool initialUserInput = true);
 int8_t yesOrNo_P_NoAbort(MsgId question, bool initialUserInput = true);
+int8_t promptYesNoWithHeader(MsgId header, MsgId question, bool initialYes = true);
 bool alert_P(MsgId question = MSG_LITTLE);
 int8_t giveOk_P(MsgId top, MsgId promptText = MSG_LITTLE, MsgId line2 = MSG_LITTLE, MsgId line3 = MSG_LITTLE);
 int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear = false);
