@@ -542,16 +542,23 @@ void lcdPrintTimeDuration(unsigned long start, unsigned long finish) {
   lcdPrintHoursTenths(elapsedMinutes);
 }
 
-void showLogType0() {
+static void drawLogHeader(MsgId type) {
   lcdClear();
-  // Print absolute log number (epoch-aware)
   lcd.print((unsigned long)getAbsoluteLogNumber());
   lcd.print(' ');
-  lcdPrint_P(MSG_LOG_TYPE_0);
+  lcdPrint_P(type);
+}
+
+static void drawLogStartLine(MsgId label) {
   lcd.setCursor(0, 1);
-  lcdPrint_P(MSG_AT);
+  lcdPrint_P(label);
   lcdPrintDateTime(currentLogEntry.startDay, currentLogEntry.startMonth, currentLogEntry.startYear,
                    currentLogEntry.startHour, currentLogEntry.startMinute);
+}
+
+void showLogType0() {
+  drawLogHeader(MSG_LOG_TYPE_0);
+  drawLogStartLine(MSG_AT);
   lcd.setCursor(0, 2);
   lcdPrint_P(MSG_SOIL_COLON);
   lcd.print(currentLogEntry.soilMoistureBefore);
@@ -559,19 +566,12 @@ void showLogType0() {
 }
 
 void showLogType1() {
-  lcdClear();
-  // Print absolute log number (epoch-aware)
-  lcd.print((unsigned long)getAbsoluteLogNumber());
-  lcd.print(' ');
-  lcdPrint_P(MSG_LOG_TYPE_1);
+  drawLogHeader(MSG_LOG_TYPE_1);
   lcd.print(' ');
   lcd.print('S');
   lcd.print(currentLogEntry.slotIndex + 1);
 
-  lcd.setCursor(0, 1);
-  lcdPrint_P(MSG_START_LABEL);
-  lcdPrintDateTime(currentLogEntry.startDay, currentLogEntry.startMonth, currentLogEntry.startYear,
-                   currentLogEntry.startHour, currentLogEntry.startMinute);
+  drawLogStartLine(MSG_START_LABEL);
 
   lcd.setCursor(0, 2);
   lcdPrint_P(MSG_V_COLON);
@@ -610,15 +610,8 @@ void showLogType1() {
 }
 
 void showLogType2() {
-  lcdClear();
-  // Print absolute log number (epoch-aware)
-  lcd.print((unsigned long)getAbsoluteLogNumber());
-  lcd.print(' ');
-  lcdPrint_P(MSG_LOG_TYPE_2);
-  lcd.setCursor(0, 1);
-  lcdPrint_P(MSG_AT);
-  lcdPrintDateTime(currentLogEntry.startDay, currentLogEntry.startMonth, currentLogEntry.startYear,
-                   currentLogEntry.startHour, currentLogEntry.startMinute);
+  drawLogHeader(MSG_LOG_TYPE_2);
+  drawLogStartLine(MSG_AT);
 
   lcd.setCursor(0, 2);
   lcdPrint_P(MSG_SOIL_MOISTURE_COLUMN);
