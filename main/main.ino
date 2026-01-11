@@ -69,7 +69,7 @@ void setup() {
   initMoistureSensor();
 
   // Init logs memory
-  initLogs(&currentLogEntry, 1024, 256, 768, sizeof(currentLogEntry));
+  initLogs(&currentLogEntry, 4096, kMsgDataSize, 0, sizeof(currentLogEntry));
 
   loadConfig();
 

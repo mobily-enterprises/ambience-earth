@@ -2,7 +2,9 @@
 #include <EEPROM.h>
 #include <Arduino.h>
 #include <stddef.h>
+#include <Wire.h>
 #include "config.h"
+#include "messages.h"
 #include "rtc.h"
 
 int EEPROM_SIZE;
@@ -19,6 +21,24 @@ static uint16_t browseEpoch = 0;  // Session epoch aligned to current slot for U
 static const uint8_t kLogMetaSize = 3;
 
 extern Config config;
+
+static uint8_t logEepromReadByte(uint16_t address) {
+  return static_cast<uint8_t>(msgReadByte(address));
+}
+
+static void logEepromWriteByte(uint16_t address, uint8_t value) {
+  Wire.beginTransmission(EXT_EEPROM_ADDR);
+  Wire.write(static_cast<uint8_t>(address >> 8));
+  Wire.write(static_cast<uint8_t>(address & 0xFF));
+  Wire.write(value);
+  Wire.endTransmission();
+  delay(5);  // Allow EEPROM write cycle to complete.
+}
+
+static void logEepromUpdateByte(uint16_t address, uint8_t value) {
+  if (logEepromReadByte(address) == value) return;
+  logEepromWriteByte(address, value);
+}
 
 // Treat 8-bit sequence numbers with wrap-around semantics.
 // Returns true if 'a' is later than 'b' assuming differences < 128.
@@ -56,8 +76,8 @@ static uint16_t minutesSinceLightsOn(uint8_t hour, uint8_t minute, uint16_t ligh
 }
 
 static uint16_t readEpochFromEeprom() {
-  uint8_t lo = EEPROM.read(EEPROM_META_ADDRESS + 0);
-  uint8_t hi = EEPROM.read(EEPROM_META_ADDRESS + 1);
+  uint8_t lo = logEepromReadByte(EEPROM_META_ADDRESS + 0);
+  uint8_t hi = logEepromReadByte(EEPROM_META_ADDRESS + 1);
   // Treat 0xFFFF (erased) as 0
   if (lo == 0xFF && hi == 0xFF) return 0;
   uint16_t val = ((uint16_t)hi << 8) | lo;
@@ -65,7 +85,7 @@ static uint16_t readEpochFromEeprom() {
 }
 
 static uint8_t readLogVersionFromEeprom() {
-  uint8_t version = EEPROM.read(EEPROM_META_ADDRESS + 2);
+  uint8_t version = logEepromReadByte(EEPROM_META_ADDRESS + 2);
   if (version == 0xFF) return 0;
   return version;
 }
@@ -73,12 +93,12 @@ static uint8_t readLogVersionFromEeprom() {
 static void writeEpochToEeprom(uint16_t epoch) {
   uint8_t lo = epoch & 0xFF;
   uint8_t hi = (epoch >> 8) & 0xFF;
-  EEPROM.update(EEPROM_META_ADDRESS + 0, lo);
-  EEPROM.update(EEPROM_META_ADDRESS + 1, hi);
+  logEepromUpdateByte(EEPROM_META_ADDRESS + 0, lo);
+  logEepromUpdateByte(EEPROM_META_ADDRESS + 1, hi);
 }
 
 static void writeLogVersionToEeprom(uint8_t version) {
-  EEPROM.update(EEPROM_META_ADDRESS + 2, version);
+  logEepromUpdateByte(EEPROM_META_ADDRESS + 2, version);
 }
 
 static void stampLightDayKey(LogEntry *entry) {
@@ -122,7 +142,7 @@ void readLogEntry(int16_t slot = -1) {
   
   // Read data from EEPROM into memory
   for (unsigned int i = 0; i < EEPROM_SLOT_SIZE; i++) {
-    byte value = EEPROM.read(eepromAddress + i);
+    byte value = logEepromReadByte(eepromAddress + i);
     *((byte*)logBuffer + i) = value;
   }
   
@@ -218,7 +238,7 @@ void writeLogEntry(void* buffer) {
   // Write data to EEPROM with minimal wear
   for (unsigned int i = 0; i < EEPROM_SLOT_SIZE; i++) {
     byte value = *((byte*)buffer + i);
-    EEPROM.update(eepromAddress + i, value);
+    logEepromUpdateByte(eepromAddress + i, value);
   }
 
   // Re-read the log entry, 
@@ -355,7 +375,7 @@ void clearLogEntry(void *buffer) {
 void wipeLogs() {
   // Clear slots
   for (uint16_t i = EEPROM_START_ADDRESS; i < EEPROM_START_ADDRESS + (EEPROM_TOTAL_SLOTS * EEPROM_SLOT_SIZE); i++) {
-    EEPROM.update(i, 0);
+    logEepromUpdateByte(i, 0);
   }
   // Reset epoch
   logEpoch = 0;
@@ -370,7 +390,7 @@ bool patchLogBaselinePercent(int8_t slot, uint8_t baselinePercent) {
   if (slot < 0 || slot >= EEPROM_TOTAL_SLOTS) return false;
   int eepromAddress = EEPROM_START_ADDRESS + (slot * EEPROM_SLOT_SIZE)
                       + static_cast<int>(offsetof(LogEntry, baselinePercent));
-  EEPROM.update(eepromAddress, baselinePercent);
+  logEepromUpdateByte(eepromAddress, baselinePercent);
   return true;
 }
 
