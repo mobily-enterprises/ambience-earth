@@ -186,7 +186,7 @@ void lcdClear() {
   lcd.clear();
 }
 
-static void lcdPrintSpaces(uint8_t count) {
+void lcdPrintSpaces(uint8_t count) {
   while (count--) lcd.print(' ');
 }
 

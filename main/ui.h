@@ -63,6 +63,7 @@ void resetChoicesAndHeader();
 
 void lcdClear();
 void lcdClearLine(uint8_t y);
+void lcdPrintSpaces(uint8_t count);
 void lcdPrint_P(MsgId message, int8_t y = -1);
 void lcdPrintTwoDigits(uint8_t value);
 void lcdPrintNumber(int number, int8_t y = -1);

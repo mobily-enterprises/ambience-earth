@@ -376,10 +376,6 @@ void mainMenu() {
   displayInfo(screenCounter);
 }
 
-static void lcdPrintSpaces(uint8_t count) {
-  while (count--) lcd.print(' ');
-}
-
 static void lcdPrintPercent3(uint8_t value) {
   if (value < 100) lcd.print(' ');
   if (value < 10) lcd.print(' ');

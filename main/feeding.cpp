@@ -275,30 +275,28 @@ static void buildFeedSummaryLine(char *out, const FeedSlot *slot) {
   *p = '\0';
 }
 
+static void drawSummaryLine(uint8_t row, const char *line) {
+  lcdClearLine(row);
+  lcdSetCursor(0, row);
+  lcd.print(line);
+}
+
 static bool showSlotSummary(const FeedSlot *slot, const char *slotName, uint8_t slotIndex) {
   char line[LABEL_LENGTH + 1];
 
   lcdClear();
 
   buildSummaryLine0(line, slot, slotName);
-  lcdClearLine(0);
-  lcdSetCursor(0, 0);
-  lcd.print(line);
+  drawSummaryLine(0, line);
 
   buildStartSummaryLine(line, slot);
-  lcdClearLine(1);
-  lcdSetCursor(0, 1);
-  lcd.print(line);
+  drawSummaryLine(1, line);
 
   buildStopSummaryLine(line, slot, slotIndex);
-  lcdClearLine(2);
-  lcdSetCursor(0, 2);
-  lcd.print(line);
+  drawSummaryLine(2, line);
 
   buildFeedSummaryLine(line, slot);
-  lcdClearLine(3);
-  lcdSetCursor(0, 3);
-  lcd.print(line);
+  drawSummaryLine(3, line);
 
   while (true) {
     analogButtonsCheck();
