@@ -59,10 +59,10 @@ static void sensorPowerOff() {
   sensorPowered = false;
 }
 
-static uint16_t readMedian3() {
-  uint16_t a = analogRead(SOIL_MOISTURE_SENSOR);
-  uint16_t b = analogRead(SOIL_MOISTURE_SENSOR);
-  uint16_t c = analogRead(SOIL_MOISTURE_SENSOR);
+uint16_t readMedian3FromPin(uint8_t pin) {
+  uint16_t a = analogRead(pin);
+  uint16_t b = analogRead(pin);
+  uint16_t c = analogRead(pin);
 
   uint16_t min_ab = (a < b) ? a : b;
   uint16_t max_ab = (a > b) ? a : b;
@@ -130,7 +130,7 @@ static bool tickWindow(SoilSensorWindowStats *out) {
 
     case LAZY_STATE_SAMPLING:
       if (now >= nextSampleAt) {
-        uint16_t raw = readMedian3();
+        uint16_t raw = readMedian3FromPin(SOIL_MOISTURE_SENSOR);
         windowLastRaw = raw;
         windowSum += raw;
         windowCount++;
@@ -179,7 +179,7 @@ static void tickRealtime(bool forceSample) {
     return;
   }
 
-  uint16_t raw = readMedian3();
+  uint16_t raw = readMedian3FromPin(SOIL_MOISTURE_SENSOR);
   realtimeRaw = raw;
   moistureReady = true;
 

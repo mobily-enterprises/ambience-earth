@@ -20,6 +20,8 @@ struct SoilSensorWindowStats {
   uint16_t count;
 };
 
+uint16_t readMedian3FromPin(uint8_t pin);
+
 /*
   FEEDING MODE API (USE THIS IN FEED LOGIC):
   - On feed start: call setSoilSensorRealTime() to power the sensor and seed the EMA.

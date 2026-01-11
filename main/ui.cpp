@@ -46,14 +46,7 @@ static bool thresholdValid(uint16_t threshold) {
 }
 
 static uint16_t readButtonsAdc() {
-  uint16_t a = analogRead(BUTTONS_PIN);
-  uint16_t b = analogRead(BUTTONS_PIN);
-  uint16_t c = analogRead(BUTTONS_PIN);
-  uint16_t min_ab = (a < b) ? a : b;
-  uint16_t max_ab = (a > b) ? a : b;
-  if (c < min_ab) return min_ab;
-  if (c > max_ab) return max_ab;
-  return c;
+  return readMedian3FromPin(BUTTONS_PIN);
 }
 
 static bool readingWithin(Button *button, uint16_t reading, uint16_t margin) {
