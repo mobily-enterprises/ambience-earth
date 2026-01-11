@@ -267,6 +267,14 @@ static uint8_t actualLength(const char *str, uint8_t maxLen) {
   return len;
 }
 
+static void drawPromptAndHeader(MsgId prompt, MsgId optionalHeader) {
+  lcd.clear();
+  lcd.setCursor(0, 2);
+  lcdPrint_P(prompt);
+  lcd.setCursor(0, 0);
+  lcdPrint_P(optionalHeader);
+}
+
 // Simple wrapper to copy from RAM; used by string input.
 static bool inputStringCommon(MsgId prompt, MsgId optionalHeader, char *initialUserInput, bool asEdit, uint8_t maxLen) {
   uint8_t cursorPosition = 0;
@@ -276,8 +284,6 @@ static bool inputStringCommon(MsgId prompt, MsgId optionalHeader, char *initialU
   uint8_t limit = maxLen > LABEL_LENGTH ? LABEL_LENGTH : maxLen;
   if (limit == 0) limit = 1;
 
-  const uint8_t headerY = 0;
-  const uint8_t promptY = 2;
   const uint8_t inputY = 3;
 
   if (strnlen(initialUserInput, limit) == 0) {
@@ -292,13 +298,7 @@ static bool inputStringCommon(MsgId prompt, MsgId optionalHeader, char *initialU
     if (cursorPosition == 0) cursorPosition = 1;
   }
 
-  lcd.clear();
-
-  lcd.setCursor(0, promptY);
-  lcdPrint_P(prompt);
-
-  lcd.setCursor(0, headerY);
-  lcdPrint_P(optionalHeader);
+  drawPromptAndHeader(prompt, optionalHeader);
 
   while (true) {
     unsigned long currentMillis = millis();
@@ -601,8 +601,6 @@ void setChoice_R(unsigned char index, const char *label, int value) {
 int16_t inputNumber_P(MsgId prompt, int16_t initialUserInput, int stepSize, int16_t min, int16_t max, MsgId postFix, MsgId optionalHeader) {
   int16_t userInput;
   bool displayChanged = true;
-  const uint8_t headerY = 0;
-  const uint8_t promptY = 2;
   const uint8_t inputY = 3;
 
   // Check if initialUserInput is not empty
@@ -612,13 +610,7 @@ int16_t inputNumber_P(MsgId prompt, int16_t initialUserInput, int stepSize, int1
     userInput = 0;
   }
 
-  lcd.clear();
-
-  lcd.setCursor(0, promptY);
-  lcdPrint_P(prompt);
-
-  lcd.setCursor(0, headerY);
-  lcdPrint_P(optionalHeader);
+  drawPromptAndHeader(prompt, optionalHeader);
 
   while (true) {
     if (displayChanged) {
@@ -957,24 +949,24 @@ int8_t promptYesNoWithHeader(MsgId header, MsgId question, bool initialYes) {
   }
 }
 
-int8_t yesOrNo_P(MsgId question, bool initialUserInput) {
+static int8_t yesOrNoCommon(MsgId question, bool initialUserInput, bool showAbort) {
   setChoices_P(MSG_YES, 1, MSG_NO, 0);
   setChoicesHeader_P(question);
 
   int8_t response = selectChoice(2, initialUserInput ? 1 : 0);
   if (response == -1) {
-    lcdFlashMessage_P(MSG_ABORTED);
-    return response;
+    if (showAbort) lcdFlashMessage_P(MSG_ABORTED);
+    return -1;
   }
-  return response == 1 ? true : false;
+  return response == 1 ? 1 : 0;
+}
+
+int8_t yesOrNo_P(MsgId question, bool initialUserInput) {
+  return yesOrNoCommon(question, initialUserInput, true);
 }
 
 int8_t yesOrNo_P_NoAbort(MsgId question, bool initialUserInput) {
-  setChoices_P(MSG_YES, 1, MSG_NO, 0);
-  setChoicesHeader_P(question);
-
-  int8_t response = selectChoice(2, initialUserInput ? 1 : 0);
-  return response == 1 ? true : (response == 0 ? 0 : -1);
+  return yesOrNoCommon(question, initialUserInput, false);
 }
 
 int8_t giveOk_P(MsgId top, MsgId promptText, MsgId line2, MsgId line3) {

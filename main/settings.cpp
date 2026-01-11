@@ -469,10 +469,7 @@ void calibrateMoistureSensor() {
 }
 
 void pumpTest() {
-  lcdClear();
-  lcdPrint_P(MSG_DEVICE_WILL_BLINK, 1);
-  lcdPrint_P(MSG_THREE_TIMES, 2);
-  delay(500);
+  lcdFlashMessage_P(MSG_DEVICE_WILL_BLINK, MSG_THREE_TIMES, 500);
   const uint8_t cycles = 3;
   for (uint8_t i = 0; i < cycles; ++i) {
     digitalWrite(PUMP_IN_DEVICE, LOW);
@@ -480,9 +477,7 @@ void pumpTest() {
     digitalWrite(PUMP_IN_DEVICE, HIGH);
     delay(1000);
   }
-  lcdClear();
-  lcdPrint_P(MSG_DONE, 1);
-  delay(1000);
+  lcdFlashMessage_P(MSG_DONE);
 }
 
 void testSensors() {

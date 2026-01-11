@@ -49,6 +49,11 @@ static char *append_R(char *dst, const char *src) {
   return dst;
 }
 
+static char *appendSlotNameOrEmpty(char *dst, const char *name) {
+  if (name && name[0]) return append_R(dst, name);
+  return append_P(dst, MSG_SLOT_EMPTY);
+}
+
 static char *appendNumber(char *dst, uint16_t value) {
   char buf[6];
   uint8_t len = 0;
@@ -133,8 +138,7 @@ static int8_t selectMoistureMode(MsgId header, uint8_t initialMode, MsgId baseli
 
 static void buildSummaryLine0(char *out, const FeedSlot *slot, const char *slotName) {
   char *p = out;
-  if (slotName && slotName[0]) p = append_R(p, slotName);
-  else p = append_P(p, MSG_SLOT_EMPTY);
+  p = appendSlotNameOrEmpty(p, slotName);
   *p++ = ' ';
   *p++ = '(';
   p = append_P(p, slotFlag(slot, FEED_SLOT_ENABLED) ? MSG_ON : MSG_OFF);
@@ -148,12 +152,7 @@ static void buildSummaryLine0(char *out, const FeedSlot *slot, const char *slotN
 
 static void buildSlotListEntry(uint8_t index, const FeedSlot *slot, char out[LABEL_LENGTH + 1]) {
   char *p = out;
-  const char *name = config.feedSlotNames[index];
-  if (name && name[0]) {
-    p = append_R(p, name);
-  } else {
-    p = append_P(p, MSG_SLOT_EMPTY);
-  }
+  p = appendSlotNameOrEmpty(p, config.feedSlotNames[index]);
 
   bool enabled = slotFlag(slot, FEED_SLOT_ENABLED);
   if ((p - out) < LABEL_LENGTH - 5) {
