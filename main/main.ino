@@ -736,9 +736,6 @@ void displayInfo1(bool fullRedraw) {
   bool showBaseline = feedingHasBaselineSetter();
 
   if (fullRedraw) {
-    lcdClearLine(2);
-    lcdSetCursor(0, 2);
-    lcdPrint_P(MSG_LAST_FEED);
     lcdSetCursor(0, 3);
     lcdPrint_P(MSG_TODAY_COLON);
   }
