@@ -78,7 +78,7 @@ static uint8_t lastRefusalReason = 0xFF;
 static uint8_t baselinePercent = 0;
 static bool baselineValid = false;
 static bool baselineFromLatest = false;
-static int8_t baselineCandidateSlot = -1;
+static int16_t baselineCandidateSlot = -1;
 static uint32_t baselineCandidateEndMinutes = 0;
 static bool baselineCandidateValid = false;
 static unsigned long lastBaselineWindowAt = 0;
@@ -161,7 +161,7 @@ static bool logEntryEndMinutes(const LogEntry *entry, uint32_t *outMinutes) {
                            entry->endHour, entry->endMinute, outMinutes);
 }
 
-static void baselineSetCandidate(int8_t slot, const LogEntry *entry) {
+static void baselineSetCandidate(int16_t slot, const LogEntry *entry) {
   baselineCandidateSlot = slot;
   baselineCandidateEndMinutes = 0;
   baselineCandidateValid = logEntryEndMinutes(entry, &baselineCandidateEndMinutes);
@@ -595,8 +595,8 @@ void feedingBaselineInit() {
   LogEntry latestSetter = {};
   LogEntry latestWithBaseline = {};
   LogEntry latestFeed = {};
-  int8_t latestSetterSlot = -1;
-  int8_t latestBaselineSlot = -1;
+  int16_t latestSetterSlot = -1;
+  int16_t latestBaselineSlot = -1;
 
   baselineValid = false;
   baselineFromLatest = true;

@@ -15,16 +15,15 @@ int EEPROM_TOTAL_SLOTS;
 int EEPROM_META_ADDRESS;    // start of logs metadata (epoch + format version)
 
 void* logBuffer; 
-int8_t currentSlot;
+int16_t currentSlot;
+static int16_t latestSlot = -1;
 static uint16_t logEpoch = 0;     // Persisted across boots (EEPROM)
 static uint16_t browseEpoch = 0;  // Session epoch aligned to current slot for UI
 static const uint8_t kLogMetaSize = 3;
+static const uint8_t kEepromPageSize = 32;
+static const uint8_t kI2cChunk = 30;
 
 extern Config config;
-
-static uint8_t logEepromReadByte(uint16_t address) {
-  return static_cast<uint8_t>(msgReadByte(address));
-}
 
 static void logEepromWriteByte(uint16_t address, uint8_t value) {
   Wire.beginTransmission(EXT_EEPROM_ADDR);
@@ -35,19 +34,49 @@ static void logEepromWriteByte(uint16_t address, uint8_t value) {
   delay(5);  // Allow EEPROM write cycle to complete.
 }
 
-static void logEepromUpdateByte(uint16_t address, uint8_t value) {
-  if (logEepromReadByte(address) == value) return;
-  logEepromWriteByte(address, value);
+static void logEepromReadBlock(uint16_t address, uint8_t *buffer, uint16_t len) {
+  while (len) {
+    uint8_t chunk = (len > kI2cChunk) ? kI2cChunk : static_cast<uint8_t>(len);
+    Wire.beginTransmission(EXT_EEPROM_ADDR);
+    Wire.write(static_cast<uint8_t>(address >> 8));
+    Wire.write(static_cast<uint8_t>(address & 0xFF));
+    Wire.endTransmission();
+    Wire.requestFrom(static_cast<uint8_t>(EXT_EEPROM_ADDR), chunk);
+    for (uint8_t i = 0; i < chunk; ++i) {
+      buffer[i] = static_cast<uint8_t>(Wire.read());
+    }
+    address = static_cast<uint16_t>(address + chunk);
+    buffer += chunk;
+    len = static_cast<uint16_t>(len - chunk);
+  }
 }
 
-// Treat 8-bit sequence numbers with wrap-around semantics.
-// Returns true if 'a' is later than 'b' assuming differences < 128.
-static inline bool seqIsLater(uint8_t a, uint8_t b) {
-  return (int8_t)(a - b) > 0;
+static void logEepromWriteBlock(uint16_t address, const uint8_t *data, uint16_t len) {
+  while (len) {
+    uint8_t pageOffset = static_cast<uint8_t>(address & (kEepromPageSize - 1));
+    uint8_t chunk = static_cast<uint8_t>(kEepromPageSize - pageOffset);
+    if (chunk > len) chunk = static_cast<uint8_t>(len);
+    if (chunk > kI2cChunk) chunk = kI2cChunk;
+    Wire.beginTransmission(EXT_EEPROM_ADDR);
+    Wire.write(static_cast<uint8_t>(address >> 8));
+    Wire.write(static_cast<uint8_t>(address & 0xFF));
+    Wire.write(data, chunk);
+    Wire.endTransmission();
+    delay(5);
+    address = static_cast<uint16_t>(address + chunk);
+    data += chunk;
+    len = static_cast<uint16_t>(len - chunk);
+  }
+}
+
+// Treat 16-bit sequence numbers with wrap-around semantics.
+// Returns true if 'a' is later than 'b' assuming differences < 32768.
+static inline bool seqIsLater(uint16_t a, uint16_t b) {
+  return (int16_t)(a - b) > 0;
 }
 
 // A slot is considered empty if seq == 0 (we always avoid writing 0).
-static inline bool slotIsEmpty(uint8_t seq) {
+static inline bool slotIsEmpty(uint16_t seq) {
   return seq == 0;
 }
 
@@ -76,8 +105,8 @@ static uint16_t minutesSinceLightsOn(uint8_t hour, uint8_t minute, uint16_t ligh
 }
 
 static uint16_t readEpochFromEeprom() {
-  uint8_t lo = logEepromReadByte(EEPROM_META_ADDRESS + 0);
-  uint8_t hi = logEepromReadByte(EEPROM_META_ADDRESS + 1);
+  uint8_t lo = static_cast<uint8_t>(msgReadByte(EEPROM_META_ADDRESS + 0));
+  uint8_t hi = static_cast<uint8_t>(msgReadByte(EEPROM_META_ADDRESS + 1));
   // Treat 0xFFFF (erased) as 0
   if (lo == 0xFF && hi == 0xFF) return 0;
   uint16_t val = ((uint16_t)hi << 8) | lo;
@@ -85,7 +114,7 @@ static uint16_t readEpochFromEeprom() {
 }
 
 static uint8_t readLogVersionFromEeprom() {
-  uint8_t version = logEepromReadByte(EEPROM_META_ADDRESS + 2);
+  uint8_t version = static_cast<uint8_t>(msgReadByte(EEPROM_META_ADDRESS + 2));
   if (version == 0xFF) return 0;
   return version;
 }
@@ -93,12 +122,12 @@ static uint8_t readLogVersionFromEeprom() {
 static void writeEpochToEeprom(uint16_t epoch) {
   uint8_t lo = epoch & 0xFF;
   uint8_t hi = (epoch >> 8) & 0xFF;
-  logEepromUpdateByte(EEPROM_META_ADDRESS + 0, lo);
-  logEepromUpdateByte(EEPROM_META_ADDRESS + 1, hi);
+  logEepromWriteByte(EEPROM_META_ADDRESS + 0, lo);
+  logEepromWriteByte(EEPROM_META_ADDRESS + 1, hi);
 }
 
 static void writeLogVersionToEeprom(uint8_t version) {
-  logEepromUpdateByte(EEPROM_META_ADDRESS + 2, version);
+  logEepromWriteByte(EEPROM_META_ADDRESS + 2, version);
 }
 
 static void stampLightDayKey(LogEntry *entry) {
@@ -141,31 +170,35 @@ void readLogEntry(int16_t slot = -1) {
   int eepromAddress = EEPROM_START_ADDRESS + (slotToRead) * EEPROM_SLOT_SIZE;
   
   // Read data from EEPROM into memory
-  for (unsigned int i = 0; i < EEPROM_SLOT_SIZE; i++) {
-    byte value = logEepromReadByte(eepromAddress + i);
-    *((byte*)logBuffer + i) = value;
-  }
+  logEepromReadBlock(static_cast<uint16_t>(eepromAddress),
+                     static_cast<uint8_t*>(logBuffer),
+                     static_cast<uint16_t>(EEPROM_SLOT_SIZE));
   
 }
 
 void goToLatestSlot () {
+  if (latestSlot >= 0) {
+    currentSlot = latestSlot;
+    readLogEntry(currentSlot);
+    browseEpoch = logEpoch;
+    return;
+  }
+
   // Find the latest slot using wrap-aware sequence comparison.
-  // Ignore empty slots (seq == 0). With <128 slots, wrap is safe.
-  bool found = false;
-  uint8_t bestSeq = 0;
-  int8_t bestSlot = -1;
+  // Ignore empty slots (seq == 0). With <32768 slots, wrap is safe.
+  uint16_t bestSeq = 0;
+  int16_t bestSlot = -1;
 
   currentSlot = -1;
 
   for (int slotNumber = 0; slotNumber < EEPROM_TOTAL_SLOTS; slotNumber++) {
     readLogEntry(slotNumber);
-    uint8_t seq = *static_cast<uint8_t*>(logBuffer);
+    uint16_t seq = *static_cast<uint16_t*>(logBuffer);
     if (slotIsEmpty(seq)) continue;
 
-    if (!found) {
+    if (bestSlot < 0) {
       bestSeq = seq;
       bestSlot = slotNumber;
-      found = true;
     } else if (seqIsLater(seq, bestSeq)) {
       bestSeq = seq;
       bestSlot = slotNumber;
@@ -182,9 +215,10 @@ void goToLatestSlot () {
     // Latest entry belongs to the current persisted epoch
     browseEpoch = logEpoch;
   }
+  latestSlot = currentSlot;
 }
 
-int8_t getCurrentLogSlot() {
+int16_t getCurrentLogSlot() {
   return currentSlot;
 }
 
@@ -200,12 +234,12 @@ void writeLogEntry(void* buffer) {
   goToLatestSlot();
 
   // Serial.print("Latest slot's seq: ");
-  // Serial.println(*static_cast<uint8_t*>(logBuffer));
+  // Serial.println(*static_cast<uint16_t*>(logBuffer));
 
-  uint8_t latestSeq = (*static_cast<uint8_t*>(logBuffer));
-  uint8_t newSeq = latestSeq;
+  uint16_t latestSeq = (*static_cast<uint16_t*>(logBuffer));
+  uint16_t newSeq = latestSeq;
   newSeq++;
-  // Keep 0 reserved for "empty" and bump epoch on wrap 255->1
+  // Keep 0 reserved for "empty" and bump epoch on wrap 0xFFFF->1
   if (newSeq == 0) {
     newSeq = 1;
     logEpoch++;
@@ -223,30 +257,28 @@ void writeLogEntry(void* buffer) {
   
   // Calculate the EEPROM address for the given slot number
   int eepromAddress = EEPROM_START_ADDRESS + (currentSlot) * EEPROM_SLOT_SIZE;
-  uint8_t currentLogEntrySeq = *static_cast<uint8_t*>(logBuffer);
 
-  // Set the current seq, ALWAYS assumed to be the first 8 bites of the bffer
-  memcpy(buffer, &newSeq, sizeof(uint8_t));
+  // Set the current seq, ALWAYS assumed to be the first 16 bits of the buffer
+  memcpy(buffer, &newSeq, sizeof(uint16_t));
   stampLightDayKey(static_cast<LogEntry*>(buffer));
 
   // Serial.print("SEQ IN BUFFER:");
-  // Serial.print(*static_cast<uint8_t*>(buffer));
+  // Serial.print(*static_cast<uint16_t*>(buffer));
   // Serial.print(" MILLIS:");
   // Serial.println(*reinterpret_cast<uint16_t*>(static_cast<uint8_t*>(buffer) + 1));
 
 
-  // Write data to EEPROM with minimal wear
-  for (unsigned int i = 0; i < EEPROM_SLOT_SIZE; i++) {
-    byte value = *((byte*)buffer + i);
-    logEepromUpdateByte(eepromAddress + i, value);
-  }
+  logEepromWriteBlock(static_cast<uint16_t>(eepromAddress),
+                      static_cast<const uint8_t*>(buffer),
+                      static_cast<uint16_t>(EEPROM_SLOT_SIZE));
 
   // Re-read the log entry, 
   readLogEntry();
+  latestSlot = currentSlot;
 }
 
 bool noLogs() {
-  uint8_t currentLogEntrySeq = *static_cast<uint8_t*>(logBuffer);
+  uint16_t currentLogEntrySeq = *static_cast<uint16_t*>(logBuffer);
   
   // Serial.print("EH CHE CAZZ: ");
   // Serial.println(currentLogEntrySeq);
@@ -262,7 +294,7 @@ bool noLogs() {
 
 
 uint8_t goToNextLogSlot(bool force = false) {
-  int8_t originalSlot = currentSlot;
+  int16_t originalSlot = currentSlot;
 
   // First log ever: target slot 0
   if (originalSlot < 0) {
@@ -272,7 +304,7 @@ uint8_t goToNextLogSlot(bool force = false) {
 
   currentSlot = originalSlot;
   readLogEntry();
-  uint8_t originalLogEntrySeq = *static_cast<uint8_t*>(logBuffer);
+  uint16_t originalLogEntrySeq = *static_cast<uint16_t*>(logBuffer);
   
   // Serial.println("goToNextLogSlot()");
   // Serial.println("Current slot:");
@@ -287,10 +319,10 @@ uint8_t goToNextLogSlot(bool force = false) {
   readLogEntry();
 
   if (force) return true;
-  uint8_t newLogEntrySeq = *static_cast<uint8_t*>(logBuffer);
+  uint16_t newLogEntrySeq = *static_cast<uint16_t*>(logBuffer);
   if (!slotIsEmpty(newLogEntrySeq) && seqIsLater(newLogEntrySeq, originalLogEntrySeq)) {
-    // Crossing 255 -> 1 means moving into a newer epoch during browsing
-    if (originalLogEntrySeq == 255 && newLogEntrySeq == 1) browseEpoch++;
+    // Crossing 0xFFFF -> 1 means moving into a newer epoch during browsing
+    if (originalLogEntrySeq == 0xFFFF && newLogEntrySeq == 1) browseEpoch++;
     return true;
   }
 
@@ -301,11 +333,11 @@ uint8_t goToNextLogSlot(bool force = false) {
 }
 
 uint8_t goToPreviousLogSlot(bool force = false) {
-  int8_t originalSlot = currentSlot;
+  int16_t originalSlot = currentSlot;
   if (originalSlot < 0) originalSlot = 0; // normalise if uninitialised
   currentSlot = originalSlot;
   readLogEntry();
-  uint8_t originalLogEntrySeq = *static_cast<uint8_t*>(logBuffer);
+  uint16_t originalLogEntrySeq = *static_cast<uint16_t*>(logBuffer);
 
   currentSlot --;
   if (currentSlot < 0) currentSlot = EEPROM_TOTAL_SLOTS - 1;
@@ -313,11 +345,11 @@ uint8_t goToPreviousLogSlot(bool force = false) {
 
   if (force) return true;
 
-  uint8_t newLogEntrySeq = *static_cast<uint8_t*>(logBuffer);
+  uint16_t newLogEntrySeq = *static_cast<uint16_t*>(logBuffer);
   // Allow moving back only if the target is a valid older entry
   if (!slotIsEmpty(newLogEntrySeq) && seqIsLater(originalLogEntrySeq, newLogEntrySeq)) {
-    // Crossing 1 -> 255 means moving into a previous epoch during browsing
-    if (originalLogEntrySeq == 1 && newLogEntrySeq == 255) browseEpoch--;
+    // Crossing 1 -> 0xFFFF means moving into a previous epoch during browsing
+    if (originalLogEntrySeq == 1 && newLogEntrySeq == 0xFFFF) browseEpoch--;
     return true;
   }
 
@@ -347,6 +379,7 @@ void initLogs(void *buffer, int eepromSize, int startAddress, int logsMemory, in
   // Load persisted epoch
   logEpoch = readEpochFromEeprom();
   browseEpoch = logEpoch;
+  latestSlot = -1;
 
 
   // Will set currentSlot
@@ -374,35 +407,39 @@ void clearLogEntry(void *buffer) {
 
 void wipeLogs() {
   // Clear slots
-  for (uint16_t i = EEPROM_START_ADDRESS; i < EEPROM_START_ADDRESS + (EEPROM_TOTAL_SLOTS * EEPROM_SLOT_SIZE); i++) {
-    logEepromUpdateByte(i, 0);
+  memset(logBuffer, 0, EEPROM_SLOT_SIZE);
+  uint16_t addr = static_cast<uint16_t>(EEPROM_START_ADDRESS);
+  for (int slot = 0; slot < EEPROM_TOTAL_SLOTS; ++slot) {
+    logEepromWriteBlock(addr, static_cast<uint8_t*>(logBuffer), static_cast<uint16_t>(EEPROM_SLOT_SIZE));
+    addr = static_cast<uint16_t>(addr + EEPROM_SLOT_SIZE);
   }
   // Reset epoch
   logEpoch = 0;
   browseEpoch = 0;
   writeEpochToEeprom(logEpoch);
   writeLogVersionToEeprom(LOG_FORMAT_VERSION);
-  currentSlot = - 1;
+  currentSlot = -1;
+  latestSlot = -1;
   clearLogEntry(logBuffer);
 }
 
-bool patchLogBaselinePercent(int8_t slot, uint8_t baselinePercent) {
+bool patchLogBaselinePercent(int16_t slot, uint8_t baselinePercent) {
   if (slot < 0 || slot >= EEPROM_TOTAL_SLOTS) return false;
   int eepromAddress = EEPROM_START_ADDRESS + (slot * EEPROM_SLOT_SIZE)
                       + static_cast<int>(offsetof(LogEntry, baselinePercent));
-  logEepromUpdateByte(eepromAddress, baselinePercent);
+  logEepromWriteByte(eepromAddress, baselinePercent);
   return true;
 }
 
-bool findLatestBaselineEntries(LogEntry *outLatestSetter, int8_t *outLatestSetterSlot,
-                               LogEntry *outLatestWithBaseline, int8_t *outLatestWithBaselineSlot,
+bool findLatestBaselineEntries(LogEntry *outLatestSetter, int16_t *outLatestSetterSlot,
+                               LogEntry *outLatestWithBaseline, int16_t *outLatestWithBaselineSlot,
                                LogEntry *outLatestFeed) {
-  int8_t savedSlot = currentSlot;
+  int16_t savedSlot = currentSlot;
   uint16_t savedBrowseEpoch = browseEpoch;
   bool foundSetter = false;
   bool foundWithBaseline = false;
-  int8_t foundSetterSlot = -1;
-  int8_t foundBaselineSlot = -1;
+  int16_t foundSetterSlot = -1;
+  int16_t foundBaselineSlot = -1;
 
   goToLatestSlot();
   if (currentSlot >= 0) {
@@ -442,26 +479,26 @@ bool findLatestBaselineEntries(LogEntry *outLatestSetter, int8_t *outLatestSette
 }
 
 uint32_t getAbsoluteLogNumber() {
-  uint8_t seq = *static_cast<uint8_t*>(logBuffer);
-  return ((uint32_t)browseEpoch << 8) | seq;
+  uint16_t seq = *static_cast<uint16_t*>(logBuffer);
+  return ((uint32_t)browseEpoch << 16) | seq;
 }
 
 uint16_t getDailyFeedTotalMlAt(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute) {
   uint16_t targetKey = 0;
   if (!calcLightDayKey(year, month, day, hour, minute, config.lightsOnMinutes, &targetKey)) return 0;
 
-  int8_t savedSlot = currentSlot;
+  int16_t savedSlot = currentSlot;
   uint16_t savedBrowseEpoch = browseEpoch;
-  bool found = false;
   uint16_t total = 0;
 
   goToLatestSlot();
   if (currentSlot >= 0) {
     do {
       LogEntry *entry = static_cast<LogEntry*>(logBuffer);
-      if (entry->entryType == 1 && entry->lightDayKey == targetKey) {
+      uint16_t entryKey = entry->lightDayKey;
+      if (entryKey && entryKey < targetKey) break;
+      if (entry->entryType == 1 && entryKey == targetKey) {
         total = entry->dailyTotalMl;
-        found = true;
         break;
       }
     } while (goToPreviousLogSlot());
@@ -475,7 +512,6 @@ uint16_t getDailyFeedTotalMlAt(uint8_t year, uint8_t month, uint8_t day, uint8_t
     currentSlot = savedSlot;
   }
 
-  if (!found) return 0;
   return total;
 }
 
@@ -541,35 +577,46 @@ bool getDrybackPercent(uint8_t *outPercent) {
   uint16_t bestOnDelta = static_cast<uint16_t>(kDrybackToleranceMinutes + 1);
   uint8_t offMoisture = 0;
   uint8_t onMoisture = 0;
-  int8_t savedSlot = currentSlot;
+  int16_t savedSlot = currentSlot;
+  uint16_t savedBrowseEpoch = browseEpoch;
 
-  for (int slot = 0; slot < EEPROM_TOTAL_SLOTS; slot++) {
-    readLogEntry(slot);
-    LogEntry *entry = static_cast<LogEntry*>(logBuffer);
-    if (slotIsEmpty(entry->seq)) continue;
-    if (entry->entryType != 2) continue;
-    uint16_t entryKey = entry->lightDayKey;
-    if (entryKey == 0) continue;
+  goToLatestSlot();
+  if (currentSlot >= 0) {
+    do {
+      LogEntry *entry = static_cast<LogEntry*>(logBuffer);
+      if (entry->entryType != 2) continue;
+      uint16_t entryKey = entry->lightDayKey;
+      if (entryKey == 0) continue;
 
-    uint16_t offset = minutesSinceLightsOn(entry->startHour, entry->startMinute, lightsOn);
-    if (entryKey == keyOn) {
-      uint16_t delta = offset;
-      if (delta <= kDrybackToleranceMinutes && delta < bestOnDelta) {
-        bestOnDelta = delta;
-        onMoisture = entry->soilMoistureBefore;
+      uint16_t offset = minutesSinceLightsOn(entry->startHour, entry->startMinute, lightsOn);
+      if (entryKey == keyOn) {
+        uint16_t delta = offset;
+        if (delta <= kDrybackToleranceMinutes && delta < bestOnDelta) {
+          bestOnDelta = delta;
+          onMoisture = entry->soilMoistureBefore;
+        }
       }
-    }
-    if (entryKey == keyOff) {
-      uint16_t delta = (offset >= offOffset) ? static_cast<uint16_t>(offset - offOffset)
-                                            : static_cast<uint16_t>(offOffset - offset);
-      if (delta <= kDrybackToleranceMinutes && delta < bestOffDelta) {
-        bestOffDelta = delta;
-        offMoisture = entry->soilMoistureBefore;
+      if (entryKey == keyOff) {
+        uint16_t delta = (offset >= offOffset) ? static_cast<uint16_t>(offset - offOffset)
+                                              : static_cast<uint16_t>(offOffset - offset);
+        if (delta <= kDrybackToleranceMinutes && delta < bestOffDelta) {
+          bestOffDelta = delta;
+          offMoisture = entry->soilMoistureBefore;
+        }
       }
-    }
+      if (bestOnDelta <= kDrybackToleranceMinutes &&
+          bestOffDelta <= kDrybackToleranceMinutes &&
+          entryKey < keyOff) break;
+    } while (goToPreviousLogSlot());
   }
 
-  if (savedSlot >= 0) readLogEntry(savedSlot);
+  browseEpoch = savedBrowseEpoch;
+  if (savedSlot >= 0) {
+    currentSlot = savedSlot;
+    readLogEntry();
+  } else {
+    currentSlot = savedSlot;
+  }
 
   if (bestOffDelta > kDrybackToleranceMinutes) return false;
   if (bestOnDelta > kDrybackToleranceMinutes) return false;

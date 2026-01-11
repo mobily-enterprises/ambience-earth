@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 
-#define LOG_FORMAT_VERSION 6
+#define LOG_FORMAT_VERSION 7
 
 enum LogStopReason : uint8_t {
   LOG_STOP_NONE = 0,
@@ -32,7 +32,7 @@ enum LogStartReason : uint8_t {
 #define LOG_BASELINE_UNSET 0xFF
 
 typedef struct {
-  uint8_t seq;
+  uint16_t seq;
   uint8_t entryType : 3;
   uint8_t stopReason : 3;
   uint8_t startReason : 2;
@@ -64,14 +64,14 @@ bool noLogs();
 uint8_t goToNextLogSlot(bool force = false);
 uint8_t goToPreviousLogSlot(bool force = false);
 void initLogs(void *buffer, int eepromSize, int startAddress, int logsMemory, int slotSize);
-int8_t getCurrentLogSlot();
+int16_t getCurrentLogSlot();
 
 void goToLatestSlot();
 void clearLogEntry(void *buffer);
 void wipeLogs();
-bool patchLogBaselinePercent(int8_t slot, uint8_t baselinePercent);
-bool findLatestBaselineEntries(LogEntry *outLatestSetter, int8_t *outLatestSetterSlot,
-                               LogEntry *outLatestWithBaseline, int8_t *outLatestWithBaselineSlot,
+bool patchLogBaselinePercent(int16_t slot, uint8_t baselinePercent);
+bool findLatestBaselineEntries(LogEntry *outLatestSetter, int16_t *outLatestSetterSlot,
+                               LogEntry *outLatestWithBaseline, int16_t *outLatestWithBaselineSlot,
                                LogEntry *outLatestFeed);
 
 // Epoch-aware numbering helpers
