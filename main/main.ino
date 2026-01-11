@@ -62,6 +62,11 @@ void setup() {
 
   extern LiquidCrystal_I2C lcd;
 
+  lcdPrint_P(MSG_LOG_TYPE_0, 1);
+  lcd.print('.');
+  lcd.print('.');
+  lcd.print('.');
+
   initialPinSetup();
  
   initRunoffSensor();
