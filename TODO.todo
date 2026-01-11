@@ -1,3 +1,8 @@
+TODO FOR AT24C256:
+  - Update address + size: (main/messages.h: set EXT_EEPROM_ADDR to the AT24C256 address and EXT_EEPROM_SIZE to 32768).
+  - Update the strings writer address (so UI strings go into the same chip (tools/strings_writer/strings_writer.ino: set EEPROM_ADDR to the same AT24C256 address.)
+  - For faster wipes on AT24C256 (main/logs.cpp: set kEepromPageSize to 64 (AT24C256 page size). Leaving it at 32 still works, just slower.)
+
 TODO:
   ☐ Version 2 (Arduino Mega + 2 sets of scales plants/runoff + solenoid valve to empty catchment + temperature sensor + PH and EC sensors + better moisture sensor)
   ☐ Version 3 (Wifi module + monitoring app)
