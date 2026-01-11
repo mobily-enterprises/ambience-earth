@@ -163,6 +163,15 @@ static void drawDripperPrompt(bool filling, unsigned long startMillis, bool full
   }
 }
 
+static void drawHeaderLines(MsgId line0, MsgId line1, char line1Suffix) {
+  lcdClear();
+  lcdSetCursor(0, 0);
+  lcdPrint_P(line0);
+  lcdSetCursor(0, 1);
+  lcdPrint_P(line1);
+  if (line1Suffix) lcd.print(line1Suffix);
+}
+
 void calibrateDripperFlow() {
   setSoilSensorLazy(); // ensure not in realtime mode
   screenSaverSuspend();
@@ -410,12 +419,8 @@ void initialSetupMenu() {
 }
 
 static uint16_t calibrateOnePoint(bool isDry) {
-  lcdClear();
-  lcdSetCursor(0, 0);
-  lcdPrint_P(isDry ? MSG_CAL_DRY_ONLY : MSG_CAL_WET_ONLY);
-  lcdSetCursor(0, 1);
-  lcdPrint_P(isDry ? MSG_DRY_COLUMN : MSG_WET_COLUMN);
-  lcd.print(' ');
+  drawHeaderLines(isDry ? MSG_CAL_DRY_ONLY : MSG_CAL_WET_ONLY,
+                  isDry ? MSG_DRY_COLUMN : MSG_WET_COLUMN, ' ');
 
   soilSensorWindowStart();
   uint16_t lastRaw = 0xFFFF;
@@ -442,11 +447,8 @@ static uint16_t calibrateOnePoint(bool isDry) {
       else config.moistSensorCalibrationSoaked = avg;
       saveConfig();
 
-      lcdClear();
-      lcdSetCursor(0, 0);
-      lcdPrint_P(isDry ? MSG_CAL_DRY_ONLY : MSG_CAL_WET_ONLY);
-      lcdSetCursor(0, 1);
-      lcdPrint_P(isDry ? MSG_DRY_COLUMN : MSG_WET_COLON);
+      drawHeaderLines(isDry ? MSG_CAL_DRY_ONLY : MSG_CAL_WET_ONLY,
+                      isDry ? MSG_DRY_COLUMN : MSG_WET_COLON, '\0');
       lcd.print(avg);
       lcdSetCursor(0, 2);
       lcdPrint_P(MSG_SAVE_QUESTION);
@@ -511,13 +513,8 @@ void pumpTest() {
 }
 
 void testSensors() {
-  lcdClear();
   setSoilSensorRealTime();
-  lcdSetCursor(0, 0);
-  lcdPrint_P(MSG_SOIL_MOISTURE_COLUMN);
-  lcdSetCursor(0, 1);
-  lcdPrint_P(MSG_RUNOFF);
-  lcd.print(':');
+  drawHeaderLines(MSG_SOIL_MOISTURE_COLUMN, MSG_RUNOFF, ':');
 
   while (true) {
     analogButtonsCheck();

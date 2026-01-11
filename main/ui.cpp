@@ -446,16 +446,20 @@ static void drawBlinkAt(uint8_t col, uint8_t row, bool blinkOn) {
   lcd.write((uint8_t)0);
 }
 
-static void drawTimeEntryFrame(MsgId header, MsgId prompt, uint8_t row) {
+static void drawHeaderFrame(MsgId header) {
   lcdClear();
   lcdPrint_P(header, 0);
+  lcdClearLine(3);
+}
+
+static void drawTimeEntryFrame(MsgId header, MsgId prompt, uint8_t row) {
+  drawHeaderFrame(header);
   lcdPrint_P(prompt, 1);
   lcdClearLine(row);
   lcdSetCursor(0, row);
   lcdPrint_P(MSG_TIME_LABEL);
   lcdSetCursor(7, row);
   lcd.print(':');
-  lcdClearLine(3);
 }
 
 static void drawTimeEntryLine(uint8_t hour, uint8_t minute, uint8_t row, bool blinkOn, bool editHour) {
@@ -465,8 +469,7 @@ static void drawTimeEntryLine(uint8_t hour, uint8_t minute, uint8_t row, bool bl
 }
 
 static void drawLightsOnOffFrame(MsgId header) {
-  lcdClear();
-  lcdPrint_P(header, 0);
+  drawHeaderFrame(header);
   lcdClearLine(1);
   lcdSetCursor(0, 1);
   lcdPrint_P(MSG_ON);
@@ -479,7 +482,6 @@ static void drawLightsOnOffFrame(MsgId header) {
   lcdSetCursor(15, 1);
   lcd.print(':');
   lcdClearLine(2);
-  lcdClearLine(3);
 }
 
 static void drawLightsOnOffValues(uint8_t onHour, uint8_t onMinute, uint8_t offHour, uint8_t offMinute,
