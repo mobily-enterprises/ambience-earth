@@ -780,16 +780,13 @@ bool inputLightsOnOff_P(MsgId header, uint16_t *onMinutes, uint16_t *offMinutes)
 }
 
 void resetChoicesAndHeader() {
-  for (int i = 0; i < 10; i++) {
+  for (uint8_t i = 0; i < 10; ++i) {
     choices[i].label.ptr = nullptr;
     choices[i].label.id = MSG_LITTLE;
     choices[i].label.is_ram = 0;
     choices[i].value = 0;
   }
-
-  choicesHeader.ptr = nullptr;
-  choicesHeader.id = MSG_LITTLE;
-  choicesHeader.is_ram = 0;
+  setChoicesHeader_P(MSG_LITTLE);
 }
 
 int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear) {
