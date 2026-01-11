@@ -453,11 +453,11 @@ void printSoilAndWaterTrayStatus(bool fullRedraw) {
   if (fullRedraw) {
     lcdSetCursor(0, 0);
     lcdPrint_P(MSG_SOIL_NOW);
-    lcdPrint_P(MSG_SPACE);
+    lcd.print(' ');
 
     lcdSetCursor(kDrybackLabelCol, 0);
     lcdPrint_P(MSG_DB_COLON);
-    lcdPrint_P(MSG_SPACE);
+    lcd.print(' ');
     lcdClearLine(1);
   }
 
@@ -546,7 +546,7 @@ void showLogType0() {
   lcdClear();
   // Print absolute log number (epoch-aware)
   lcd.print((unsigned long)getAbsoluteLogNumber());
-  lcdPrint_P(MSG_SPACE);
+  lcd.print(' ');
   lcdPrint_P(MSG_LOG_TYPE_0);
   lcd.setCursor(0, 1);
   lcdPrint_P(MSG_AT);
@@ -562,9 +562,9 @@ void showLogType1() {
   lcdClear();
   // Print absolute log number (epoch-aware)
   lcd.print((unsigned long)getAbsoluteLogNumber());
-  lcdPrint_P(MSG_SPACE);
+  lcd.print(' ');
   lcdPrint_P(MSG_LOG_TYPE_1);
-  lcdPrint_P(MSG_SPACE);
+  lcd.print(' ');
   lcd.print('S');
   lcd.print(currentLogEntry.slotIndex + 1);
 
@@ -613,7 +613,7 @@ void showLogType2() {
   lcdClear();
   // Print absolute log number (epoch-aware)
   lcd.print((unsigned long)getAbsoluteLogNumber());
-  lcdPrint_P(MSG_SPACE);
+  lcd.print(' ');
   lcdPrint_P(MSG_LOG_TYPE_2);
   lcd.setCursor(0, 1);
   lcdPrint_P(MSG_AT);
@@ -818,7 +818,7 @@ static void displayFeedingStatus(bool fullRedraw) {
     lcdPrint_P(MSG_STOP_COLON);
     bool anyStop = false;
     if (status.hasMoistureTarget) {
-      lcdPrint_P(MSG_SPACE);
+      lcd.print(' ');
       lcdPrint_P(MSG_MOIST_GT);
       lcd.print(status.moistureTarget);
       lcd.print('%');
@@ -830,7 +830,7 @@ static void displayFeedingStatus(bool fullRedraw) {
       anyStop = true;
     }
     if (!anyStop) {
-      lcdPrint_P(MSG_SPACE);
+      lcd.print(' ');
       lcdPrint_P(MSG_NA);
     }
   }
@@ -839,7 +839,7 @@ static void displayFeedingStatus(bool fullRedraw) {
   lcdSetCursor(0, 1);
   lcdPrint_P(MSG_PUMP_COLON);
   lcdPrint_P(status.pumpOn ? MSG_ON_UPPER : MSG_OFF_UPPER);
-  lcdPrint_P(MSG_SPACE);
+  lcd.print(' ');
   lcdPrint_P(MSG_MST_COLON);
   if (status.moistureReady) {
     lcd.print(status.moisturePercent);
