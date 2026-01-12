@@ -507,13 +507,17 @@ uint32_t getAbsoluteLogNumber() {
   return ((uint32_t)browseEpoch << 16) | seq;
 }
 
-uint16_t getDailyFeedTotalMlAt(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute) {
+uint16_t getDailyFeedTotalMlAt(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute,
+                               uint8_t *outMin, uint8_t *outMax) {
   uint16_t targetKey = 0;
   if (!calcLightDayKey(year, month, day, hour, minute, config.lightsOnMinutes, &targetKey)) return 0;
 
   int16_t savedSlot = currentSlot;
   uint16_t savedBrowseEpoch = browseEpoch;
   uint16_t total = 0;
+  bool foundTotal = false;
+  uint8_t minVal = LOG_BASELINE_UNSET;
+  uint8_t maxVal = LOG_BASELINE_UNSET;
 
   goToLatestSlot();
   if (currentSlot >= 0) {
@@ -522,8 +526,19 @@ uint16_t getDailyFeedTotalMlAt(uint8_t year, uint8_t month, uint8_t day, uint8_t
       uint16_t entryKey = entry->lightDayKey;
       if (entryKey && entryKey < targetKey) break;
       if (entry->entryType == 1 && entryKey == targetKey) {
-        total = entry->dailyTotalMl;
-        break;
+        if (!foundTotal) {
+          total = entry->dailyTotalMl;
+          foundTotal = true;
+        }
+      } else if (entry->entryType == 2 && entryKey == targetKey) {
+        uint8_t val = entry->soilMoistureBefore;
+        if (minVal == LOG_BASELINE_UNSET) {
+          minVal = val;
+          maxVal = val;
+        } else {
+          if (val < minVal) minVal = val;
+          if (val > maxVal) maxVal = val;
+        }
       }
     } while (goToPreviousLogSlot());
   }
@@ -536,10 +551,13 @@ uint16_t getDailyFeedTotalMlAt(uint8_t year, uint8_t month, uint8_t day, uint8_t
     currentSlot = savedSlot;
   }
 
+  if (outMin) *outMin = minVal;
+  if (outMax) *outMax = maxVal;
+
   return total;
 }
 
-uint16_t getDailyFeedTotalMlNow() {
+uint16_t getDailyFeedTotalMlNow(uint8_t *outMin, uint8_t *outMax) {
   uint8_t hour = 0;
   uint8_t minute = 0;
   uint8_t day = 0;
@@ -547,7 +565,7 @@ uint16_t getDailyFeedTotalMlNow() {
   uint8_t year = 0;
 
   if (!rtcReadDateTime(&hour, &minute, &day, &month, &year)) return 0;
-  return getDailyFeedTotalMlAt(year, month, day, hour, minute);
+  return getDailyFeedTotalMlAt(year, month, day, hour, minute, outMin, outMax);
 }
 
 uint32_t getLightDayKeyAt(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute) {

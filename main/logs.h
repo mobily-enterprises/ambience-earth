@@ -80,8 +80,9 @@ bool findLatestBaselineEntries(LogEntry *outLatestSetter, int16_t *outLatestSett
 
 // Epoch-aware numbering helpers
 uint32_t getAbsoluteLogNumber();
-uint16_t getDailyFeedTotalMlAt(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute);
-uint16_t getDailyFeedTotalMlNow();
+uint16_t getDailyFeedTotalMlAt(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute,
+                               uint8_t *outMin = nullptr, uint8_t *outMax = nullptr);
+uint16_t getDailyFeedTotalMlNow(uint8_t *outMin = nullptr, uint8_t *outMax = nullptr);
 uint32_t getLightDayKeyAt(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute);
 uint32_t getLightDayKeyNow();
 bool getDrybackPercent(uint8_t *outPercent);

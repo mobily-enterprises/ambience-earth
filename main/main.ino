@@ -633,7 +633,6 @@ void displayInfo1(bool fullRedraw) {
   static const uint8_t kBaselineFieldWidth = 4;
 
   printSoilAndWaterTrayStatus(fullRedraw);
-  bool showBaseline = feedingHasBaselineSetter();
 
   if (fullRedraw) {
     lcdSetCursor(0, 3);
@@ -680,19 +679,28 @@ void displayInfo1(bool fullRedraw) {
   lcdPrint_P(MSG_ML);
   // lcdPrintNumber(actionPreviousMillis);
 
-  uint16_t dailyTotal = getDailyFeedTotalMlNow();
+  bool showLoHi = ((millis() & 4096UL) != 0);
+  uint8_t dayLo = LOG_BASELINE_UNSET;
+  uint8_t dayHi = LOG_BASELINE_UNSET;
+  uint16_t dailyTotal = getDailyFeedTotalMlNow(&dayLo, &dayHi);
   lcdSetCursor(kDailyValueCol, 3);
   lcdPrintSpaces(kDailyFieldWidth);
   lcdSetCursor(kDailyValueCol, 3);
   lcd.print(dailyTotal);
   lcdPrint_P(MSG_ML);
-  if (showBaseline) {
+  lcdSetCursor(kBaselineLabelCol, 3);
+  lcdPrintSpaces(kBaselineFieldWidth + 4);
+  if (showLoHi) {
+    lcdSetCursor(kBaselineLabelCol, 3);
+    if (dayLo != LOG_BASELINE_UNSET) {
+      lcd.print('L');
+      lcd.print(dayLo);
+      lcd.print('H');
+      lcd.print(dayHi);
+    }
+  } else {
     lcdSetCursor(kBaselineLabelCol, 3);
     lcdPrint_P(MSG_BL_COLON);
-  }
-  lcdSetCursor(kBaselineValueCol, 3);
-  lcdPrintSpaces(kBaselineFieldWidth);
-  if (showBaseline) {
     lcdSetCursor(kBaselineValueCol, 3);
     uint8_t baseline = 0;
     if (feedingGetBaselinePercent(&baseline)) {
@@ -702,7 +710,6 @@ void displayInfo1(bool fullRedraw) {
       lcdPrint_P(MSG_NA);
     }
   }
-
 }
 
 static void displayFeedingStatus(bool fullRedraw) {
