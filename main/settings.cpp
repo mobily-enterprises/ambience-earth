@@ -32,19 +32,11 @@ static void setTimeAndDate() {
   uint8_t year = 26;
 
   if (rtcReadDateTime(&hour, &minute, &day, &month, &year)) {
-    if (hour > 23) hour = 0;
-    if (minute > 59) minute = 0;
-    bool dateUnset = (month == 0 || month > 12 || day == 0 || day > 31);
-    if (!dateUnset && year == 0 && month == 1 && day == 1) dateUnset = true;
-    if (dateUnset) {
+    if (month == 0 || month > 12 || day == 0 || day > 31 || (year == 0 && month == 1 && day == 1)) {
       day = 1;
       month = 1;
       year = 26;
     }
-  } else {
-    day = 1;
-    month = 1;
-    year = 26;
   }
 
   uint16_t timeMinutes = static_cast<uint16_t>(hour) * 60u + minute;
@@ -428,14 +420,9 @@ void calibrateMoistureSensor() {
     setChoicesHeader_P(MSG_CAL_MOISTURE_SENSOR);
     int8_t choice = selectChoice(2, 1);
     if (choice == -1) return;
-    screenSaverSuspend();
-    if (choice == 1) {
-      calibrateOnePoint(true);
-      screenSaverResume();
-      return;
-    }
-    if (choice == 2) {
-      calibrateOnePoint(false);
+    if (choice == 1 || choice == 2) {
+      screenSaverSuspend();
+      calibrateOnePoint(choice == 1);
       screenSaverResume();
       return;
     }

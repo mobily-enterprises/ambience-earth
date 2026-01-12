@@ -438,6 +438,21 @@ static void drawBlinkAt(uint8_t col, uint8_t row, bool blinkOn) {
   lcd.write((uint8_t)0);
 }
 
+static void updateBlink(bool *cursorVisible, unsigned long *lastBlinkAt,
+                        bool *displayChanged, unsigned long now) {
+  if (now - *lastBlinkAt < 500) return;
+  *cursorVisible = !*cursorVisible;
+  *lastBlinkAt = now;
+  *displayChanged = true;
+}
+
+static void resetBlink(bool *cursorVisible, unsigned long *lastBlinkAt,
+                       bool *displayChanged, unsigned long now) {
+  *cursorVisible = true;
+  *lastBlinkAt = now;
+  *displayChanged = true;
+}
+
 static void drawHeaderFrame(MsgId header) {
   lcdClear();
   lcdPrint_P(header, 0);
@@ -671,11 +686,7 @@ bool inputTime_P(MsgId header, MsgId prompt, uint16_t initialMinutes, uint16_t *
 
   while (true) {
     unsigned long now = millis();
-    if (now - lastBlinkAt >= 500) {
-      cursorVisible = !cursorVisible;
-      lastBlinkAt = now;
-      displayChanged = true;
-    }
+    updateBlink(&cursorVisible, &lastBlinkAt, &displayChanged, now);
 
     if (displayChanged) {
       drawTimeEntryLine(hour, minute, timeRow, cursorVisible, editHour);
@@ -683,11 +694,7 @@ bool inputTime_P(MsgId header, MsgId prompt, uint16_t initialMinutes, uint16_t *
     }
 
     analogButtonsCheck();
-    if (pressedButton) {
-      cursorVisible = true;
-      lastBlinkAt = now;
-      displayChanged = true;
-    }
+    if (pressedButton) resetBlink(&cursorVisible, &lastBlinkAt, &displayChanged, now);
 
     if (pressedButton == &upButton) {
       if (editHour) hour = static_cast<uint8_t>((hour + 1) % 24);
@@ -734,11 +741,7 @@ bool inputDate_P(MsgId header, MsgId prompt, uint8_t *day, uint8_t *month, uint8
 
   while (true) {
     unsigned long now = millis();
-    if (now - lastBlinkAt >= 500) {
-      cursorVisible = !cursorVisible;
-      lastBlinkAt = now;
-      displayChanged = true;
-    }
+    updateBlink(&cursorVisible, &lastBlinkAt, &displayChanged, now);
 
     if (displayChanged) {
       drawDateEntryLine(d, m, y, dateRow, cursorVisible, field);
@@ -746,11 +749,7 @@ bool inputDate_P(MsgId header, MsgId prompt, uint8_t *day, uint8_t *month, uint8
     }
 
     analogButtonsCheck();
-    if (pressedButton) {
-      cursorVisible = true;
-      lastBlinkAt = now;
-      displayChanged = true;
-    }
+    if (pressedButton) resetBlink(&cursorVisible, &lastBlinkAt, &displayChanged, now);
 
     if (pressedButton == &upButton) {
       if (field == 0) {
@@ -819,11 +818,7 @@ bool inputLightsOnOff_P(MsgId header, uint16_t *onMinutes, uint16_t *offMinutes)
 
   while (true) {
     unsigned long now = millis();
-    if (now - lastBlinkAt >= 500) {
-      cursorVisible = !cursorVisible;
-      lastBlinkAt = now;
-      displayChanged = true;
-    }
+    updateBlink(&cursorVisible, &lastBlinkAt, &displayChanged, now);
 
     if (displayChanged) {
       drawLightsOnOffValues(onHour, onMinute, offHour, offMinute, field, cursorVisible);
@@ -831,11 +826,7 @@ bool inputLightsOnOff_P(MsgId header, uint16_t *onMinutes, uint16_t *offMinutes)
     }
 
     analogButtonsCheck();
-    if (pressedButton) {
-      cursorVisible = true;
-      lastBlinkAt = now;
-      displayChanged = true;
-    }
+    if (pressedButton) resetBlink(&cursorVisible, &lastBlinkAt, &displayChanged, now);
 
     if (pressedButton == &upButton) {
       switch (field) {

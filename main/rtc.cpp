@@ -62,17 +62,12 @@ void initRtc() {
 }
 
 bool rtcReadMinutesAndDay(uint16_t *minutesOfDay, uint16_t *dayKey) {
-  uint8_t data[7];
-  if (!readRegisters(0x00, data, sizeof(data))) return false;
-
-  uint8_t minuteVal = bcdToDec(data[1] & 0x7F);
-  uint8_t hourVal = decodeHour(data[2]);
-  uint8_t dayVal = bcdToDec(data[4] & 0x3F);
-  uint8_t monthVal = bcdToDec(data[5] & 0x1F);
-  uint8_t yearVal = bcdToDec(data[6]);
-
-  if (minuteVal > 59 || hourVal > 23 || dayVal == 0 || monthVal == 0 || monthVal > 12) return false;
-  if (dayVal > daysInMonth(monthVal, yearVal)) return false;
+  uint8_t hourVal = 0;
+  uint8_t minuteVal = 0;
+  uint8_t dayVal = 0;
+  uint8_t monthVal = 0;
+  uint8_t yearVal = 0;
+  if (!rtcReadDateTime(&hourVal, &minuteVal, &dayVal, &monthVal, &yearVal)) return false;
 
   if (minutesOfDay) {
     *minutesOfDay = static_cast<uint16_t>(hourVal) * 60u + minuteVal;

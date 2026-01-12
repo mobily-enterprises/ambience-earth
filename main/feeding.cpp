@@ -84,17 +84,8 @@ static void formatTime(char *out, uint16_t minutesOfDay) {
 }
 
 static void formatOffset(char *out, uint16_t minutes) {
-  if (minutes > 1439) minutes = 1439;
-  uint8_t hour = minutes / 60;
-  uint8_t minute = minutes % 60;
-
   out[0] = '+';
-  out[1] = static_cast<char>('0' + (hour / 10));
-  out[2] = static_cast<char>('0' + (hour % 10));
-  out[3] = ':';
-  out[4] = static_cast<char>('0' + (minute / 10));
-  out[5] = static_cast<char>('0' + (minute % 10));
-  out[6] = '\0';
+  formatTime(out + 1, minutes);
 }
 
 static uint16_t clampVolume(int16_t ml) {
