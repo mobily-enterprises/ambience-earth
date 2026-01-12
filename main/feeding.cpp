@@ -336,34 +336,40 @@ static bool editTimeWindow(FeedSlot *slot) {
   return true;
 }
 
-static bool editMoistureBelow(FeedSlot *slot) {
+static bool editMoistureLimit(FeedSlot *slot, uint8_t flag, uint8_t *value,
+                              MsgId label, MsgId baselineLabel, MsgId header) {
   uint8_t initialMode = MOIST_MODE_OFF;
-  if (slotFlag(slot, FEED_SLOT_HAS_MOISTURE_BELOW)) {
-    initialMode = (slot->moistureBelow == kMoistureBaselineSentinel) ? MOIST_MODE_BASELINE : MOIST_MODE_PERCENT;
+  if (slotFlag(slot, flag)) {
+    initialMode = (*value == kMoistureBaselineSentinel) ? MOIST_MODE_BASELINE : MOIST_MODE_PERCENT;
   }
 
-  int8_t mode = selectMoistureMode(MSG_MOIST_BELOW, initialMode, MSG_BASELINE_X);
+  int8_t mode = selectMoistureMode(label, initialMode, baselineLabel);
   if (mode == -1) return false;
   if (mode == MOIST_MODE_OFF) {
-    setSlotFlag(slot, FEED_SLOT_HAS_MOISTURE_BELOW, false);
+    setSlotFlag(slot, flag, false);
     return true;
   }
   if (mode == MOIST_MODE_BASELINE) {
-    slot->moistureBelow = kMoistureBaselineSentinel;
-    setSlotFlag(slot, FEED_SLOT_HAS_MOISTURE_BELOW, true);
+    *value = kMoistureBaselineSentinel;
+    setSlotFlag(slot, flag, true);
     return true;
   }
 
-  uint8_t initial = slot->moistureBelow;
-  if (!slotFlag(slot, FEED_SLOT_HAS_MOISTURE_BELOW) || initial == kMoistureBaselineSentinel) initial = 50;
+  uint8_t initial = *value;
+  if (!slotFlag(slot, flag) || initial == kMoistureBaselineSentinel) initial = 50;
   if (initial > 100) initial = 100;
-  int16_t percent = inputNumber_P(MSG_MOIST_BELOW, static_cast<int16_t>(initial), 5, 0, 100, MSG_PERCENT, MSG_START_CONDITIONS);
+  int16_t percent = inputNumber_P(label, static_cast<int16_t>(initial), 5, 0, 100, MSG_PERCENT, header);
   if (percent < 0) return false;
   if (percent > 100) percent = 100;
 
-  slot->moistureBelow = static_cast<uint8_t>(percent);
-  setSlotFlag(slot, FEED_SLOT_HAS_MOISTURE_BELOW, true);
+  *value = static_cast<uint8_t>(percent);
+  setSlotFlag(slot, flag, true);
   return true;
+}
+
+static bool editMoistureBelow(FeedSlot *slot) {
+  return editMoistureLimit(slot, FEED_SLOT_HAS_MOISTURE_BELOW, &slot->moistureBelow,
+                           MSG_MOIST_BELOW, MSG_BASELINE_X, MSG_START_CONDITIONS);
 }
 
 static bool editMinBetweenFeeds(FeedSlot *slot) {
@@ -380,33 +386,8 @@ static bool editMinBetweenFeeds(FeedSlot *slot) {
 }
 
 static bool editMoistureTarget(FeedSlot *slot) {
-  uint8_t initialMode = MOIST_MODE_OFF;
-  if (slotFlag(slot, FEED_SLOT_HAS_MOISTURE_TARGET)) {
-    initialMode = (slot->moistureTarget == kMoistureBaselineSentinel) ? MOIST_MODE_BASELINE : MOIST_MODE_PERCENT;
-  }
-
-  int8_t mode = selectMoistureMode(MSG_MOIST_TARGET, initialMode, MSG_BASELINE_Y);
-  if (mode == -1) return false;
-  if (mode == MOIST_MODE_OFF) {
-    setSlotFlag(slot, FEED_SLOT_HAS_MOISTURE_TARGET, false);
-    return true;
-  }
-  if (mode == MOIST_MODE_BASELINE) {
-    slot->moistureTarget = kMoistureBaselineSentinel;
-    setSlotFlag(slot, FEED_SLOT_HAS_MOISTURE_TARGET, true);
-    return true;
-  }
-
-  uint8_t initial = slot->moistureTarget;
-  if (!slotFlag(slot, FEED_SLOT_HAS_MOISTURE_TARGET) || initial == kMoistureBaselineSentinel) initial = 50;
-  if (initial > 100) initial = 100;
-  int16_t percent = inputNumber_P(MSG_MOIST_TARGET, static_cast<int16_t>(initial), 5, 0, 100, MSG_PERCENT, MSG_END_CONDITIONS);
-  if (percent < 0) return false;
-  if (percent > 100) percent = 100;
-
-  slot->moistureTarget = static_cast<uint8_t>(percent);
-  setSlotFlag(slot, FEED_SLOT_HAS_MOISTURE_TARGET, true);
-  return true;
+  return editMoistureLimit(slot, FEED_SLOT_HAS_MOISTURE_TARGET, &slot->moistureTarget,
+                           MSG_MOIST_TARGET, MSG_BASELINE_Y, MSG_END_CONDITIONS);
 }
 
 static bool editMaxVolume(FeedSlot *slot) {

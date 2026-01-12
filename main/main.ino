@@ -474,15 +474,19 @@ static void drawLogStartLine(MsgId label) {
                    currentLogEntry.startHour, currentLogEntry.startMinute);
 }
 
-void showLogType0() {
-  drawLogHeader(MSG_LOG_TYPE_0);
+static void showLogTypeSoil(MsgId typeLabel, MsgId soilLabel) {
+  drawLogHeader(typeLabel);
   drawLogStartLine(MSG_AT);
   lcd.setCursor(0, 2);
-  lcdPrint_P(MSG_SOIL_COLON);
+  lcdPrint_P(soilLabel);
   lcd.print(currentLogEntry.soilMoistureBefore);
   lcd.print('%');
   lcd.setCursor(0, 3);
   lcdPrintDrybackValue(currentLogEntry.drybackPercent, '%');
+}
+
+void showLogType0() {
+  showLogTypeSoil(MSG_LOG_TYPE_0, MSG_SOIL_COLON);
 }
 
 void showLogType1() {
@@ -536,16 +540,7 @@ void showLogType1() {
 }
 
 void showLogType2() {
-  drawLogHeader(MSG_LOG_TYPE_2);
-  drawLogStartLine(MSG_AT);
-
-  lcd.setCursor(0, 2);
-  lcdPrint_P(MSG_SOIL_MOISTURE_COLUMN);
-  lcdPrintNumber(currentLogEntry.soilMoistureBefore);
-  lcdPrint_P(MSG_PERCENT);
-
-  lcd.setCursor(0, 3);
-  lcdPrintDrybackValue(currentLogEntry.drybackPercent, '%');
+  showLogTypeSoil(MSG_LOG_TYPE_2, MSG_SOIL_MOISTURE_COLUMN);
 }
 
 

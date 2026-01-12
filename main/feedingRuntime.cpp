@@ -122,23 +122,16 @@ static inline bool baselineGetPercent(uint8_t *outPercent) {
   return true;
 }
 
-static bool isLeapYear(uint8_t year) {
-  return (year % 4u) == 0;
-}
-
 static bool dateTimeToMinutes(uint8_t year, uint8_t month, uint8_t day,
                               uint8_t hour, uint8_t minute, uint32_t *outMinutes) {
   if (!outMinutes) return false;
   if (month == 0 || month > 12 || day == 0 || day > 31) return false;
   if (hour > 23 || minute > 59) return false;
-  static const uint8_t kDaysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-  uint8_t dim = kDaysInMonth[month - 1];
-  if (month == 2 && isLeapYear(year)) dim = 29;
+  uint8_t dim = daysInMonth(month, year);
   if (day > dim) return false;
   uint32_t days = static_cast<uint32_t>(year) * 365u + static_cast<uint32_t>((year + 3u) / 4u);
   for (uint8_t m = 1; m < month; ++m) {
-    days += kDaysInMonth[m - 1];
-    if (m == 2 && isLeapYear(year)) days += 1;
+    days += daysInMonth(m, year);
   }
   days += static_cast<uint32_t>(day - 1);
   *outMinutes = days * 1440u + static_cast<uint32_t>(hour) * 60u + minute;
