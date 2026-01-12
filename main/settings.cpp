@@ -24,14 +24,6 @@ extern Button rightButton;
 extern Button okButton;
 extern Button *pressedButton;
 
-static uint8_t daysInMonth(uint8_t month, uint8_t year) {
-  static const uint8_t kDays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-  if (month == 0 || month > 12) return 31;
-  uint8_t days = kDays[month - 1];
-  if (month == 2 && (year % 4u) == 0) days = 29;
-  return days;
-}
-
 static void setTimeAndDate() {
   uint8_t hour = 0;
   uint8_t minute = 0;
@@ -61,29 +53,10 @@ static void setTimeAndDate() {
     return;
   }
 
-  int16_t input = inputNumber_P(MSG_M_COLON, static_cast<int16_t>(month), 1, 1, 12, MSG_LITTLE, MSG_DATE_LABEL);
-  if (input < 0) {
+  if (!inputDate_P(MSG_SET_TIME_DATE, MSG_LITTLE, &day, &month, &year)) {
     lcdFlashMessage_P(MSG_ABORTED);
     return;
   }
-  month = static_cast<uint8_t>(input);
-
-  uint8_t maxDay = daysInMonth(month, year);
-  input = inputNumber_P(MSG_D_COLON, static_cast<int16_t>(day), 1, 1, maxDay, MSG_LITTLE, MSG_DATE_LABEL);
-  if (input < 0) {
-    lcdFlashMessage_P(MSG_ABORTED);
-    return;
-  }
-  day = static_cast<uint8_t>(input);
-
-  input = inputNumber_P(MSG_DATE_LABEL, static_cast<int16_t>(year), 1, 0, 99, MSG_LITTLE, MSG_DATE_LABEL);
-  if (input < 0) {
-    lcdFlashMessage_P(MSG_ABORTED);
-    return;
-  }
-  year = static_cast<uint8_t>(input);
-  maxDay = daysInMonth(month, year);
-  if (day > maxDay) day = maxDay;
 
   hour = static_cast<uint8_t>(timeMinutes / 60u);
   minute = static_cast<uint8_t>(timeMinutes % 60u);

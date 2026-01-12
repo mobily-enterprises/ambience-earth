@@ -41,6 +41,14 @@ static uint16_t absDiff(uint16_t a, uint16_t b) {
   return (a > b) ? (a - b) : (b - a);
 }
 
+static uint8_t daysInMonth(uint8_t month, uint8_t year) {
+  static const uint8_t kDays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  if (month == 0 || month > 12) return 31;
+  uint8_t days = kDays[month - 1];
+  if (month == 2 && (year % 4u) == 0) days = 29;
+  return days;
+}
+
 static bool thresholdValid(uint16_t threshold) {
   return threshold < 1024;
 }
@@ -468,6 +476,26 @@ static void drawTimeEntryLine(uint8_t hour, uint8_t minute, uint8_t row, bool bl
   drawBlinkAt(editHour ? 5 : 8, row, blinkOn);
 }
 
+static void drawDateEntryFrame(MsgId header, MsgId prompt, uint8_t row) {
+  drawHeaderFrame(header);
+  lcdPrint_P(prompt, 1);
+  lcdClearLine(row);
+  lcdSetCursor(0, row);
+  lcdPrint_P(MSG_DATE_LABEL);
+  lcdSetCursor(7, row);
+  lcd.print('/');
+  lcdSetCursor(10, row);
+  lcd.print('/');
+}
+
+static void drawDateEntryLine(uint8_t day, uint8_t month, uint8_t year, uint8_t row, bool blinkOn, uint8_t field) {
+  drawTwoDigitsAt(5, row, day);
+  drawTwoDigitsAt(8, row, month);
+  drawTwoDigitsAt(11, row, year);
+  uint8_t col = (field == 0) ? 5 : (field == 1) ? 8 : 11;
+  drawBlinkAt(col, row, blinkOn);
+}
+
 static void drawLightsOnOffFrame(MsgId header) {
   drawHeaderFrame(header);
   lcdClearLine(1);
@@ -696,6 +724,91 @@ bool inputTime_P(MsgId header, MsgId prompt, uint16_t initialMinutes, uint16_t *
     } else if (pressedButton == &leftButton) {
       if (editHour) return false;
       editHour = true;
+      displayChanged = true;
+    }
+  }
+}
+
+bool inputDate_P(MsgId header, MsgId prompt, uint8_t *day, uint8_t *month, uint8_t *year) {
+  if (!day || !month || !year) return false;
+
+  uint8_t d = *day;
+  uint8_t m = *month;
+  uint8_t y = *year;
+  if (m == 0 || m > 12) m = 1;
+  if (d == 0 || d > 31) d = 1;
+  uint8_t maxDay = daysInMonth(m, y);
+  if (d > maxDay) d = maxDay;
+
+  uint8_t field = 0;
+  bool cursorVisible = true;
+  bool displayChanged = true;
+  unsigned long lastBlinkAt = 0;
+  const uint8_t dateRow = 2;
+
+  drawDateEntryFrame(header, prompt, dateRow);
+
+  while (true) {
+    unsigned long now = millis();
+    if (now - lastBlinkAt >= 500) {
+      cursorVisible = !cursorVisible;
+      lastBlinkAt = now;
+      displayChanged = true;
+    }
+
+    if (displayChanged) {
+      drawDateEntryLine(d, m, y, dateRow, cursorVisible, field);
+      displayChanged = false;
+    }
+
+    analogButtonsCheck();
+    if (pressedButton) {
+      cursorVisible = true;
+      lastBlinkAt = now;
+      displayChanged = true;
+    }
+
+    if (pressedButton == &upButton) {
+      if (field == 0) {
+        uint8_t limit = daysInMonth(m, y);
+        d = (d >= limit) ? 1 : static_cast<uint8_t>(d + 1);
+      } else if (field == 1) {
+        m = (m >= 12) ? 1 : static_cast<uint8_t>(m + 1);
+        maxDay = daysInMonth(m, y);
+        if (d > maxDay) d = maxDay;
+      } else {
+        y = static_cast<uint8_t>(y + 1);
+        maxDay = daysInMonth(m, y);
+        if (d > maxDay) d = maxDay;
+      }
+      displayChanged = true;
+    } else if (pressedButton == &downButton) {
+      if (field == 0) {
+        uint8_t limit = daysInMonth(m, y);
+        d = (d <= 1) ? limit : static_cast<uint8_t>(d - 1);
+      } else if (field == 1) {
+        m = (m <= 1) ? 12 : static_cast<uint8_t>(m - 1);
+        maxDay = daysInMonth(m, y);
+        if (d > maxDay) d = maxDay;
+      } else {
+        y = static_cast<uint8_t>(y - 1);
+        maxDay = daysInMonth(m, y);
+        if (d > maxDay) d = maxDay;
+      }
+      displayChanged = true;
+    } else if (pressedButton == &rightButton || pressedButton == &okButton) {
+      if (field < 2) {
+        field++;
+        displayChanged = true;
+      } else {
+        *day = d;
+        *month = m;
+        *year = y;
+        return true;
+      }
+    } else if (pressedButton == &leftButton) {
+      if (field == 0) return false;
+      field--;
       displayChanged = true;
     }
   }

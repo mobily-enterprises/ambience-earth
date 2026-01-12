@@ -583,6 +583,17 @@ void showLogType1() {
   lcd.print(' ');
   lcd.print('S');
   lcd.print(currentLogEntry.slotIndex + 1);
+  lcd.print(' ');
+  switch (currentLogEntry.stopReason) {
+    case LOG_STOP_MOISTURE: lcdPrint_P(MSG_MST_SHORT); break;
+    case LOG_STOP_RUNOFF: lcdPrint_P(MSG_RUN_SHORT); break;
+    case LOG_STOP_MAX_RUNTIME: lcdPrint_P(MSG_MAX_SHORT); break;
+    case LOG_STOP_DISABLED: lcdPrint_P(MSG_OFF); break;
+    case LOG_STOP_UI_PAUSE: lcdPrint_P(MSG_CFG_SHORT); break;
+    case LOG_STOP_MAX_DAILY_FEED_REACHED: lcdPrint_P(MSG_DAY_SHORT); break;
+    case LOG_STOP_FEED_NOT_CALIBRATED: lcdPrint_P(MSG_CAL_SHORT); break;
+    default: lcdPrint_P(MSG_DASHES_3); break;
+  }
 
   drawLogStartLine(MSG_START_LABEL);
 
@@ -595,30 +606,26 @@ void showLogType1() {
   }
   if (volMl) lcd.print(volMl);
   else lcdPrint_P(MSG_NA_LOWER);
-  lcdPrint_P(MSG_T_COLON);
-  lcd.print(currentLogEntry.dailyTotalMl);
-  lcdPrint_P(MSG_S_COLON);
-  switch (currentLogEntry.stopReason) {
-    case LOG_STOP_MOISTURE: lcdPrint_P(MSG_MST_SHORT); break;
-    case LOG_STOP_RUNOFF: lcdPrint_P(MSG_RUN_SHORT); break;
-    case LOG_STOP_MAX_RUNTIME: lcdPrint_P(MSG_MAX_SHORT); break;
-    case LOG_STOP_DISABLED: lcdPrint_P(MSG_OFF); break;
-    case LOG_STOP_UI_PAUSE: lcdPrint_P(MSG_CFG_SHORT); break;
-    case LOG_STOP_MAX_DAILY_FEED_REACHED: lcdPrint_P(MSG_DAY_SHORT); break;
-    case LOG_STOP_FEED_NOT_CALIBRATED: lcdPrint_P(MSG_CAL_SHORT); break;
-    default: lcdPrint_P(MSG_DASHES_3); break;
-  }
-  if (currentLogEntry.flags & LOG_FLAG_RUNOFF_ANY) lcd.print('!');
-
-  lcd.setCursor(0, 3);
+  lcdPrint_P(MSG_ML);
+  lcd.print(' ');
   lcdPrint_P(MSG_MST_COLON);
   lcdPrintNumber(currentLogEntry.soilMoistureBefore);
   lcd.print('-');
   lcdPrintNumber(currentLogEntry.soilMoistureAfter);
   lcd.print('%');
+
+  lcd.setCursor(0, 3);
+  lcd.print('T');
+  lcd.print(':');
+  lcd.print(currentLogEntry.dailyTotalMl);
+  lcdPrint_P(MSG_ML);
+  if (currentLogEntry.flags & LOG_FLAG_RUNOFF_ANY) lcd.print('!');
   lcd.print(' ');
-  lcdPrintDrybackValue(currentLogEntry.drybackPercent,
-                       (currentLogEntry.flags & LOG_FLAG_RUNOFF_SEEN) ? 'R' : '%');
+  lcdPrintDrybackValue(currentLogEntry.drybackPercent, '%');
+  if (currentLogEntry.flags & LOG_FLAG_RUNOFF_SEEN) {
+    lcd.print(' ');
+    lcd.print('R');
+  }
 }
 
 void showLogType2() {

@@ -51,6 +51,7 @@ void setChoice_P(unsigned char index, MsgId label, int value=0);
 
 int16_t inputNumber_P(MsgId prompt, int16_t initialUserInput, int stepSize, int16_t min = 0, int16_t max = 100, MsgId postFix = MSG_LITTLE, MsgId optionalHeader = MSG_LITTLE);
 bool inputTime_P(MsgId header, MsgId prompt, uint16_t initialMinutes, uint16_t *outMinutes);
+bool inputDate_P(MsgId header, MsgId prompt, uint8_t *day, uint8_t *month, uint8_t *year);
 bool inputLightsOnOff_P(MsgId header, uint16_t *onMinutes, uint16_t *offMinutes);
 bool inputString_P(MsgId prompt, char *initialUserInput, MsgId optionalHeader = MSG_LITTLE, bool asEdit = false, uint8_t maxLen = LABEL_LENGTH);
 
