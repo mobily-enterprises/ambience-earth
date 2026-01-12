@@ -495,16 +495,19 @@ void showLogType1() {
   lcd.print('S');
   lcd.print(currentLogEntry.slotIndex + 1);
   lcd.print(' ');
-  switch (currentLogEntry.stopReason) {
-    case LOG_STOP_MOISTURE: lcdPrint_P(MSG_MST_SHORT); break;
-    case LOG_STOP_RUNOFF: lcdPrint_P(MSG_RUN_SHORT); break;
-    case LOG_STOP_MAX_RUNTIME: lcdPrint_P(MSG_MAX_SHORT); break;
-    case LOG_STOP_DISABLED: lcdPrint_P(MSG_OFF); break;
-    case LOG_STOP_UI_PAUSE: lcdPrint_P(MSG_CFG_SHORT); break;
-    case LOG_STOP_MAX_DAILY_FEED_REACHED: lcdPrint_P(MSG_DAY_SHORT); break;
-    case LOG_STOP_FEED_NOT_CALIBRATED: lcdPrint_P(MSG_CAL_SHORT); break;
-    default: lcdPrint_P(MSG_DASHES_3); break;
-  }
+  static const uint8_t kStopReasonLabels[] PROGMEM = {
+    MSG_DASHES_3,
+    MSG_MST_SHORT,
+    MSG_RUN_SHORT,
+    MSG_MAX_SHORT,
+    MSG_OFF,
+    MSG_CFG_SHORT,
+    MSG_DAY_SHORT,
+    MSG_CAL_SHORT
+  };
+  uint8_t reason = currentLogEntry.stopReason;
+  if (reason >= (sizeof(kStopReasonLabels) / sizeof(kStopReasonLabels[0]))) reason = 0;
+  lcdPrint_P(static_cast<MsgId>(pgm_read_byte(&kStopReasonLabels[reason])));
 
   drawLogStartLine(MSG_START_LABEL);
 

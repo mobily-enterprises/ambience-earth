@@ -584,8 +584,7 @@ static void editBaselineSetting(uint8_t *value, MsgId label) {
                                  MSG_PERCENT, MSG_FEEDING_MENU);
   if (input < 0) return;
   *value = clampBaselineOffset(static_cast<uint8_t>(input));
-  saveConfig();
-  lcdFlashMessage_P(MSG_DONE);
+  saveConfigDone();
 }
 
 static void editBaselineDelay() {
@@ -595,8 +594,7 @@ static void editBaselineDelay() {
                                  MSG_MINUTES, MSG_FEEDING_MENU);
   if (input < 0) return;
   config.baselineDelayMinutes = static_cast<uint8_t>(input);
-  saveConfig();
-  lcdFlashMessage_P(MSG_DONE);
+  saveConfigDone();
 }
 
 } /* End of namespace */
@@ -643,7 +641,6 @@ void editMaxDailyWater() {
   if (ml >= 0) {
     config.maxDailyWaterMl = static_cast<uint16_t>(ml);
     config.flags |= CONFIG_FLAG_MAX_DAILY_SET;
-    saveConfig();
-    lcdFlashMessage_P(MSG_DONE);
+    saveConfigDone();
   }
 }

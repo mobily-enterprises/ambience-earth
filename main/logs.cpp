@@ -298,69 +298,54 @@ bool noLogs() {
 
 
 
-uint8_t goToNextLogSlot(bool force = false) {
+static uint8_t goToAdjacentLogSlot(int8_t direction, bool force) {
   int16_t originalSlot = currentSlot;
 
-  // First log ever: target slot 0
-  if (originalSlot < 0) {
+  // First log ever: target slot 0 for forward browsing.
+  if (direction > 0 && originalSlot < 0) {
     currentSlot = 0;
     return true;
   }
 
-  currentSlot = originalSlot;
-  readLogEntry();
-  uint16_t originalLogEntrySeq = *static_cast<uint16_t*>(logBuffer);
-  
-  // Serial.println("goToNextLogSlot()");
-  // Serial.println("Current slot:");
-  // Serial.println(currentSlot);
-  currentSlot ++;
-  // Serial.print("New current slot: ");
-  // Serial.println(currentSlot);
-  
-  if (currentSlot >= EEPROM_TOTAL_SLOTS) currentSlot = 0;
-  // Serial.print("Actual current slot: ");
-  // Serial.println(currentSlot);
-  readLogEntry();
-
-  if (force) return true;
-  uint16_t newLogEntrySeq = *static_cast<uint16_t*>(logBuffer);
-  if (!slotIsEmpty(newLogEntrySeq) && seqIsLater(newLogEntrySeq, originalLogEntrySeq)) {
-    // Crossing 0xFFFF -> 1 means moving into a newer epoch during browsing
-    if (originalLogEntrySeq == 0xFFFF && newLogEntrySeq == 1) browseEpoch++;
-    return true;
-  }
-
-  currentSlot = originalSlot;
-  readLogEntry();
-  return false;
-
-}
-
-uint8_t goToPreviousLogSlot(bool force = false) {
-  int16_t originalSlot = currentSlot;
   if (originalSlot < 0) originalSlot = 0; // normalise if uninitialised
   currentSlot = originalSlot;
   readLogEntry();
   uint16_t originalLogEntrySeq = *static_cast<uint16_t*>(logBuffer);
 
-  currentSlot --;
+  currentSlot = static_cast<int16_t>(currentSlot + direction);
+  if (currentSlot >= EEPROM_TOTAL_SLOTS) currentSlot = 0;
   if (currentSlot < 0) currentSlot = EEPROM_TOTAL_SLOTS - 1;
   readLogEntry();
 
   if (force) return true;
 
   uint16_t newLogEntrySeq = *static_cast<uint16_t*>(logBuffer);
-  // Allow moving back only if the target is a valid older entry
-  if (!slotIsEmpty(newLogEntrySeq) && seqIsLater(originalLogEntrySeq, newLogEntrySeq)) {
-    // Crossing 1 -> 0xFFFF means moving into a previous epoch during browsing
-    if (originalLogEntrySeq == 1 && newLogEntrySeq == 0xFFFF) browseEpoch--;
-    return true;
+  if (direction > 0) {
+    if (!slotIsEmpty(newLogEntrySeq) && seqIsLater(newLogEntrySeq, originalLogEntrySeq)) {
+      // Crossing 0xFFFF -> 1 means moving into a newer epoch during browsing
+      if (originalLogEntrySeq == 0xFFFF && newLogEntrySeq == 1) browseEpoch++;
+      return true;
+    }
+  } else {
+    // Allow moving back only if the target is a valid older entry
+    if (!slotIsEmpty(newLogEntrySeq) && seqIsLater(originalLogEntrySeq, newLogEntrySeq)) {
+      // Crossing 1 -> 0xFFFF means moving into a previous epoch during browsing
+      if (originalLogEntrySeq == 1 && newLogEntrySeq == 0xFFFF) browseEpoch--;
+      return true;
+    }
   }
 
   currentSlot = originalSlot;
   readLogEntry();
   return false;
+}
+
+uint8_t goToNextLogSlot(bool force = false) {
+  return goToAdjacentLogSlot(1, force);
+}
+
+uint8_t goToPreviousLogSlot(bool force = false) {
+  return goToAdjacentLogSlot(-1, force);
 }
 
 void initLogs(void *buffer, int eepromSize, int startAddress, int logsMemory, int slotSize) {

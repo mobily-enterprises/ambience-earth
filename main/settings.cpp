@@ -67,8 +67,7 @@ static void setTimeAndDate() {
   // TODO: When external EEPROM is available, reinstate the RTC write check and surface errors.
   (void)rtcSetDateTime(hour, minute, 0, day, month, year);
   config.flags |= CONFIG_FLAG_TIME_SET;
-  saveConfig();
-  lcdFlashMessage_P(MSG_DONE);
+  saveConfigDone();
 }
 
 static void drawHeaderLines(MsgId line0, MsgId line1, char line1Suffix) {
@@ -116,6 +115,11 @@ static void drawDripperPrompt(bool filling, unsigned long startMillis, bool full
 static void drawWiping() {
   lcdClear();
   lcdPrint_P(MSG_WIPING, 2);
+}
+
+void saveConfigDone() {
+  saveConfig();
+  lcdFlashMessage_P(MSG_DONE);
 }
 
 void calibrateDripperFlow() {
@@ -256,8 +260,7 @@ void environmentMenu() {
     config.lightsOffMinutes = offMinutes;
     config.flags |= CONFIG_FLAG_LIGHTS_ON_SET;
     config.flags |= CONFIG_FLAG_LIGHTS_OFF_SET;
-    saveConfig();
-    lcdFlashMessage_P(MSG_DONE);
+    saveConfigDone();
   }
 }
 
