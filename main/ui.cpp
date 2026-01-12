@@ -3,6 +3,7 @@
 #include "messages.h"
 #include "config.h"
 #include "moistureSensor.h"
+#include "rtc.h"
 
 // Private functions (not declared in ui.h)
 static void labelcpy_R(char *destination, const char *source, uint8_t maxLen);
@@ -39,14 +40,6 @@ static const uint16_t kReleaseMargin = BUTTONS_ANALOG_MARGIN + (BUTTONS_ANALOG_M
 
 static uint16_t absDiff(uint16_t a, uint16_t b) {
   return (a > b) ? (a - b) : (b - a);
-}
-
-static uint8_t daysInMonth(uint8_t month, uint8_t year) {
-  static const uint8_t kDays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-  if (month == 0 || month > 12) return 31;
-  uint8_t days = kDays[month - 1];
-  if (month == 2 && (year % 4u) == 0) days = 29;
-  return days;
 }
 
 static bool thresholdValid(uint16_t threshold) {
@@ -202,15 +195,6 @@ void lcdClearLine(uint8_t y) {
   lcdSetCursor(0, y);
   lcdPrintSpaces(DISPLAY_COLUMNS);
 }
-
-void lcdPrintBool(bool b, int8_t y) {
-  if (y != -1) {
-    lcdClearLine(y);
-    lcdSetCursor(0, y);
-  }
-  lcd.print(b);
-}
-
 
 void lcdPrint_P(MsgId message, int8_t y) {
   if (y != -1) {
@@ -926,48 +910,22 @@ int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear) {
     lcdPrintLabel(&choicesHeader);
   }
 
-  int lastSelectedIndex = -1;
-  int lastFirstVisibleIndex = -1;
-
   while (true) {
     if (displayChanged) {
-      if (firstVisibleIndex != lastFirstVisibleIndex) {
-        for (int i = 0; i < maxVisibleChoices; i++) {
-          int choiceIndex = firstVisibleIndex + i;
-          if (choiceIndex < howManyChoices) {
-            lcd.setCursor(0, choicesStartY + i);
-            lcdPrintSpaces(DISPLAY_COLUMNS);
-            lcd.setCursor(0, choicesStartY + i);
-            if (choiceIndex == selectedIndex) {
-              lcd.write((uint8_t)2);  // Print cursor
-            } else {
-              lcd.print(' ');
-            }
-
-            lcdPrintLabel(&choices[choiceIndex].label);
+      for (int i = 0; i < maxVisibleChoices; i++) {
+        int choiceIndex = firstVisibleIndex + i;
+        lcd.setCursor(0, choicesStartY + i);
+        lcdPrintSpaces(DISPLAY_COLUMNS);
+        if (choiceIndex < howManyChoices) {
+          lcd.setCursor(0, choicesStartY + i);
+          if (choiceIndex == selectedIndex) {
+            lcd.write((uint8_t)2);  // Print cursor
+          } else {
+            lcd.print(' ');
           }
-        }
-      } else if (lastSelectedIndex != -1 && lastSelectedIndex != selectedIndex) {
-        int prevRow = lastSelectedIndex - firstVisibleIndex;
-        int nextRow = selectedIndex - firstVisibleIndex;
-        if (prevRow >= 0 && prevRow < maxVisibleChoices) {
-          lcd.setCursor(0, choicesStartY + prevRow);
-          lcd.print(' ');
-        }
-        if (nextRow >= 0 && nextRow < maxVisibleChoices) {
-          lcd.setCursor(0, choicesStartY + nextRow);
-          lcd.write((uint8_t)2);
-        }
-      } else if (lastSelectedIndex == -1) {
-        int row = selectedIndex - firstVisibleIndex;
-        if (row >= 0 && row < maxVisibleChoices) {
-          lcd.setCursor(0, choicesStartY + row);
-          lcd.write((uint8_t)2);
+          lcdPrintLabel(&choices[choiceIndex].label);
         }
       }
-
-      lastSelectedIndex = selectedIndex;
-      lastFirstVisibleIndex = firstVisibleIndex;
       displayChanged = false;
     }
 

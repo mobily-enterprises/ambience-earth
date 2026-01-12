@@ -104,7 +104,7 @@ static void drawDripperPrompt(bool filling, unsigned long startMillis, bool full
   }
 
   lcdSetCursor(2, 2);
-  lcdPrint_P(MSG_SPACES_5);
+  lcdPrintSpaces(5);
   lcdSetCursor(2, 2);
   unsigned long seconds = (millis() - startMillis) / 1000UL;
   if (seconds < 1000) {
@@ -467,7 +467,7 @@ void testSensors() {
     getSoilMoisture();
     uint16_t raw = soilSensorGetRealtimeRaw();
     lcdSetCursor(10, 0);
-    lcdPrint_P(MSG_SPACES_5);
+    lcdPrintSpaces(5);
     lcdSetCursor(10, 0);
     lcdPrintNumber(raw);
     lcdSetCursor(10, 1);

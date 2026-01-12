@@ -68,7 +68,6 @@ void lcdPrintSpaces(uint8_t count);
 void lcdPrint_P(MsgId message, int8_t y = -1);
 void lcdPrintTwoDigits(uint8_t value);
 void lcdPrintNumber(int number, int8_t y = -1);
-void lcdPrintBool(bool b, int8_t y = -1);
 void lcdSetCursor(uint8_t x, uint8_t y);
 void lcdFlashMessage_P(MsgId message, MsgId message2=MSG_LITTLE, uint16_t time = 1000);
 

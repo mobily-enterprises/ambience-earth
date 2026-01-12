@@ -5,7 +5,6 @@
 
 namespace {
 const uint8_t kRtcAddress = 0x68;
-static bool rtcOk = true;
 
 uint8_t bcdToDec(uint8_t value) {
   return static_cast<uint8_t>((value >> 4) * 10 + (value & 0x0F));
@@ -27,20 +26,11 @@ uint8_t decodeHour(uint8_t value) {
   return bcdToDec(value & 0x3F);
 }
 
-uint8_t daysInMonth(uint8_t month, uint8_t year) {
-  static const uint8_t kDays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-  if (month == 0 || month > 12) return 31;
-  uint8_t days = kDays[month - 1];
-  if (month == 2 && (year % 4u) == 0) days = 29;
-  return days;
-}
-
 uint16_t makeDayKey(uint8_t year, uint8_t month, uint8_t day) {
   return static_cast<uint16_t>(year) * 372u + static_cast<uint16_t>(month) * 31u + day;
 }
 
 bool readRegisters(uint8_t startReg, uint8_t *buffer, uint8_t length) {
-  rtcOk = true;
   for (uint8_t attempt = 0; attempt < 2; ++attempt) {
     Wire.beginTransmission(kRtcAddress);
     Wire.write(startReg);
@@ -55,17 +45,20 @@ bool readRegisters(uint8_t startReg, uint8_t *buffer, uint8_t length) {
     }
     delay(2);
   }
-  rtcOk = false;
   return false;
 }
 }
 
-void initRtc() {
-  Wire.begin();
+uint8_t daysInMonth(uint8_t month, uint8_t year) {
+  static const uint8_t kDays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  if (month == 0 || month > 12) return 31;
+  uint8_t days = kDays[month - 1];
+  if (month == 2 && (year % 4u) == 0) days = 29;
+  return days;
 }
 
-bool rtcIsOk() {
-  return rtcOk;
+void initRtc() {
+  Wire.begin();
 }
 
 bool rtcReadMinutesAndDay(uint16_t *minutesOfDay, uint16_t *dayKey) {

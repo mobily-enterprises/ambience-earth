@@ -13,7 +13,7 @@ void maybeLogValues();
 void initialPinSetup();
 void mainMenu();
 int runInitialSetup();
-void displayInfo(uint8_t screen);
+void displayInfo();
 void screenSaverModeOff();
 void screenSaverModeOn();
 void screenSaverSuspend();

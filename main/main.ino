@@ -14,9 +14,6 @@
 #include "volume.h"
 
 extern LiquidCrystal_I2C lcd;
-uint8_t screenCounter = 0;
-const uint8_t kScreenCount = 1;
-
 extern Config config;
 
 LogEntry currentLogEntry;
@@ -42,13 +39,6 @@ static uint8_t screenSaverHold = 0;
 static void displayFeedingStatus(bool fullRedraw);
 static bool handleUiInput(unsigned long now);
 
-
-static uint8_t screenSaverRand = 0xA5;
-
-static uint8_t nextScreenSaverRand() {
-  screenSaverRand = (screenSaverRand >> 1) ^ (uint8_t)(-(screenSaverRand & 1u) & 0xB8u);
-  return screenSaverRand;
-}
 
 static char idleStatusChar() {
   if (feedingRunoffWarning()) return '!';
@@ -230,7 +220,7 @@ void loop() {
   unsigned long displayInterval = feedingIsActive() ? 500UL : idleDisplayIntervalMs;
   if (!inputRendered && currentMillis - lastDisplayAt >= displayInterval) {
     lastDisplayAt = currentMillis;
-    displayInfo(screenCounter);
+    displayInfo();
     // int pinValue = digitalRead(12);
     // Serial.print(digitalRead(12));
   }
@@ -246,8 +236,7 @@ static bool handleUiInput(unsigned long now) {
 
   if (screenSaverMode) {
     screenSaverModeOff();
-    forceDisplayRedraw = true;
-    displayInfo(screenCounter); // immediate redraw on wake
+    displayInfo(); // immediate redraw on wake
     pressedButton = nullptr;    // swallow wake press
     return true;
   }
@@ -260,14 +249,8 @@ static bool handleUiInput(unsigned long now) {
     return true;
   }
 
-  if (pressedButton == &upButton) {
-    screenCounter = (screenCounter - 1 + kScreenCount) % kScreenCount;
-  } else if (pressedButton == &downButton) {
-    screenCounter = (screenCounter + 1) % kScreenCount;
-  }
-
   if (forceDisplayRedraw || pressedButton == &upButton || pressedButton == &downButton) {
-    displayInfo(screenCounter);
+    displayInfo();
     lastDisplayAt = now;
     pressedButton = nullptr;
     return true;
@@ -332,6 +315,7 @@ void createBootLogEntry() {
 void screenSaverModeOff() {
   screenSaverMode = false;
   lcd.backlight();
+  forceDisplayRedraw = true;
 }
 
 void screenSaverModeOn() {
@@ -378,62 +362,7 @@ void mainMenu() {
     else if (choice == 5) settings();
   } while (choice != -1);
   forceDisplayRedraw = true;
-  displayInfo(screenCounter);
-}
-
-static void lcdPrintPercent3(uint8_t value) {
-  if (value < 100) lcd.print(' ');
-  if (value < 10) lcd.print(' ');
-  lcd.print(value);
-  lcd.print('%');
-}
-
-static uint8_t msgLength(MsgId message, uint8_t limit) {
-  if (message == MSG_LITTLE || limit == 0) return 0;
-  uint16_t addr = msgOffset(message);
-  uint8_t len = 0;
-  while (len < limit) {
-    if (!msgReadByte(addr++)) break;
-    len++;
-  }
-  return len;
-}
-
-static void lcdPrintPadded_P(MsgId message, uint8_t width) {
-  lcdPrint_P(message);
-  uint8_t len = msgLength(message, width);
-  if (len < width) lcdPrintSpaces(width - len);
-}
-
-static bool getRtcTimeString(char *out) {
-  if (!rtcIsOk()) return false;
-
-  static unsigned long lastReadAt = 0;
-  static uint16_t cachedMinutes = 0;
-  static bool cachedValid = false;
-
-  unsigned long now = millis();
-  if (!cachedValid || now - lastReadAt >= 1000) {
-    uint16_t minutes = 0;
-    uint16_t dayKey = 0;
-    cachedValid = rtcReadMinutesAndDay(&minutes, &dayKey);
-    if (cachedValid) {
-      cachedMinutes = minutes;
-      lastReadAt = now;
-    }
-  }
-
-  if (!cachedValid) return false;
-
-  uint8_t hour = cachedMinutes / 60;
-  uint8_t minute = cachedMinutes % 60;
-  out[0] = static_cast<char>('0' + (hour / 10));
-  out[1] = static_cast<char>('0' + (hour % 10));
-  out[2] = ':';
-  out[3] = static_cast<char>('0' + (minute / 10));
-  out[4] = static_cast<char>('0' + (minute % 10));
-  out[5] = '\0';
-  return true;
+  displayInfo();
 }
 
 void printSoilAndWaterTrayStatus(bool fullRedraw) {
@@ -443,13 +372,10 @@ void printSoilAndWaterTrayStatus(bool fullRedraw) {
   static const uint8_t kPercentFieldWidth = 4;
   static const uint8_t kTimeFieldWidth = 7;
   static const uint8_t kTimeCol = DISPLAY_COLUMNS - kTimeFieldWidth;
-  static const unsigned long kDrybackRefreshMs = 60000UL;
-
   uint16_t soilMoisture = getSoilMoisture();
   uint16_t soilMoisturePercent = soilMoistureAsPercentage(soilMoisture);
-  static unsigned long lastDrybackUpdate = 0;
-  static uint8_t drybackPercent = 0;
-  static bool drybackValid = false;
+  uint8_t drybackPercent = 0;
+  bool drybackValid = false;
 
   if (fullRedraw) {
     lcdSetCursor(0, 0);
@@ -462,10 +388,7 @@ void printSoilAndWaterTrayStatus(bool fullRedraw) {
     lcdClearLine(1);
   }
 
-  if (fullRedraw || millis() - lastDrybackUpdate >= kDrybackRefreshMs) {
-    drybackValid = getDrybackPercent(&drybackPercent);
-    lastDrybackUpdate = millis();
-  }
+  drybackValid = getDrybackPercent(&drybackPercent);
 
   lcdSetCursor(kMoistValueCol, 0);
   lcdPrintSpaces(kPercentFieldWidth);
@@ -487,10 +410,14 @@ void printSoilAndWaterTrayStatus(bool fullRedraw) {
     lcd.print('%');
   }
 
-  char timeStr[6];
   lcdSetCursor(kTimeCol, 1);
-  if (getRtcTimeString(timeStr)) {
-    lcd.print(timeStr);
+  uint16_t minutes = 0;
+  if (rtcReadMinutesAndDay(&minutes, nullptr)) {
+    uint8_t hour = minutes / 60;
+    uint8_t minute = minutes % 60;
+    lcdPrintTwoDigits(hour);
+    lcd.print(':');
+    lcdPrintTwoDigits(minute);
     lcdPrintSpaces(kTimeFieldWidth - 5);
   } else {
     lcdPrint_P(MSG_RTC_ERR);
@@ -503,22 +430,6 @@ void printSoilAndWaterTrayStatus(bool fullRedraw) {
     * This allows users to go through the logs
     ***********************************************************************
 */
-
-
-static void lcdPrintHoursTenths(unsigned long totalMinutes) {
-  unsigned long tenths = (totalMinutes + 3) / 6; // round to nearest 0.1h
-  unsigned long hours = tenths / 10UL;
-  uint8_t frac = tenths % 10UL;
-  lcd.print(hours);
-  lcd.print('.');
-  lcd.print(frac);
-  lcd.print('h');
-}
-
-void lcdPrintTimeSince(unsigned long milliseconds) {
-  unsigned long elapsedMinutes = (millis() - milliseconds) / 60000UL;
-  lcdPrintHoursTenths(elapsedMinutes);
-}
 
 
 static void lcdPrintDateTime(uint8_t day, uint8_t month, uint8_t year, uint8_t hour, uint8_t minute) {
@@ -537,11 +448,6 @@ static void lcdPrintDateTime(uint8_t day, uint8_t month, uint8_t year, uint8_t h
   lcdPrintTwoDigits(minute);
 }
 
-
-void lcdPrintTimeDuration(unsigned long start, unsigned long finish) {
-  unsigned long elapsedMinutes = (finish - start) / 60000UL;
-  lcdPrintHoursTenths(elapsedMinutes);
-}
 
 static void lcdPrintDrybackValue(uint8_t dryback, char suffix) {
   lcdPrint_P(MSG_DB_COLON);
@@ -680,15 +586,11 @@ void viewLogs() {
 }
 
 
-void displayInfo(uint8_t screen) {
-  static uint8_t lastScreen = 255;
-  static bool lastScreenSaver = false;
+void displayInfo() {
   bool fullRedraw = false;
 
   if (screenSaverMode) {
-    lastScreenSaver = true;
-
-    uint8_t r = nextScreenSaverRand();
+    uint8_t r = (uint8_t)millis();
     uint8_t x = r % 20;
     uint8_t y = (r >> 5) & 0x03;
   
@@ -702,25 +604,12 @@ void displayInfo(uint8_t screen) {
     return;
   }
 
-  if (lastScreenSaver) {
-    lastScreenSaver = false;
-    lastScreen = 255;
-  }
-
   if (forceDisplayRedraw) {
     lcd.clear();
-    lastScreen = screen;
     fullRedraw = true;
     forceDisplayRedraw = false;
-  } else if (screen != lastScreen) {
-    lcd.clear();
-    lastScreen = screen;
-    fullRedraw = true;
   }
-
-  switch (screen) {
-    case 0: displayInfo1(fullRedraw); break;
-  }
+  displayInfo1(fullRedraw);
 }
 
 
@@ -774,8 +663,17 @@ void displayInfo1(bool fullRedraw) {
   lcdClearLine(2);
   lcdSetCursor(0, 2);
   lcdPrint_P(MSG_LAST_FEED);
-  if (!millisAtEndOfLastFeed) lcdPrint_P(MSG_DASHES_2);
-  else lcdPrintTimeSince(millisAtEndOfLastFeed);
+  if (!millisAtEndOfLastFeed) {
+    lcdPrint_P(MSG_DASHES_2);
+  } else {
+    // Round to nearest 0.1h.
+    unsigned long elapsedMinutes = (millis() - millisAtEndOfLastFeed) / 60000UL;
+    unsigned long tenths = (elapsedMinutes + 3) / 6;
+    lcd.print(tenths / 10UL);
+    lcd.print('.');
+    lcd.print((uint8_t)(tenths % 10UL));
+    lcd.print('h');
+  }
   lcdPrint_P(MSG_AGO);
   if (!millisAtEndOfLastFeed) lcdPrint_P(MSG_DASHES_2);
   else lcd.print(lastFeedMl);
