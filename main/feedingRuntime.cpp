@@ -334,7 +334,7 @@ static void stopFeed(FeedStopReason reason, unsigned long now) {
   newLogEntry.dailyTotalMl = dailyTotal;
 
   writeLogEntry((void *)&newLogEntry);
-  if (logFlags & LOG_FLAG_BASELINE_SETTER) {
+  if ((logFlags & LOG_FLAG_BASELINE_SETTER) && (logFlags & LOG_FLAG_RUNOFF_SEEN)) {
     baselineSetCandidate(getCurrentLogSlot(), &newLogEntry);
   }
 

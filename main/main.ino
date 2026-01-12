@@ -543,6 +543,16 @@ void lcdPrintTimeDuration(unsigned long start, unsigned long finish) {
   lcdPrintHoursTenths(elapsedMinutes);
 }
 
+static void lcdPrintDrybackValue(uint8_t dryback, char suffix) {
+  lcdPrint_P(MSG_DB_COLON);
+  if (dryback == LOG_BASELINE_UNSET) {
+    lcdPrint_P(MSG_DASHES_2);
+  } else {
+    lcdPrintNumber(dryback);
+  }
+  if (suffix) lcd.print(suffix);
+}
+
 static void drawLogHeader(MsgId type) {
   lcdClear();
   lcd.print((unsigned long)getAbsoluteLogNumber());
@@ -564,6 +574,8 @@ void showLogType0() {
   lcdPrint_P(MSG_SOIL_COLON);
   lcd.print(currentLogEntry.soilMoistureBefore);
   lcd.print('%');
+  lcd.setCursor(0, 3);
+  lcdPrintDrybackValue(currentLogEntry.drybackPercent, '%');
 }
 
 void showLogType1() {
@@ -599,15 +611,14 @@ void showLogType1() {
   if (currentLogEntry.flags & LOG_FLAG_RUNOFF_ANY) lcd.print('!');
 
   lcd.setCursor(0, 3);
-  lcdPrint_P(MSG_SOIL_MOISTURE_COLUMN);
+  lcdPrint_P(MSG_MST_COLON);
   lcdPrintNumber(currentLogEntry.soilMoistureBefore);
   lcd.print('-');
   lcdPrintNumber(currentLogEntry.soilMoistureAfter);
   lcd.print('%');
-  if (currentLogEntry.flags & LOG_FLAG_RUNOFF_SEEN) {
-    lcd.print(' ');
-    lcd.print('R');
-  }
+  lcd.print(' ');
+  lcdPrintDrybackValue(currentLogEntry.drybackPercent,
+                       (currentLogEntry.flags & LOG_FLAG_RUNOFF_SEEN) ? 'R' : '%');
 }
 
 void showLogType2() {
@@ -620,8 +631,7 @@ void showLogType2() {
   lcdPrint_P(MSG_PERCENT);
 
   lcd.setCursor(0, 3);
-  // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureBefore);
-  // lcdPrintLogParamsSoil(currentLogEntry.soilMoistureAfter);
+  lcdPrintDrybackValue(currentLogEntry.drybackPercent, '%');
 }
 
 

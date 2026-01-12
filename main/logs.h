@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 
-#define LOG_FORMAT_VERSION 7
+#define LOG_FORMAT_VERSION 8
 
 enum LogStopReason : uint8_t {
   LOG_STOP_NONE = 0,
@@ -41,6 +41,7 @@ typedef struct {
   uint8_t soilMoistureBefore;
   uint8_t soilMoistureAfter;
   uint8_t baselinePercent;
+  uint8_t drybackPercent;
   uint16_t feedMl;
   uint16_t dailyTotalMl;
   uint16_t lightDayKey;

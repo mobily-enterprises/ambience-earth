@@ -4,7 +4,9 @@
 #include <stddef.h>
 #include <Wire.h>
 #include "config.h"
+#include "feeding.h"
 #include "messages.h"
+#include "moistureSensor.h"
 #include "rtc.h"
 
 int EEPROM_SIZE;
@@ -80,6 +82,15 @@ static inline bool slotIsEmpty(uint16_t seq) {
   return seq == 0;
 }
 
+static bool calcDrybackFromBaseline(uint8_t soilPercent, uint8_t *outPercent) {
+  uint8_t baseline = 0;
+  if (!feedingGetBaselinePercent(&baseline)) return false;
+  if (outPercent) {
+    *outPercent = (baseline > soilPercent) ? static_cast<uint8_t>(baseline - soilPercent) : 0;
+  }
+  return true;
+}
+
 static bool calcLightDayKey(uint8_t year, uint8_t month, uint8_t day,
                             uint8_t hour, uint8_t minute, uint16_t lightsOnMinutes,
                             uint16_t *outKey) {
@@ -96,12 +107,6 @@ static bool calcLightDayKey(uint8_t year, uint8_t month, uint8_t day,
   }
   if (outKey) *outKey = key;
   return true;
-}
-
-static uint16_t minutesSinceLightsOn(uint8_t hour, uint8_t minute, uint16_t lightsOnMinutes) {
-  uint16_t minutes = static_cast<uint16_t>(hour) * 60u + minute;
-  if (minutes >= lightsOnMinutes) return static_cast<uint16_t>(minutes - lightsOnMinutes);
-  return static_cast<uint16_t>(minutes + 1440u - lightsOnMinutes);
 }
 
 static uint16_t readEpochFromEeprom() {
@@ -403,6 +408,7 @@ void clearLogEntry(void *buffer) {
   memset(buffer, 0, EEPROM_SLOT_SIZE);
   if (!buffer) return;
   static_cast<LogEntry*>(buffer)->baselinePercent = LOG_BASELINE_UNSET;
+  static_cast<LogEntry*>(buffer)->drybackPercent = LOG_BASELINE_UNSET;
 }
 
 void initLogEntryCommon(LogEntry *entry, uint8_t entryType, uint8_t stopReason,
@@ -417,6 +423,9 @@ void initLogEntryCommon(LogEntry *entry, uint8_t entryType, uint8_t stopReason,
   entry->flags = flags;
   entry->soilMoistureBefore = soilBefore;
   entry->soilMoistureAfter = soilAfter;
+  entry->drybackPercent = LOG_BASELINE_UNSET;
+  uint8_t dryback = 0;
+  if (calcDrybackFromBaseline(soilBefore, &dryback)) entry->drybackPercent = dryback;
 }
 
 void wipeLogs() {
@@ -464,6 +473,7 @@ bool findLatestBaselineEntries(LogEntry *outLatestSetter, int16_t *outLatestSett
         *outLatestFeed = *entry;
       }
       if ((entry->flags & LOG_FLAG_BASELINE_SETTER) == 0) continue;
+      if ((entry->flags & LOG_FLAG_RUNOFF_SEEN) == 0) continue;
 
       if (!foundSetter) {
         foundSetter = true;
@@ -559,84 +569,7 @@ uint32_t getLightDayKeyNow() {
 
 bool getDrybackPercent(uint8_t *outPercent) {
   if (!outPercent) return false;
-
-  uint8_t hour = 0;
-  uint8_t minute = 0;
-  uint8_t day = 0;
-  uint8_t month = 0;
-  uint8_t year = 0;
-  if (!rtcReadDateTime(&hour, &minute, &day, &month, &year)) return false;
-
-  uint16_t lightsOn = config.lightsOnMinutes;
-  uint16_t lightsOff = config.lightsOffMinutes;
-  if (lightsOn > 1439) lightsOn = 0;
-  if (lightsOff > 1439) lightsOff = 0;
-  if (lightsOn == lightsOff) return false;
-
-  uint16_t currentKey = 0;
-  if (!calcLightDayKey(year, month, day, hour, minute, lightsOn, &currentKey)) return false;
-
-  uint16_t keyOn = currentKey;
-  uint16_t keyOff = currentKey;
-  if (lightsOff >= lightsOn) {
-    if (keyOff == 0) return false;
-    keyOff = static_cast<uint16_t>(keyOff - 1);
-  }
-
-  uint16_t offOffset = (lightsOff >= lightsOn) ? static_cast<uint16_t>(lightsOff - lightsOn)
-                                              : static_cast<uint16_t>(1440u - lightsOn + lightsOff);
-
-  static const uint16_t kDrybackToleranceMinutes = 180;
-  uint16_t bestOffDelta = static_cast<uint16_t>(kDrybackToleranceMinutes + 1);
-  uint16_t bestOnDelta = static_cast<uint16_t>(kDrybackToleranceMinutes + 1);
-  uint8_t offMoisture = 0;
-  uint8_t onMoisture = 0;
-  int16_t savedSlot = currentSlot;
-  uint16_t savedBrowseEpoch = browseEpoch;
-
-  goToLatestSlot();
-  if (currentSlot >= 0) {
-    do {
-      LogEntry *entry = static_cast<LogEntry*>(logBuffer);
-      if (entry->entryType != 2) continue;
-      uint16_t entryKey = entry->lightDayKey;
-      if (entryKey == 0) continue;
-
-      uint16_t offset = minutesSinceLightsOn(entry->startHour, entry->startMinute, lightsOn);
-      if (entryKey == keyOn) {
-        uint16_t delta = offset;
-        if (delta <= kDrybackToleranceMinutes && delta < bestOnDelta) {
-          bestOnDelta = delta;
-          onMoisture = entry->soilMoistureBefore;
-        }
-      }
-      if (entryKey == keyOff) {
-        uint16_t delta = (offset >= offOffset) ? static_cast<uint16_t>(offset - offOffset)
-                                              : static_cast<uint16_t>(offOffset - offset);
-        if (delta <= kDrybackToleranceMinutes && delta < bestOffDelta) {
-          bestOffDelta = delta;
-          offMoisture = entry->soilMoistureBefore;
-        }
-      }
-      if (bestOnDelta <= kDrybackToleranceMinutes &&
-          bestOffDelta <= kDrybackToleranceMinutes &&
-          entryKey < keyOff) break;
-    } while (goToPreviousLogSlot());
-  }
-
-  browseEpoch = savedBrowseEpoch;
-  if (savedSlot >= 0) {
-    currentSlot = savedSlot;
-    readLogEntry();
-  } else {
-    currentSlot = savedSlot;
-  }
-
-  if (bestOffDelta > kDrybackToleranceMinutes) return false;
-  if (bestOnDelta > kDrybackToleranceMinutes) return false;
-
-  int16_t delta = static_cast<int16_t>(offMoisture) - static_cast<int16_t>(onMoisture);
-  if (delta < 0) delta = 0;
-  *outPercent = static_cast<uint8_t>(delta);
-  return true;
+  if (!soilSensorReady()) return false;
+  uint8_t soilPercent = soilMoistureAsPercentage(getSoilMoisture());
+  return calcDrybackFromBaseline(soilPercent, outPercent);
 }
