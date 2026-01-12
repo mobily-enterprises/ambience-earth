@@ -1,5 +1,7 @@
 X(MSG_CAL_MOISTURE_SENSOR, "Cal moist sensor")
 X(MSG_SET_TIME_DATE, "Set time/date")
+X(MSG_SET_TIME, "Set time")
+X(MSG_SET_DATE, "Set date")
 X(MSG_YES, "Yes")
 X(MSG_NO, "No")
 X(MSG_OK, "OK")

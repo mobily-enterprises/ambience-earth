@@ -48,12 +48,12 @@ static void setTimeAndDate() {
   }
 
   uint16_t timeMinutes = static_cast<uint16_t>(hour) * 60u + minute;
-  if (!inputTime_P(MSG_SET_TIME_DATE, MSG_LITTLE, timeMinutes, &timeMinutes)) {
+  if (!inputTime_P(MSG_SET_TIME, MSG_LITTLE, timeMinutes, &timeMinutes)) {
     lcdFlashMessage_P(MSG_ABORTED);
     return;
   }
 
-  if (!inputDate_P(MSG_SET_TIME_DATE, MSG_LITTLE, &day, &month, &year)) {
+  if (!inputDate_P(MSG_SET_DATE, MSG_LITTLE, &day, &month, &year)) {
     lcdFlashMessage_P(MSG_ABORTED);
     return;
   }
