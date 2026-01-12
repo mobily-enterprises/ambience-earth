@@ -191,6 +191,7 @@ void setup() {
   feedingBaselineInit();
 
   setSoilSensorLazy();
+  forceDisplayRedraw = true;
 }
 
 
