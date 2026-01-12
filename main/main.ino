@@ -274,8 +274,8 @@ void maybeLogValues() {
       uint8_t soilMoisture = soilMoistureAsPercentage(getSoilMoisture());
       initLogEntryCommon(&newLogEntry, 2, LOG_STOP_NONE, LOG_START_NONE, 0, 0, soilMoisture, 0);
       newLogEntry.millisStart = millis();
-      rtcStamp(&newLogEntry.startYear, &newLogEntry.startMonth, &newLogEntry.startDay,
-               &newLogEntry.startHour, &newLogEntry.startMinute);
+      rtcReadDateTime(&newLogEntry.startHour, &newLogEntry.startMinute, &newLogEntry.startDay,
+                      &newLogEntry.startMonth, &newLogEntry.startYear);
       writeLogEntry((void *)&newLogEntry);
   }
 }
@@ -304,8 +304,8 @@ void createBootLogEntry() {
   initLogEntryCommon(&newLogEntry, 0, LOG_STOP_NONE, LOG_START_NONE, 0, 0, soilMoistureBefore, 0);
   newLogEntry.millisStart = 0;
   newLogEntry.millisEnd = millis();
-  rtcStamp(&newLogEntry.startYear, &newLogEntry.startMonth, &newLogEntry.startDay,
-           &newLogEntry.startHour, &newLogEntry.startMinute);
+  rtcReadDateTime(&newLogEntry.startHour, &newLogEntry.startMinute, &newLogEntry.startDay,
+                  &newLogEntry.startMonth, &newLogEntry.startYear);
 
   // Serial.println("Writing initial boot entry...");
   writeLogEntry((void *)&newLogEntry);
@@ -366,7 +366,7 @@ void mainMenu() {
   displayInfo();
 }
 
-void printSoilAndWaterTrayStatus(bool fullRedraw) {
+bool printSoilAndWaterTrayStatus(bool fullRedraw, uint16_t *outMinutes) {
   static const uint8_t kMoistValueCol = 7;
   static const uint8_t kDrybackLabelCol = 12;
   static const uint8_t kDrybackValueCol = 16;
@@ -413,7 +413,8 @@ void printSoilAndWaterTrayStatus(bool fullRedraw) {
 
   lcdSetCursor(kTimeCol, 1);
   uint16_t minutes = 0;
-  if (rtcReadMinutesAndDay(&minutes, nullptr)) {
+  bool minutesValid = rtcReadMinutesAndDay(&minutes, nullptr);
+  if (minutesValid) {
     uint8_t hour = minutes / 60;
     uint8_t minute = minutes % 60;
     lcdPrintTwoDigits(hour);
@@ -423,6 +424,8 @@ void printSoilAndWaterTrayStatus(bool fullRedraw) {
   } else {
     lcdPrint_P(MSG_RTC_ERR);
   }
+  if (outMinutes) *outMinutes = minutes;
+  return minutesValid;
 }
 
 /*  
@@ -631,7 +634,8 @@ void displayInfo1(bool fullRedraw) {
   static const uint8_t kBaselineValueCol = 16;
   static const uint8_t kBaselineFieldWidth = 4;
 
-  printSoilAndWaterTrayStatus(fullRedraw);
+  uint16_t minutes = 0;
+  bool minutesValid = printSoilAndWaterTrayStatus(fullRedraw, &minutes);
 
   if (fullRedraw) {
     lcdSetCursor(0, 3);
@@ -642,9 +646,8 @@ void displayInfo1(bool fullRedraw) {
   char statusChar = idleStatusChar();
   lcd.print(statusChar == '*' ? ' ' : statusChar);
 
-  uint16_t minutes = 0;
   bool dayNow = false;
-  if (rtcReadMinutesAndDay(&minutes, nullptr)) {
+  if (minutesValid) {
     uint16_t on = config.lightsOnMinutes;
     uint16_t off = config.lightsOffMinutes;
     if (on > 1439) on = 0;

@@ -664,7 +664,6 @@ int16_t inputNumber_P(MsgId prompt, int16_t initialUserInput, int stepSize, int1
 
     } else if (pressedButton == &leftButton) {
       return -1;
-      displayChanged = true;
     } else {
       // ...
     }
@@ -1000,8 +999,8 @@ bool alert_P(MsgId warning) {
   setChoices_P(MSG_OK, 1);
   setChoicesHeader_P(warning);
 
-  int8_t userInput = selectChoice(1, 1);
-  return 1;
+  selectChoice(1, 1);
+  return true;
 }
 
 int8_t promptYesNoWithHeader(MsgId header, MsgId question, bool initialYes) {

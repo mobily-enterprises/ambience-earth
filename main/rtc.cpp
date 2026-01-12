@@ -99,23 +99,6 @@ bool rtcReadDateTime(uint8_t *hour, uint8_t *minute, uint8_t *day, uint8_t *mont
   return true;
 }
 
-void rtcStamp(uint8_t *year, uint8_t *month, uint8_t *day, uint8_t *hour, uint8_t *minute) {
-  uint8_t h = 0, m = 0, d = 0, mo = 0, y = 0;
-  if (rtcReadDateTime(&h, &m, &d, &mo, &y)) {
-    if (year) *year = y;
-    if (month) *month = mo;
-    if (day) *day = d;
-    if (hour) *hour = h;
-    if (minute) *minute = m;
-    return;
-  }
-  if (year) *year = 0;
-  if (month) *month = 0;
-  if (day) *day = 0;
-  if (hour) *hour = 0;
-  if (minute) *minute = 0;
-}
-
 bool rtcSetDateTime(uint8_t hour, uint8_t minute, uint8_t second, uint8_t day, uint8_t month, uint8_t year) {
   if (hour > 23 || minute > 59 || second > 59) return false;
   if (day == 0 || month == 0 || month > 12) return false;

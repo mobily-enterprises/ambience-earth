@@ -230,8 +230,9 @@ static void startFeed(uint8_t slotIndex, const FeedSlot *slot, bool timeTriggere
   session.startReason = timeTriggered ? LOG_START_TIME : LOG_START_MOISTURE;
   session.flags = 0;
 
-  rtcStamp(&session.startYear, &session.startMonth, &session.startDay,
-           &session.startHour, &session.startMinute);
+  session.startYear = session.startMonth = session.startDay = session.startHour = session.startMinute = 0;
+  rtcReadDateTime(&session.startHour, &session.startMinute, &session.startDay,
+                  &session.startMonth, &session.startYear);
 
   setSoilSensorRealTime();
   openLineIn();
@@ -255,20 +256,17 @@ static void logFeedRefusal(uint8_t slotIndex, bool timeTriggered, FeedStopReason
   newLogEntry.millisStart = now;
   newLogEntry.millisEnd = now;
 
-  rtcStamp(&newLogEntry.startYear, &newLogEntry.startMonth, &newLogEntry.startDay,
-           &newLogEntry.startHour, &newLogEntry.startMinute);
+  rtcReadDateTime(&newLogEntry.startHour, &newLogEntry.startMinute, &newLogEntry.startDay,
+                  &newLogEntry.startMonth, &newLogEntry.startYear);
   newLogEntry.endYear = newLogEntry.startYear;
   newLogEntry.endMonth = newLogEntry.startMonth;
   newLogEntry.endDay = newLogEntry.startDay;
   newLogEntry.endHour = newLogEntry.startHour;
   newLogEntry.endMinute = newLogEntry.startMinute;
 
-  uint16_t dailyTotal = 0;
-  if (newLogEntry.startMonth && newLogEntry.startDay) {
-    dailyTotal = getDailyFeedTotalMlAt(newLogEntry.startYear, newLogEntry.startMonth,
-                                       newLogEntry.startDay, newLogEntry.startHour,
-                                       newLogEntry.startMinute);
-  }
+  uint16_t dailyTotal = getDailyFeedTotalMlAt(newLogEntry.startYear, newLogEntry.startMonth,
+                                              newLogEntry.startDay, newLogEntry.startHour,
+                                              newLogEntry.startMinute);
   newLogEntry.feedMl = 0;
   newLogEntry.dailyTotalMl = dailyTotal;
 
@@ -313,8 +311,8 @@ static void stopFeed(FeedStopReason reason, unsigned long now) {
   newLogEntry.startHour = session.startHour;
   newLogEntry.startMinute = session.startMinute;
 
-  rtcStamp(&newLogEntry.endYear, &newLogEntry.endMonth, &newLogEntry.endDay,
-           &newLogEntry.endHour, &newLogEntry.endMinute);
+  rtcReadDateTime(&newLogEntry.endHour, &newLogEntry.endMinute, &newLogEntry.endDay,
+                  &newLogEntry.endMonth, &newLogEntry.endYear);
   uint16_t dailyTotal = 0;
   if (newLogEntry.endMonth && newLogEntry.endDay) {
     uint16_t previousTotal = getDailyFeedTotalMlAt(newLogEntry.endYear, newLogEntry.endMonth,
