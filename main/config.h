@@ -6,7 +6,7 @@
 #include "feedSlots.h"
 
 #define CONFIG_ADDRESS 0
-#define CONFIG_VERSION 16
+#define CONFIG_VERSION 17
 #define CONFIG_FLAG_MUST_RUN_INITIAL_SETUP 0x01
 #define CONFIG_FLAG_FEEDING_DISABLED 0x02
 #define CONFIG_FLAG_DRIPPER_CALIBRATED 0x04
@@ -37,6 +37,7 @@ typedef struct {
     uint8_t pulseTargetUnits;
     uint8_t baselineX;
     uint8_t baselineY;
+    uint8_t baselineDelayMinutes;
     uint8_t runoffExpectation[FEED_SLOT_COUNT]; // per-slot expectation: 0=none,1=must,2=avoid
 
     uint16_t kbdUp;

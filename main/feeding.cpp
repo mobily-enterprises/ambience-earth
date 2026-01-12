@@ -606,6 +606,17 @@ static void editBaselineSetting(uint8_t *value, MsgId label) {
   lcdFlashMessage_P(MSG_DONE);
 }
 
+static void editBaselineDelay() {
+  uint8_t initial = config.baselineDelayMinutes;
+  if (initial < 5) initial = 5;
+  int16_t input = inputNumber_P(MSG_BASELINE_DELAY, static_cast<int16_t>(initial), 5, 5, 120,
+                                 MSG_MINUTES, MSG_FEEDING_MENU);
+  if (input < 0) return;
+  config.baselineDelayMinutes = static_cast<uint8_t>(input);
+  saveConfig();
+  lcdFlashMessage_P(MSG_DONE);
+}
+
 } /* End of namespace */
 
 void feedingMenu() {
@@ -616,9 +627,10 @@ void feedingMenu() {
       MSG_FEEDING_SCHEDULE, 1,
       MSG_MAX_DAILY_WATER, 2,
       MSG_BASELINE_X, 3,
-      MSG_BASELINE_Y, 4);
+      MSG_BASELINE_Y, 4,
+      MSG_BASELINE_DELAY, 5);
     setChoicesHeader_P(MSG_FEEDING_MENU);
-    choice = selectChoice(4, lastChoice);
+    choice = selectChoice(5, lastChoice);
     if (choice != -1) lastChoice = choice;
 
     if (choice == 1) {
@@ -629,6 +641,8 @@ void feedingMenu() {
       editBaselineSetting(&config.baselineX, MSG_BASELINE_X);
     } else if (choice == 4) {
       editBaselineSetting(&config.baselineY, MSG_BASELINE_Y);
+    } else if (choice == 5) {
+      editBaselineDelay();
     }
   }
 }

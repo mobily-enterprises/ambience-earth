@@ -635,7 +635,8 @@ void feedingBaselineTick() {
   if (!getNowMinutes(&nowMinutes)) return;
   if (nowMinutes < baselineCandidateEndMinutes) return;
   uint32_t delta = nowMinutes - baselineCandidateEndMinutes;
-  if (delta < 30 || delta > 60) return;
+  uint8_t delay = config.baselineDelayMinutes;
+  if (delta < delay || delta > static_cast<uint32_t>(delay + 15)) return;
 
   uint8_t percent = soilMoistureAsPercentage(getSoilMoisture());
   if (!patchLogBaselinePercent(baselineCandidateSlot, percent)) return;

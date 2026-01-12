@@ -87,6 +87,11 @@ void restoreDefaultConfig() {
   config.pulseTargetUnits = 20;
   config.baselineX = 10;
   config.baselineY = 5;
+#ifdef WOKWI_SIM
+  config.baselineDelayMinutes = 1;
+#else
+  config.baselineDelayMinutes = 30;
+#endif
   memset(config.runoffExpectation, 0, sizeof(config.runoffExpectation));
 
   config.kbdUp = 0;
