@@ -4,6 +4,7 @@
 void settings();
 void initialSetupMenu();
 bool initialSetupComplete();
+void environmentMenu();
 void resetOnlyLogs();
 void settingsReset();
 void calibrateMoistureSensor();

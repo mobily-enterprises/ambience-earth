@@ -238,7 +238,7 @@ static void calibrateSensorsMenu() {
   }
 }
 
-static void environmentMenu() {
+void environmentMenu() {
   uint16_t onMinutes = config.lightsOnMinutes;
   uint16_t offMinutes = config.lightsOffMinutes;
 
@@ -313,17 +313,15 @@ void settings() {
     setChoices_P(
       MSG_SET_TIME_DATE, 1,
       MSG_CALIBRATE_SENSORS, 2,
-      MSG_LIGHTS_ON_OFF_TIMES, 3,
-      MSG_TEST_PERIPHERALS, 4,
-      MSG_RESET, 5);
-    choice = selectChoice(5, lastChoice);
+      MSG_TEST_PERIPHERALS, 3,
+      MSG_RESET, 4);
+    choice = selectChoice(4, lastChoice);
     if (choice != -1) lastChoice = choice;
 
     if (choice == 1) setTimeAndDate();
     else if (choice == 2) calibrateSensorsMenu();
-    else if (choice == 3) environmentMenu();
-    else if (choice == 4) testPeripheralsMenu();
-    else if (choice == 5) settingsReset();
+    else if (choice == 3) testPeripheralsMenu();
+    else if (choice == 4) settingsReset();
   }
 }
 

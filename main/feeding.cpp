@@ -5,6 +5,7 @@
 #include "feedSlots.h"
 #include "feedingUtils.h"
 #include "messages.h"
+#include "settings.h"
 #include "ui.h"
 #include "LiquidCrystal_I2C.h"
 
@@ -628,9 +629,10 @@ void feedingMenu() {
       MSG_MAX_DAILY_WATER, 2,
       MSG_BASELINE_X, 3,
       MSG_BASELINE_Y, 4,
-      MSG_BASELINE_DELAY, 5);
+      MSG_BASELINE_DELAY, 5,
+      MSG_LIGHTS_ON_OFF_TIMES, 6);
     setChoicesHeader_P(MSG_FEEDING_MENU);
-    choice = selectChoice(5, lastChoice);
+    choice = selectChoice(6, lastChoice);
     if (choice != -1) lastChoice = choice;
 
     if (choice == 1) {
@@ -643,6 +645,8 @@ void feedingMenu() {
       editBaselineSetting(&config.baselineY, MSG_BASELINE_Y);
     } else if (choice == 5) {
       editBaselineDelay();
+    } else if (choice == 6) {
+      environmentMenu();
     }
   }
 }
