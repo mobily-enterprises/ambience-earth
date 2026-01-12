@@ -626,16 +626,9 @@ void setChoice_R(unsigned char index, const char *label, int value) {
 
 
 int16_t inputNumber_P(MsgId prompt, int16_t initialUserInput, int stepSize, int16_t min, int16_t max, MsgId postFix, MsgId optionalHeader) {
-  int16_t userInput;
+  int16_t userInput = (initialUserInput == -1) ? 0 : initialUserInput;
   bool displayChanged = true;
   const uint8_t inputY = 3;
-
-  // Check if initialUserInput is not empty
-  if (initialUserInput != -1) {
-    userInput = initialUserInput;
-  } else {
-    userInput = 0;
-  }
 
   drawPromptAndHeader(prompt, optionalHeader);
 
@@ -861,13 +854,8 @@ bool inputLightsOnOff_P(MsgId header, uint16_t *onMinutes, uint16_t *offMinutes)
 }
 
 void resetChoicesAndHeader() {
-  for (uint8_t i = 0; i < 10; ++i) {
-    choices[i].label.ptr = nullptr;
-    choices[i].label.id = MSG_LITTLE;
-    choices[i].label.is_ram = 0;
-    choices[i].value = 0;
-  }
-  setChoicesHeader_P(MSG_LITTLE);
+  memset(choices, 0, sizeof(choices));
+  choicesHeader = {};
 }
 
 int8_t selectChoice(int howManyChoices, int initialUserInput, bool doNotClear) {

@@ -52,8 +52,6 @@ typedef struct {
 static_assert(sizeof(Config) <= 256, "Config exceeds 256-byte EEPROM region");
 
 uint8_t calculateConfigChecksum();
-bool configChecksumCorrect();
-bool verifyConfigChecksum();
 void setConfigChecksum();
 void restoreDefaultConfig();
 bool validateConfig();

@@ -553,23 +553,6 @@ uint16_t getDailyFeedTotalMlNow(uint8_t *outMin, uint8_t *outMax) {
   return getDailyFeedTotalMlAt(year, month, day, hour, minute, outMin, outMax);
 }
 
-uint32_t getLightDayKeyAt(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute) {
-  uint16_t key = 0;
-  if (!calcLightDayKey(year, month, day, hour, minute, config.lightsOnMinutes, &key)) return 0xFFFFFFFFUL;
-  return key;
-}
-
-uint32_t getLightDayKeyNow() {
-  uint8_t hour = 0;
-  uint8_t minute = 0;
-  uint8_t day = 0;
-  uint8_t month = 0;
-  uint8_t year = 0;
-
-  if (!rtcReadDateTime(&hour, &minute, &day, &month, &year)) return 0xFFFFFFFFUL;
-  return getLightDayKeyAt(year, month, day, hour, minute);
-}
-
 bool getDrybackPercent(uint8_t *outPercent) {
   if (!outPercent) return false;
   if (!soilSensorReady()) return false;

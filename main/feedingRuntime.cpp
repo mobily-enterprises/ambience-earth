@@ -107,7 +107,6 @@ static inline bool dripperCalibrated() {
 
 static uint16_t minutesSinceLightsOn() {
   uint16_t lightsOn = config.lightsOnMinutes;
-  if (lightsOn > 1439) lightsOn = 0;
   if (rtcMinutes >= lightsOn) return static_cast<uint16_t>(rtcMinutes - lightsOn);
   return static_cast<uint16_t>(rtcMinutes + 1440 - lightsOn);
 }
@@ -241,7 +240,20 @@ static void startFeed(uint8_t slotIndex, const FeedSlot *slot, bool timeTriggere
 }
 
 static void logFeedRefusal(uint8_t slotIndex, bool timeTriggered, FeedStopReason reason) {
-  uint32_t lightKey = getLightDayKeyNow();
+  uint32_t lightKey = 0xFFFFFFFFUL;
+  if (rtcValid) {
+    uint16_t lightsOn = config.lightsOnMinutes;
+    if (lightsOn > 1439) lightsOn = 0;
+    uint16_t key = rtcDayKey;
+    if (rtcMinutes < lightsOn) {
+      if (key > 0) {
+        key--;
+        lightKey = key;
+      }
+    } else {
+      lightKey = key;
+    }
+  }
   uint8_t reasonCode = static_cast<uint8_t>(reason);
   if (lightKey == lastRefusalLightKey && reasonCode == lastRefusalReason) return;
   lastRefusalLightKey = lightKey;
@@ -448,8 +460,6 @@ static void maybeStartFeed() {
   bool rtcOk = updateRtcCache();
   uint16_t on = config.lightsOnMinutes;
   uint16_t off = config.lightsOffMinutes;
-  if (on > 1439) on = 0;
-  if (off > 1439) off = 0;
   if (on == off) return;
   if (rtcOk) {
     uint16_t duration = (off >= on) ? (off - on) : static_cast<uint16_t>(1440 - on + off);
@@ -506,8 +516,6 @@ void feedingForceFeed(uint8_t slotIndex) {
 
 void feedingTick() {
   unsigned long now = millis();
-
-  feedingDisabledCached = feedingDisabledFlag();
 
   if (feedingPausedFlag()) {
     if (session.active) {

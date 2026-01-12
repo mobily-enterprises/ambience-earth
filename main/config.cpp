@@ -6,7 +6,7 @@
 Config config;
 
 bool validateConfig() {
-  if (!configChecksumCorrect()) return false;
+  if (calculateConfigChecksum() != config.checksum) return false;
   if (config.version != CONFIG_VERSION) return false;
   return true;
 }
@@ -18,10 +18,6 @@ void saveConfig() {
 
 void loadConfig() {
   EEPROM.get(CONFIG_ADDRESS, config);
-}
-
-bool configChecksumCorrect() {
-  return calculateConfigChecksum() == config.checksum;
 }
 
 /*
@@ -40,15 +36,6 @@ uint8_t calculateConfigChecksum() {
   }
 
   return hash;
-}
-
-// Function to verify the checksum of a Config object
-bool verifyConfigChecksum() {
-  // Calculate checksum using helper function
-  uint8_t checksum = calculateConfigChecksum();
-
-  // Compare the calculated checksum with the checksum stored in the Config struct
-  return checksum == config.checksum;
 }
 
 // Function to set the checksum of a Config object

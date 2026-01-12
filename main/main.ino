@@ -285,8 +285,7 @@ void initialPinSetup() {
   //pinMode(0, OUTPUT); digitalWrite(0, LOW); // D0 (RX) left alone, serial comms
   //pinMode(1, OUTPUT); digitalWrite(1, LOW); // D1 (TX) left alone, serial comms
 
-  static const uint8_t kOwnedPins[] = {3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
-  for (uint8_t pin : kOwnedPins) {
+  for (uint8_t pin = 3; pin <= 13; ++pin) {
     pinMode(pin, OUTPUT);
     digitalWrite(pin, LOW);
   }
@@ -650,8 +649,6 @@ void displayInfo1(bool fullRedraw) {
   if (minutesValid) {
     uint16_t on = config.lightsOnMinutes;
     uint16_t off = config.lightsOffMinutes;
-    if (on > 1439) on = 0;
-    if (off > 1439) off = 0;
     if (on != off) {
       uint16_t duration = (off >= on) ? (off - on) : static_cast<uint16_t>(1440 - on + off);
       dayNow = rtcIsWithinWindow(minutes, on, duration);

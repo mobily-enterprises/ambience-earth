@@ -32,11 +32,7 @@ static void setTimeAndDate() {
   uint8_t year = 26;
 
   if (rtcReadDateTime(&hour, &minute, &day, &month, &year)) {
-    if (month == 0 || month > 12 || day == 0 || day > 31 || (year == 0 && month == 1 && day == 1)) {
-      day = 1;
-      month = 1;
-      year = 26;
-    }
+    if (year == 0 && month == 1 && day == 1) year = 26;
   }
 
   uint16_t timeMinutes = static_cast<uint16_t>(hour) * 60u + minute;
@@ -53,8 +49,7 @@ static void setTimeAndDate() {
   hour = static_cast<uint8_t>(timeMinutes / 60u);
   minute = static_cast<uint8_t>(timeMinutes % 60u);
 
-  int8_t save = yesOrNo_P(MSG_SAVE_QUESTION);
-  if (save != 1) return;
+  if (yesOrNo_P(MSG_SAVE_QUESTION) != 1) return;
 
   // TODO: When external EEPROM is available, reinstate the RTC write check and surface errors.
   (void)rtcSetDateTime(hour, minute, 0, day, month, year);
@@ -415,18 +410,13 @@ static uint16_t calibrateOnePoint(bool isDry) {
 }
 
 void calibrateMoistureSensor() {
-  while (true) {
-    setChoices_P(MSG_CAL_DRY_ONLY, 1, MSG_CAL_WET_ONLY, 2);
-    setChoicesHeader_P(MSG_CAL_MOISTURE_SENSOR);
-    int8_t choice = selectChoice(2, 1);
-    if (choice == -1) return;
-    if (choice == 1 || choice == 2) {
-      screenSaverSuspend();
-      calibrateOnePoint(choice == 1);
-      screenSaverResume();
-      return;
-    }
-  }
+  setChoices_P(MSG_CAL_DRY_ONLY, 1, MSG_CAL_WET_ONLY, 2);
+  setChoicesHeader_P(MSG_CAL_MOISTURE_SENSOR);
+  int8_t choice = selectChoice(2, 1);
+  if (choice == -1) return;
+  screenSaverSuspend();
+  calibrateOnePoint(choice == 1);
+  screenSaverResume();
 }
 
 void pumpTest() {
