@@ -15,13 +15,17 @@ int EEPROM_LOGS_MEMORY;
 int EEPROM_SLOT_SIZE;
 int EEPROM_TOTAL_SLOTS;
 int EEPROM_META_ADDRESS;    // start of logs metadata (epoch + format version)
+int EEPROM_HEAD_ADDRESS;    // start of head pointer ring
 
 void* logBuffer; 
 int16_t currentSlot;
 static int16_t latestSlot = -1;
+static int16_t headIndex = -1;
+static uint16_t headRecordCount = 0;
 static uint16_t logEpoch = 0;     // Persisted across boots (EEPROM)
 static uint16_t browseEpoch = 0;  // Session epoch aligned to current slot for UI
 static const uint8_t kLogMetaSize = 3;
+static const uint8_t kHeadRecordSize = 4;
 static const uint8_t kEepromPageSize = 32;
 static const uint8_t kI2cChunk = 30;
 
@@ -118,6 +122,19 @@ static uint16_t readEpochFromEeprom() {
   return val;
 }
 
+static void writeHeadRecord(uint16_t seq, uint16_t slot) {
+  if (headRecordCount == 0) return;
+  if (headIndex < 0 || headIndex + 1 >= static_cast<int16_t>(headRecordCount)) headIndex = 0;
+  else headIndex++;
+  uint16_t addr = static_cast<uint16_t>(EEPROM_HEAD_ADDRESS + headIndex * kHeadRecordSize);
+  uint8_t data[4];
+  data[0] = static_cast<uint8_t>(seq & 0xFF);
+  data[1] = static_cast<uint8_t>(seq >> 8);
+  data[2] = static_cast<uint8_t>(slot & 0xFF);
+  data[3] = static_cast<uint8_t>(slot >> 8);
+  logEepromWriteBlock(addr, data, sizeof(data));
+}
+
 static uint8_t readLogVersionFromEeprom() {
   uint8_t version = static_cast<uint8_t>(msgReadByte(EEPROM_META_ADDRESS + 2));
   if (version == 0xFF) return 0;
@@ -188,39 +205,9 @@ void goToLatestSlot () {
     browseEpoch = logEpoch;
     return;
   }
-
-  // Find the latest slot using wrap-aware sequence comparison.
-  // Ignore empty slots (seq == 0). With <32768 slots, wrap is safe.
-  uint16_t bestSeq = 0;
-  int16_t bestSlot = -1;
-
   currentSlot = -1;
-
-  for (int slotNumber = 0; slotNumber < EEPROM_TOTAL_SLOTS; slotNumber++) {
-    readLogEntry(slotNumber);
-    uint16_t seq = *static_cast<uint16_t*>(logBuffer);
-    if (slotIsEmpty(seq)) continue;
-
-    if (bestSlot < 0) {
-      bestSeq = seq;
-      bestSlot = slotNumber;
-    } else if (seqIsLater(seq, bestSeq)) {
-      bestSeq = seq;
-      bestSlot = slotNumber;
-    }
-  }
-
-  currentSlot = bestSlot;
-  if (currentSlot == -1) {
-    clearLogEntry(logBuffer);
-    // No logs present; align browsing epoch to persisted epoch
-    browseEpoch = logEpoch;
-  } else {
-    readLogEntry(currentSlot);
-    // Latest entry belongs to the current persisted epoch
-    browseEpoch = logEpoch;
-  }
-  latestSlot = currentSlot;
+  clearLogEntry(logBuffer);
+  browseEpoch = logEpoch;
 }
 
 int16_t getCurrentLogSlot() {
@@ -279,6 +266,7 @@ void writeLogEntry(void* buffer) {
 
   // Re-read the log entry, 
   readLogEntry();
+  writeHeadRecord(newSeq, static_cast<uint16_t>(currentSlot));
   latestSlot = currentSlot;
 }
 
@@ -351,12 +339,20 @@ uint8_t goToPreviousLogSlot(bool force = false) {
 void initLogs(void *buffer, int eepromSize, int startAddress, int logsMemory, int slotSize) {
   logBuffer = buffer;
   EEPROM_SIZE = eepromSize;
-  EEPROM_META_ADDRESS = startAddress;               // reserve bytes for epoch + format version
-  EEPROM_START_ADDRESS = startAddress + kLogMetaSize;    // actual start of log slots
   EEPROM_LOGS_MEMORY = logsMemory;
   EEPROM_SLOT_SIZE = slotSize;
+  EEPROM_META_ADDRESS = startAddress;               // reserve bytes for epoch + format version
+  int metaEnd = EEPROM_META_ADDRESS + kLogMetaSize;
+  int logArea = (EEPROM_LOGS_MEMORY > 0) ? (EEPROM_LOGS_MEMORY - kLogMetaSize)
+                                         : (EEPROM_SIZE - metaEnd);
+  int ringBytes = logArea / 20; // 5% head pointer ring
+  ringBytes &= ~3;
+  if (ringBytes < kHeadRecordSize) ringBytes = kHeadRecordSize;
+  EEPROM_HEAD_ADDRESS = metaEnd;
+  EEPROM_START_ADDRESS = metaEnd + ringBytes;
+  headRecordCount = static_cast<uint16_t>(ringBytes / kHeadRecordSize);
   if (EEPROM_LOGS_MEMORY > 0) {
-    EEPROM_TOTAL_SLOTS = ((EEPROM_LOGS_MEMORY - kLogMetaSize) / EEPROM_SLOT_SIZE);
+    EEPROM_TOTAL_SLOTS = ((logArea - ringBytes) / EEPROM_SLOT_SIZE);
   } else {
     EEPROM_TOTAL_SLOTS = ((EEPROM_SIZE - EEPROM_START_ADDRESS) / EEPROM_SLOT_SIZE);
   }
@@ -370,10 +366,31 @@ void initLogs(void *buffer, int eepromSize, int startAddress, int logsMemory, in
   logEpoch = readEpochFromEeprom();
   browseEpoch = logEpoch;
   latestSlot = -1;
+  headIndex = -1;
 
+  uint16_t bestSeq = 0;
+  for (uint16_t i = 0; i < headRecordCount; ++i) {
+    uint8_t data[4];
+    uint16_t addr = static_cast<uint16_t>(EEPROM_HEAD_ADDRESS + i * kHeadRecordSize);
+    logEepromReadBlock(addr, data, sizeof(data));
+    uint16_t seq = static_cast<uint16_t>(data[0]) | (static_cast<uint16_t>(data[1]) << 8);
+    uint16_t slot = static_cast<uint16_t>(data[2]) | (static_cast<uint16_t>(data[3]) << 8);
+    if (seq == 0 || slot >= EEPROM_TOTAL_SLOTS) continue;
+    if (headIndex < 0 || seqIsLater(seq, bestSeq)) {
+      bestSeq = seq;
+      latestSlot = static_cast<int16_t>(slot);
+      headIndex = static_cast<int16_t>(i);
+    }
+  }
 
-  // Will set currentSlot
-  goToLatestSlot();
+  if (latestSlot >= 0) {
+    currentSlot = latestSlot;
+    readLogEntry(currentSlot);
+  } else {
+    currentSlot = -1;
+    clearLogEntry(logBuffer);
+  }
+  browseEpoch = logEpoch;
 
   // Serial.println("EEPROM_SIZE");
   // Serial.println(EEPROM_SIZE); 
@@ -414,6 +431,19 @@ void initLogEntryCommon(LogEntry *entry, uint8_t entryType, uint8_t stopReason,
 }
 
 void wipeLogs() {
+  // Clear head pointer ring.
+  if (headRecordCount > 0) {
+    memset(logBuffer, 0xFF, EEPROM_SLOT_SIZE);
+    uint16_t addr = static_cast<uint16_t>(EEPROM_HEAD_ADDRESS);
+    uint16_t remaining = static_cast<uint16_t>(headRecordCount * kHeadRecordSize);
+    while (remaining) {
+      uint16_t chunk = remaining > EEPROM_SLOT_SIZE ? EEPROM_SLOT_SIZE : remaining;
+      logEepromWriteBlock(addr, static_cast<uint8_t*>(logBuffer), chunk);
+      addr = static_cast<uint16_t>(addr + chunk);
+      remaining = static_cast<uint16_t>(remaining - chunk);
+    }
+  }
+
   // Clear slots
   memset(logBuffer, 0, EEPROM_SLOT_SIZE);
   uint16_t addr = static_cast<uint16_t>(EEPROM_START_ADDRESS);
@@ -428,6 +458,7 @@ void wipeLogs() {
   writeLogVersionToEeprom(LOG_FORMAT_VERSION);
   currentSlot = -1;
   latestSlot = -1;
+  headIndex = -1;
   clearLogEntry(logBuffer);
 }
 

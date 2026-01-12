@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 
-#define LOG_FORMAT_VERSION 8
+#define LOG_FORMAT_VERSION 9
 
 enum LogStopReason : uint8_t {
   LOG_STOP_NONE = 0,
