@@ -444,10 +444,14 @@ void testSensors() {
 
     getSoilMoisture();
     uint16_t raw = soilSensorGetRealtimeRaw();
+    uint8_t percent = soilMoistureAsPercentage(raw);
     lcdSetCursor(10, 0);
-    lcdPrintSpaces(5);
+    lcdPrintSpaces(10);
     lcdSetCursor(10, 0);
     lcdPrintNumber(raw);
+    lcd.print(' ');
+    lcdPrintNumber(percent);
+    lcd.print('%');
     lcdSetCursor(10, 1);
     lcd.print(runoffDetected() ? 1 : 0);
     delay(300);
