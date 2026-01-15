@@ -1,6 +1,6 @@
 # I2C EEPROM (Simulation)
 
-Simple I2C EEPROM used by the simulator to serve message strings at address `0x57`.
+Simple I2C EEPROM used by the simulator to serve message strings at address `0x50`.
 
 Prebuilt `dist/chip.wasm` and `dist/chip.json` are committed so Wokwi runs out
 of the box. Rebuild if you change strings or chip sources.

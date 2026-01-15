@@ -71,7 +71,7 @@ void chip_init(void) {
   load_memory();
 
   i2c_config_t i2c1 = {
-    .address = 0x57,
+    .address = 0x50,
     .scl = pin_init("SCL", INPUT_PULLUP),
     .sda = pin_init("SDA", INPUT_PULLUP),
     .connect = on_i2c_connect,

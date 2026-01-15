@@ -11,7 +11,7 @@ enum MsgId : uint8_t {
   MSG_COUNT
 };
 
-#define EXT_EEPROM_ADDR 0x57
+#define EXT_EEPROM_ADDR 0x50
 #define EXT_EEPROM_SIZE 4096
 
 extern const uint16_t kMsgOffsets[MSG_COUNT] PROGMEM;
