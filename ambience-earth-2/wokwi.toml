@@ -1,0 +1,4 @@
+[wokwi]
+version = 1
+firmware = "build/ambience-earth-2.ino.bin"
+elf = "build/ambience-earth-2.ino.elf"
