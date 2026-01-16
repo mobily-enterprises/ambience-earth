@@ -1,6 +1,7 @@
 #pragma once
 
-#include <lvgl.h>
+#include "app_state.h"
+#include "app_utils.h"
 
 /*
  * update_number_label
