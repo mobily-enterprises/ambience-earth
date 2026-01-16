@@ -9,8 +9,10 @@
 #define LV_CONF_INCLUDE_SIMPLE
 #include <lvgl.h>
 
-static const uint16_t kScreenWidth = 240;
-static const uint16_t kScreenHeight = 320;
+static const uint16_t kScreenWidth = 320;
+static const uint16_t kScreenHeight = 240;
+static const uint16_t kTouchWidth = 240;
+static const uint16_t kTouchHeight = 320;
 static const uint16_t kBufferLines = 20;
 
 static const uint8_t kTftSclk = 12;
@@ -20,13 +22,12 @@ static const uint8_t kTftCs = 15;
 static const uint8_t kTftDc = 2;
 static const uint8_t kTftRst = 4;
 static const uint8_t kTftLed = 6;
-static const uint8_t kTftRotation = 0;
+static const uint8_t kTftRotation = 1;
 static const uint32_t kTftSpiHz = 40000000;
 
 static const uint8_t kTouchSda = 10;
 static const uint8_t kTouchScl = 8;
 
-static const uint32_t kBootSplashMs = 120;
 
 static const uint32_t kFeedIntervalSec = 180;
 static const uint32_t kFeedDurationSec = 12;
@@ -438,27 +439,7 @@ static OptionButtonData *alloc_option_button() {
   return &g_option_button_data[g_option_button_count++];
 }
 
-static void update_number_label(NumberBinding *binding) {
-  if (!binding || !binding->label) return;
-  if (binding->fmt) lv_label_set_text_fmt(binding->label, binding->fmt, *binding->value);
-  else lv_label_set_text_fmt(binding->label, "%d", *binding->value);
-}
-
 static void wizard_refresh_cb(void *);
-
-static void number_inc_event(lv_event_t *event) {
-  NumberBinding *binding = static_cast<NumberBinding *>(lv_event_get_user_data(event));
-  if (!binding || !binding->value) return;
-  *binding->value = clamp_int(*binding->value + binding->step, binding->min, binding->max);
-  update_number_label(binding);
-}
-
-static void number_dec_event(lv_event_t *event) {
-  NumberBinding *binding = static_cast<NumberBinding *>(lv_event_get_user_data(event));
-  if (!binding || !binding->value) return;
-  *binding->value = clamp_int(*binding->value - binding->step, binding->min, binding->max);
-  update_number_label(binding);
-}
 
 static void option_select_event(lv_event_t *event) {
   OptionButtonData *data = static_cast<OptionButtonData *>(lv_event_get_user_data(event));
@@ -485,232 +466,7 @@ static void option_select_event(lv_event_t *event) {
   }
 }
 
-static lv_obj_t *create_screen_root() {
-  lv_obj_t *screen = lv_obj_create(nullptr);
-  lv_obj_set_style_bg_color(screen, kColorBg, 0);
-  lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
-  lv_obj_set_style_text_color(screen, lv_color_white(), 0);
-  lv_obj_set_style_pad_all(screen, 8, 0);
-  lv_obj_set_style_pad_row(screen, 6, 0);
-  lv_obj_set_flex_flow(screen, LV_FLEX_FLOW_COLUMN);
-  lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
-  return screen;
-}
-
-static lv_obj_t *create_header(lv_obj_t *parent, const char *title, bool show_back, lv_event_cb_t back_cb) {
-  lv_obj_t *header = lv_obj_create(parent);
-  lv_obj_set_size(header, LV_PCT(100), 30);
-  lv_obj_set_style_bg_color(header, kColorHeader, 0);
-  lv_obj_set_style_bg_opa(header, LV_OPA_COVER, 0);
-  lv_obj_set_style_border_width(header, 0, 0);
-  lv_obj_set_style_pad_all(header, 4, 0);
-  lv_obj_clear_flag(header, LV_OBJ_FLAG_SCROLLABLE);
-
-  lv_obj_t *title_label = lv_label_create(header);
-  lv_label_set_text(title_label, title);
-  lv_obj_set_style_text_font(title_label, &lv_font_montserrat_18, 0);
-  lv_obj_align(title_label, LV_ALIGN_CENTER, 0, 0);
-
-  if (show_back) {
-    lv_obj_t *back_btn = lv_btn_create(header);
-    lv_obj_set_size(back_btn, 54, 22);
-    lv_obj_align(back_btn, LV_ALIGN_LEFT_MID, 0, 0);
-    lv_obj_add_event_cb(back_btn, back_cb, LV_EVENT_CLICKED, nullptr);
-    lv_obj_t *label = lv_label_create(back_btn);
-    lv_label_set_text(label, "Back");
-    lv_obj_center(label);
-  }
-
-  return header;
-}
-
-static lv_obj_t *create_menu_list(lv_obj_t *parent) {
-  lv_obj_t *list = lv_obj_create(parent);
-  lv_obj_set_width(list, LV_PCT(100));
-  lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
-  lv_obj_set_style_pad_row(list, 6, 0);
-  lv_obj_set_style_bg_opa(list, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(list, 0, 0);
-  lv_obj_clear_flag(list, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_set_flex_grow(list, 1);
-  return list;
-}
-
-static lv_obj_t *add_menu_item(lv_obj_t *list, const char *label, const char *value,
-                               lv_event_cb_t cb, void *user_data, lv_obj_t **out_label) {
-  lv_obj_t *btn = lv_btn_create(list);
-  lv_obj_set_width(btn, LV_PCT(100));
-  lv_obj_set_height(btn, 36);
-  lv_obj_add_event_cb(btn, cb, LV_EVENT_CLICKED, user_data);
-
-  lv_obj_t *label_obj = lv_label_create(btn);
-  lv_label_set_text(label_obj, label);
-  lv_obj_align(label_obj, LV_ALIGN_LEFT_MID, 4, 0);
-
-  if (out_label) *out_label = label_obj;
-
-  if (value) {
-    lv_obj_t *value_label = lv_label_create(btn);
-    lv_label_set_text(value_label, value);
-    lv_obj_align(value_label, LV_ALIGN_RIGHT_MID, -4, 0);
-    return value_label;
-  }
-  return nullptr;
-}
-
-static lv_obj_t *create_number_selector(lv_obj_t *parent, const char *label_text, int *value,
-                                        int min_value, int max_value, int step, const char *fmt) {
-  lv_obj_t *row = lv_obj_create(parent);
-  lv_obj_set_width(row, LV_PCT(100));
-  lv_obj_set_height(row, 34);
-  lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(row, 0, 0);
-  lv_obj_set_style_pad_all(row, 0, 0);
-  lv_obj_set_style_pad_gap(row, 6, 0);
-  lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-  lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-
-  lv_obj_t *label = lv_label_create(row);
-  lv_label_set_text(label, label_text);
-  lv_obj_set_width(label, 90);
-
-  lv_obj_t *dec_btn = lv_btn_create(row);
-  lv_obj_set_size(dec_btn, 28, 28);
-  lv_obj_t *dec_label = lv_label_create(dec_btn);
-  lv_label_set_text(dec_label, "-");
-  lv_obj_center(dec_label);
-
-  lv_obj_t *value_label = lv_label_create(row);
-  lv_obj_set_width(value_label, 50);
-
-  lv_obj_t *inc_btn = lv_btn_create(row);
-  lv_obj_set_size(inc_btn, 28, 28);
-  lv_obj_t *inc_label = lv_label_create(inc_btn);
-  lv_label_set_text(inc_label, "+");
-  lv_obj_center(inc_label);
-
-  NumberBinding *binding = alloc_binding();
-  if (binding) {
-    binding->value = value;
-    binding->min = min_value;
-    binding->max = max_value;
-    binding->step = step;
-    binding->label = value_label;
-    binding->fmt = fmt;
-    update_number_label(binding);
-    lv_obj_add_event_cb(inc_btn, number_inc_event, LV_EVENT_CLICKED, binding);
-    lv_obj_add_event_cb(dec_btn, number_dec_event, LV_EVENT_CLICKED, binding);
-  }
-
-  return row;
-}
-
-static lv_obj_t *create_time_input_block(lv_obj_t *parent, const char *title, int *hour, int *minute) {
-  lv_obj_t *block = lv_obj_create(parent);
-  lv_obj_set_width(block, LV_PCT(100));
-  lv_obj_set_style_bg_opa(block, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(block, 0, 0);
-  lv_obj_set_style_pad_all(block, 0, 0);
-  lv_obj_set_style_pad_row(block, 4, 0);
-  lv_obj_set_flex_flow(block, LV_FLEX_FLOW_COLUMN);
-  lv_obj_clear_flag(block, LV_OBJ_FLAG_SCROLLABLE);
-
-  lv_obj_t *label = lv_label_create(block);
-  lv_label_set_text(label, title);
-  lv_obj_set_style_text_color(label, kColorMuted, 0);
-
-  create_number_selector(block, "Hour", hour, 0, 23, 1, "%02d");
-  create_number_selector(block, "Minute", minute, 0, 59, 1, "%02d");
-
-  return block;
-}
-
-static lv_obj_t *create_date_input_block(lv_obj_t *parent, const char *title, int *month, int *day, int *year) {
-  lv_obj_t *block = lv_obj_create(parent);
-  lv_obj_set_width(block, LV_PCT(100));
-  lv_obj_set_style_bg_opa(block, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(block, 0, 0);
-  lv_obj_set_style_pad_all(block, 0, 0);
-  lv_obj_set_style_pad_row(block, 4, 0);
-  lv_obj_set_flex_flow(block, LV_FLEX_FLOW_COLUMN);
-  lv_obj_clear_flag(block, LV_OBJ_FLAG_SCROLLABLE);
-
-  lv_obj_t *label = lv_label_create(block);
-  lv_label_set_text(label, title);
-  lv_obj_set_style_text_color(label, kColorMuted, 0);
-
-  create_number_selector(block, "Month", month, 1, 12, 1, "%02d");
-  create_number_selector(block, "Day", day, 1, 31, 1, "%02d");
-  create_number_selector(block, "Year", year, 2024, 2035, 1, "%d");
-
-  return block;
-}
-
-static void prompt_close() {
-  if (g_prompt.overlay) {
-    lv_obj_del(g_prompt.overlay);
-    g_prompt.overlay = nullptr;
-  }
-}
-
-static void prompt_button_event(lv_event_t *event) {
-  int option_id = static_cast<int>(reinterpret_cast<intptr_t>(lv_event_get_user_data(event)));
-  PromptHandler handler = g_prompt.handler;
-  int context = g_prompt.context;
-  prompt_close();
-  if (handler) handler(option_id, context);
-}
-
-static void show_prompt(const char *title, const char *message, const char **options, int option_count,
-                        PromptHandler handler, int context) {
-  prompt_close();
-  g_prompt.handler = handler;
-  g_prompt.context = context;
-
-  lv_obj_t *overlay = lv_obj_create(lv_layer_top());
-  lv_obj_set_size(overlay, kScreenWidth, kScreenHeight);
-  lv_obj_set_style_bg_color(overlay, lv_color_hex(0x000000), 0);
-  lv_obj_set_style_bg_opa(overlay, LV_OPA_60, 0);
-  lv_obj_set_style_border_width(overlay, 0, 0);
-  lv_obj_clear_flag(overlay, LV_OBJ_FLAG_SCROLLABLE);
-  g_prompt.overlay = overlay;
-
-  lv_obj_t *box = lv_obj_create(overlay);
-  lv_obj_set_size(box, 200, 160);
-  lv_obj_center(box);
-  lv_obj_set_style_bg_color(box, kColorHeader, 0);
-  lv_obj_set_style_border_width(box, 0, 0);
-  lv_obj_set_style_pad_all(box, 8, 0);
-  lv_obj_set_flex_flow(box, LV_FLEX_FLOW_COLUMN);
-  lv_obj_set_style_pad_row(box, 6, 0);
-
-  lv_obj_t *title_label = lv_label_create(box);
-  lv_label_set_text(title_label, title);
-  lv_obj_set_style_text_font(title_label, &lv_font_montserrat_18, 0);
-
-  lv_obj_t *message_label = lv_label_create(box);
-  lv_label_set_text(message_label, message);
-  lv_obj_set_style_text_color(message_label, kColorMuted, 0);
-
-  lv_obj_t *button_row = lv_obj_create(box);
-  lv_obj_set_width(button_row, LV_PCT(100));
-  lv_obj_set_height(button_row, 40);
-  lv_obj_set_style_bg_opa(button_row, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(button_row, 0, 0);
-  lv_obj_set_style_pad_all(button_row, 0, 0);
-  lv_obj_set_style_pad_gap(button_row, 6, 0);
-  lv_obj_set_flex_flow(button_row, LV_FLEX_FLOW_ROW);
-  lv_obj_clear_flag(button_row, LV_OBJ_FLAG_SCROLLABLE);
-
-  for (int i = 0; i < option_count; ++i) {
-    lv_obj_t *btn = lv_btn_create(button_row);
-    lv_obj_set_flex_grow(btn, 1);
-    lv_obj_add_event_cb(btn, prompt_button_event, LV_EVENT_CLICKED, reinterpret_cast<void *>(static_cast<intptr_t>(i)));
-    lv_obj_t *label = lv_label_create(btn);
-    lv_label_set_text(label, options[i]);
-    lv_obj_center(label);
-  }
-}
+#include "ui/ui_components.h"
 
 static void set_active_screen(ScreenId id) {
   g_active_screen = id;
@@ -768,8 +524,29 @@ static void touch_read(lv_indev_t *, lv_indev_data_t *data) {
   }
 
   TS_Point p = ctp.getPoint();
-  int32_t x = map(p.x, 0, 240, 240, 0);
-  int32_t y = map(p.y, 0, 320, 320, 0);
+  int32_t px = map(p.x, 0, kTouchWidth, kTouchWidth, 0);
+  int32_t py = map(p.y, 0, kTouchHeight, kTouchHeight, 0);
+  int32_t x = 0;
+  int32_t y = 0;
+
+  switch (kTftRotation & 3) {
+    case 1:
+      x = kScreenWidth - 1 - py;
+      y = px;
+      break;
+    case 2:
+      x = kScreenWidth - 1 - px;
+      y = kScreenHeight - 1 - py;
+      break;
+    case 3:
+      x = py;
+      y = kScreenHeight - 1 - px;
+      break;
+    default:
+      x = px;
+      y = py;
+      break;
+  }
 
   if (x < 0) x = 0;
   else if (x >= kScreenWidth) x = kScreenWidth - 1;
@@ -1237,7 +1014,7 @@ static lv_obj_t *build_info_screen() {
   lv_obj_set_style_pad_all(screen, 12, 0);
 
   lv_obj_t *title = lv_label_create(screen);
-  lv_label_set_text(title, "Ambience");
+  lv_label_set_text(title, "Ambience X");
   lv_obj_set_style_text_font(title, &lv_font_montserrat_22, 0);
   lv_obj_set_style_text_color(title, kColorAccent, 0);
   lv_obj_set_width(title, LV_PCT(100));
@@ -2692,9 +2469,6 @@ void setup() {
   tft.setRotation(kTftRotation);
   tft.setSPISpeed(kTftSpiHz);
 
-  tft.fillScreen(ILI9341_NAVY);
-  delay(kBootSplashMs);
-  tft.fillScreen(ILI9341_BLACK);
 
   touchReady = ctp.begin(40);
 
