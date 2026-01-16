@@ -18,6 +18,7 @@ constexpr uint32_t kScreensaverMoveMs = 2000;
 
 constexpr int kSlotCount = 6;
 constexpr int kMaxLogs = 24;
+constexpr size_t kLogStoreBytes = 48 * 1024;
 constexpr int kScreenStackMax = 10;
 constexpr int kBindingPoolSize = 20;
 constexpr int kOptionGroupSize = 10;

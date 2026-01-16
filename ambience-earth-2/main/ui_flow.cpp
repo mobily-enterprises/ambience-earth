@@ -575,7 +575,7 @@ void open_test_pumps_event(lv_event_t *) {
  */
 static void reset_logs_handler(int option, int) {
   if (option == 0) {
-    g_log_count = 0;
+    logs_wipe();
     add_log(build_boot_log());
   }
 }

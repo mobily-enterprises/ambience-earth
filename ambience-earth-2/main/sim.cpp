@@ -103,7 +103,6 @@ void sim_init() {
 
   init_slots();
 
-  g_log_count = 0;
   add_log(build_boot_log());
   add_log(build_value_log());
 }

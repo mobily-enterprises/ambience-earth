@@ -1,5 +1,6 @@
 #include <Arduino.h>
 
+#include "logs.h"
 #include "platform_display.h"
 #include "sim.h"
 #include "ui_flow.h"
@@ -13,6 +14,7 @@
 void setup() {
   lv_display_t *disp = platform_display_init();
   randomSeed(micros());
+  logs_init();
   sim_init();
   build_ui();
   lv_refr_now(disp);
