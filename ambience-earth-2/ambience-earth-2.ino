@@ -41,7 +41,7 @@ static const lv_color_t kColorAccent = lv_color_hex(0x38bdf8);
 static Adafruit_ILI9341 tft(kTftCs, kTftDc, kTftRst);
 static Adafruit_FT6206 ctp;
 
-static uint16_t buf1[kScreenWidth * kBufferLines] __attribute__((aligned(4)));
+LV_DRAW_BUF_DEFINE_STATIC(draw_buf, kScreenWidth, kBufferLines, LV_COLOR_FORMAT_RGB565);
 
 static bool touchReady = false;
 static uint32_t g_last_touch_ms = 0;
@@ -2704,7 +2704,9 @@ void setup() {
   lv_display_t *disp = lv_display_create(kScreenWidth, kScreenHeight);
   lv_display_set_color_format(disp, LV_COLOR_FORMAT_RGB565);
   lv_display_set_flush_cb(disp, disp_flush);
-  lv_display_set_buffers(disp, buf1, nullptr, sizeof(buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
+  LV_DRAW_BUF_INIT_STATIC(draw_buf);
+  lv_display_set_draw_buffers(disp, &draw_buf, nullptr);
+  lv_display_set_render_mode(disp, LV_DISPLAY_RENDER_MODE_PARTIAL);
   lv_display_set_default(disp);
 
   lv_indev_t *indev = lv_indev_create();
