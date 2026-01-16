@@ -1,21 +1,20 @@
 #include "logs.h"
 
-#include "app_utils.h"
+#include <Arduino.h>
 #include <LittleFS.h>
+#include <stddef.h>
 #include <string.h>
 
-namespace {
+#include "config.h"
+#include "feeding.h"
+#include "moistureSensor.h"
+#include "rtc.h"
 
-constexpr uint8_t kLogFormatVersion = 1;
+namespace {
 constexpr uint8_t kLogMetaSize = 3;
 constexpr uint8_t kHeadRecordSize = 4;
 constexpr uint16_t kHeadRingDivisor = 20;
 const char *kLogFilePath = "/logs.bin";
-
-struct PersistedLogEntry {
-  uint16_t seq;
-  LogEntry entry;
-};
 
 static bool g_logs_ready = false;
 static uint16_t g_total_slots = 0;
@@ -24,10 +23,9 @@ static uint32_t g_log_start_offset = 0;
 static int16_t g_current_slot = -1;
 static int16_t g_latest_slot = -1;
 static int16_t g_head_index = -1;
-static uint16_t g_latest_seq = 0;
-static uint16_t g_epoch = 0;
+static uint16_t g_log_epoch = 0;
 static uint16_t g_browse_epoch = 0;
-static PersistedLogEntry g_slot_buffer = {};
+static LogEntry g_log_buffer = {};
 
 /*
  * ensure_fs
@@ -117,20 +115,20 @@ static bool write_block(uint32_t offset, const void *data, size_t len) {
  *   uint32_t offset = slot_offset(3);
  */
 static uint32_t slot_offset(int16_t slot) {
-  return g_log_start_offset + static_cast<uint32_t>(slot) * sizeof(PersistedLogEntry);
+  return g_log_start_offset + static_cast<uint32_t>(slot) * sizeof(LogEntry);
 }
 
 /*
  * read_slot
  * Reads a log slot into the provided buffer.
  * Example:
- *   PersistedLogEntry entry = {};
+ *   LogEntry entry = {};
  *   read_slot(0, &entry);
  */
-static bool read_slot(int16_t slot, PersistedLogEntry *out) {
+static bool read_slot(int16_t slot, LogEntry *out) {
   if (!out || slot < 0 || slot >= static_cast<int16_t>(g_total_slots)) return false;
-  if (!read_block(slot_offset(slot), out, sizeof(PersistedLogEntry))) {
-    memset(out, 0, sizeof(PersistedLogEntry));
+  if (!read_block(slot_offset(slot), out, sizeof(LogEntry))) {
+    memset(out, 0, sizeof(LogEntry));
     return false;
   }
   return true;
@@ -140,40 +138,81 @@ static bool read_slot(int16_t slot, PersistedLogEntry *out) {
  * write_slot
  * Writes a log entry into the specified slot.
  * Example:
- *   write_slot(0, record);
+ *   write_slot(0, entry);
  */
-static bool write_slot(int16_t slot, const PersistedLogEntry &entry) {
+static bool write_slot(int16_t slot, const LogEntry &entry) {
   if (slot < 0 || slot >= static_cast<int16_t>(g_total_slots)) return false;
-  return write_block(slot_offset(slot), &entry, sizeof(PersistedLogEntry));
+  return write_block(slot_offset(slot), &entry, sizeof(LogEntry));
 }
 
 /*
- * seq_is_later
+ * seqIsLater
  * Compares 16-bit sequences with wrap-around semantics.
  * Example:
- *   if (seq_is_later(new_seq, old_seq)) { ... }
+ *   if (seqIsLater(new_seq, old_seq)) { ... }
  */
-static inline bool seq_is_later(uint16_t a, uint16_t b) {
+static inline bool seqIsLater(uint16_t a, uint16_t b) {
   return static_cast<int16_t>(a - b) > 0;
 }
 
 /*
- * slot_is_empty
- * Returns true if a slot sequence indicates no data.
+ * slotIsEmpty
+ * Returns true if a log slot is empty.
  * Example:
- *   if (slot_is_empty(entry.seq)) { ... }
+ *   if (slotIsEmpty(entry.seq)) { ... }
  */
-static inline bool slot_is_empty(uint16_t seq) {
+static inline bool slotIsEmpty(uint16_t seq) {
   return seq == 0;
 }
 
 /*
- * read_epoch_from_flash
+ * calcDrybackFromBaseline
+ * Calculates dryback percent from baseline and soil percent.
+ * Example:
+ *   uint8_t db = 0;
+ *   calcDrybackFromBaseline(soilPct, &db);
+ */
+static bool calcDrybackFromBaseline(uint8_t soilPercent, uint8_t *outPercent) {
+  uint8_t baseline = 0;
+  if (!feedingGetBaselinePercent(&baseline)) return false;
+  if (outPercent) {
+    *outPercent = (baseline > soilPercent) ? static_cast<uint8_t>(baseline - soilPercent) : 0;
+  }
+  return true;
+}
+
+/*
+ * calcLightDayKey
+ * Creates a day key aligned to lights-on time.
+ * Example:
+ *   uint16_t key = 0;
+ *   calcLightDayKey(y, m, d, h, min, lightsOnMinutes, &key);
+ */
+static bool calcLightDayKey(uint8_t year, uint8_t month, uint8_t day,
+                            uint8_t hour, uint8_t minute, uint16_t lightsOnMinutes,
+                            uint16_t *outKey) {
+  if (hour > 23 || minute > 59) return false;
+  if (month == 0 || month > 12 || day == 0 || day > 31) return false;
+  if (lightsOnMinutes > 1439) lightsOnMinutes = 0;
+
+  uint16_t key = static_cast<uint16_t>(year) * 372u +
+                 static_cast<uint16_t>(month) * 31u + day;
+  uint16_t minutes = static_cast<uint16_t>(hour) * 60u + minute;
+  if (minutes < lightsOnMinutes) {
+    if (key == 0) return false;
+    key--;
+  }
+  if (outKey) *outKey = key;
+  return true;
+}
+
+/*
+ * readEpochFromFlash
  * Loads the persisted epoch counter.
  * Example:
- *   uint16_t epoch = read_epoch_from_flash();
+ *   uint16_t epoch = readEpochFromFlash();
  */
-static uint16_t read_epoch_from_flash() {
+static uint16_t readEpochFromFlash() {
   uint8_t data[2] = {0};
   if (!read_block(0, data, sizeof(data))) return 0;
   if (data[0] == 0xFF && data[1] == 0xFF) return 0;
@@ -181,12 +220,12 @@ static uint16_t read_epoch_from_flash() {
 }
 
 /*
- * write_epoch_to_flash
- * Stores the epoch counter to metadata.
+ * writeEpochToFlash
+ * Stores the epoch counter in log metadata.
  * Example:
- *   write_epoch_to_flash(g_epoch);
+ *   writeEpochToFlash(g_log_epoch);
  */
-static void write_epoch_to_flash(uint16_t epoch) {
+static void writeEpochToFlash(uint16_t epoch) {
   uint8_t data[2];
   data[0] = static_cast<uint8_t>(epoch & 0xFF);
   data[1] = static_cast<uint8_t>((epoch >> 8) & 0xFF);
@@ -194,12 +233,12 @@ static void write_epoch_to_flash(uint16_t epoch) {
 }
 
 /*
- * read_version_from_flash
- * Loads the stored log format version.
+ * readVersionFromFlash
+ * Reads the stored log format version.
  * Example:
- *   uint8_t version = read_version_from_flash();
+ *   uint8_t ver = readVersionFromFlash();
  */
-static uint8_t read_version_from_flash() {
+static uint8_t readVersionFromFlash() {
   uint8_t version = 0;
   if (!read_block(2, &version, 1)) return 0;
   if (version == 0xFF) return 0;
@@ -207,22 +246,22 @@ static uint8_t read_version_from_flash() {
 }
 
 /*
- * write_version_to_flash
- * Stores the log format version.
+ * writeVersionToFlash
+ * Writes the log format version.
  * Example:
- *   write_version_to_flash(kLogFormatVersion);
+ *   writeVersionToFlash(LOG_FORMAT_VERSION);
  */
-static void write_version_to_flash(uint8_t version) {
+static void writeVersionToFlash(uint8_t version) {
   write_block(2, &version, 1);
 }
 
 /*
- * write_head_record
- * Appends a (seq, slot) record to the rotating head ring.
+ * writeHeadRecord
+ * Appends a (seq, slot) record to the head ring.
  * Example:
- *   write_head_record(seq, slot);
+ *   writeHeadRecord(seq, slot);
  */
-static void write_head_record(uint16_t seq, uint16_t slot) {
+static void writeHeadRecord(uint16_t seq, uint16_t slot) {
   if (g_head_record_count == 0) return;
   if (g_head_index < 0 || g_head_index + 1 >= static_cast<int16_t>(g_head_record_count)) g_head_index = 0;
   else g_head_index++;
@@ -236,295 +275,479 @@ static void write_head_record(uint16_t seq, uint16_t slot) {
 }
 
 /*
+ * stampLightDayKey
+ * Updates the lightDayKey on a log entry.
+ * Example:
+ *   stampLightDayKey(&entry);
+ */
+static void stampLightDayKey(LogEntry *entry) {
+  if (!entry) return;
+
+  uint8_t year = entry->startYear;
+  uint8_t month = entry->startMonth;
+  uint8_t day = entry->startDay;
+  uint8_t hour = entry->startHour;
+  uint8_t minute = entry->startMinute;
+
+  if (entry->entryType == 1 && entry->endMonth && entry->endDay) {
+    year = entry->endYear;
+    month = entry->endMonth;
+    day = entry->endDay;
+    hour = entry->endHour;
+    minute = entry->endMinute;
+  }
+
+  uint16_t key = 0;
+  if (!calcLightDayKey(year, month, day, hour, minute, config.lightsOnMinutes, &key)) {
+    key = 0;
+  }
+  entry->lightDayKey = key;
+}
+
+/*
  * clear_ram_logs
  * Clears the in-memory log list used by the UI.
  * Example:
  *   clear_ram_logs();
  */
 static void clear_ram_logs() {
+  memset(g_logs, 0, sizeof(g_logs));
   g_log_count = 0;
   g_log_index = 0;
 }
 
 /*
- * push_ram_log
- * Inserts a log entry into the in-memory list (newest first).
+ * cache_log_entry
+ * Adds a log entry to the in-memory list.
  * Example:
- *   push_ram_log(entry);
+ *   cache_log_entry(entry);
  */
-static void push_ram_log(const LogEntry &entry) {
+static void cache_log_entry(const LogEntry &entry) {
   if (g_log_count < kMaxLogs) {
+    for (int i = g_log_count; i > 0; --i) {
+      g_logs[i] = g_logs[i - 1];
+    }
+    g_logs[0] = entry;
     g_log_count++;
+  } else if (kMaxLogs > 0) {
+    for (int i = kMaxLogs - 1; i > 0; --i) {
+      g_logs[i] = g_logs[i - 1];
+    }
+    g_logs[0] = entry;
   }
-  for (int i = g_log_count - 1; i > 0; --i) {
-    g_logs[i] = g_logs[i - 1];
-  }
-  g_logs[0] = entry;
+  g_log_index = 0;
 }
 
 /*
- * write_zeroes
- * Writes zero-filled blocks over a file range.
+ * refresh_ram_logs
+ * Rebuilds the in-memory log list from persisted storage.
  * Example:
- *   write_zeroes(offset, len);
+ *   refresh_ram_logs();
  */
-static void write_zeroes(uint32_t offset, size_t len) {
-  uint8_t zeros[128] = {0};
-  while (len > 0) {
-    size_t chunk = (len > sizeof(zeros)) ? sizeof(zeros) : len;
-    write_block(offset, zeros, chunk);
-    offset += static_cast<uint32_t>(chunk);
-    len -= chunk;
-  }
-}
-
-/*
- * wipe_storage
- * Clears head ring and log slots, then resets metadata.
- * Example:
- *   wipe_storage();
- */
-static void wipe_storage() {
-  if (g_head_record_count > 0) {
-    size_t ring_bytes = static_cast<size_t>(g_head_record_count) * kHeadRecordSize;
-    write_zeroes(kLogMetaSize, ring_bytes);
-  }
-  size_t slots_bytes = static_cast<size_t>(g_total_slots) * sizeof(PersistedLogEntry);
-  write_zeroes(g_log_start_offset, slots_bytes);
-  g_epoch = 0;
-  g_browse_epoch = 0;
-  g_latest_slot = -1;
-  g_head_index = -1;
-  g_latest_seq = 0;
-  g_current_slot = -1;
-  write_epoch_to_flash(g_epoch);
-  write_version_to_flash(kLogFormatVersion);
+static void refresh_ram_logs() {
   clear_ram_logs();
-}
+  int16_t savedSlot = g_current_slot;
+  uint16_t savedEpoch = g_browse_epoch;
 
-/*
- * find_latest_from_head
- * Scans the head ring to locate the most recent log slot.
- * Example:
- *   find_latest_from_head();
- */
-static void find_latest_from_head() {
-  uint16_t best_seq = 0;
+  goToLatestSlot();
+  if (g_current_slot >= 0) {
+    do {
+      if (g_log_count >= kMaxLogs) break;
+      g_logs[g_log_count++] = g_log_buffer;
+    } while (goToPreviousLogSlot());
+  }
+
+  g_browse_epoch = savedEpoch;
+  if (savedSlot >= 0) {
+    g_current_slot = savedSlot;
+    readLogEntry();
+  } else {
+    g_current_slot = savedSlot;
+  }
+  g_log_index = 0;
+}
+} // namespace
+
+void logs_init() {
+  if (!ensure_fs()) return;
+  if (!ensure_log_file_size(kLogStoreBytes)) return;
+
+  size_t logArea = kLogStoreBytes;
+  size_t ringBytes = (logArea > kLogMetaSize) ? ((logArea - kLogMetaSize) / kHeadRingDivisor) : 0;
+  ringBytes &= ~static_cast<size_t>(3);
+  if (ringBytes < kHeadRecordSize) ringBytes = kHeadRecordSize;
+
+  g_head_record_count = static_cast<uint16_t>(ringBytes / kHeadRecordSize);
+  g_log_start_offset = static_cast<uint32_t>(kLogMetaSize + ringBytes);
+  if (logArea > kLogMetaSize + ringBytes) {
+    g_total_slots = static_cast<uint16_t>((logArea - kLogMetaSize - ringBytes) / sizeof(LogEntry));
+  } else {
+    g_total_slots = 0;
+  }
+
+  uint8_t storedVersion = readVersionFromFlash();
+  if (storedVersion != LOG_FORMAT_VERSION) {
+    wipeLogs();
+  }
+
+  g_log_epoch = readEpochFromFlash();
+  g_browse_epoch = g_log_epoch;
   g_latest_slot = -1;
   g_head_index = -1;
+
+  uint16_t bestSeq = 0;
   for (uint16_t i = 0; i < g_head_record_count; ++i) {
-    uint8_t data[4] = {0};
+    uint8_t data[4];
     uint32_t addr = kLogMetaSize + static_cast<uint32_t>(i) * kHeadRecordSize;
     if (!read_block(addr, data, sizeof(data))) continue;
     uint16_t seq = static_cast<uint16_t>(data[0]) | (static_cast<uint16_t>(data[1]) << 8);
     uint16_t slot = static_cast<uint16_t>(data[2]) | (static_cast<uint16_t>(data[3]) << 8);
     if (seq == 0 || slot >= g_total_slots) continue;
-    if (g_head_index < 0 || seq_is_later(seq, best_seq)) {
-      best_seq = seq;
+    if (g_head_index < 0 || seqIsLater(seq, bestSeq)) {
+      bestSeq = seq;
       g_latest_slot = static_cast<int16_t>(slot);
       g_head_index = static_cast<int16_t>(i);
     }
   }
-  g_latest_seq = best_seq;
-  if (g_latest_slot >= 0) g_current_slot = g_latest_slot;
-}
 
-/*
- * load_recent_logs
- * Loads the most recent logs into the in-memory list.
- * Example:
- *   load_recent_logs();
- */
-static void load_recent_logs() {
-  clear_ram_logs();
-  if (g_latest_slot < 0) return;
-
-  PersistedLogEntry entry = {};
-  if (!read_slot(g_latest_slot, &entry)) return;
-  if (slot_is_empty(entry.seq)) return;
-
-  push_ram_log(entry.entry);
-  uint16_t prev_seq = entry.seq;
-  int16_t slot = g_latest_slot;
-
-  while (g_log_count < kMaxLogs) {
-    int16_t next_slot = static_cast<int16_t>(slot - 1);
-    if (next_slot < 0) next_slot = static_cast<int16_t>(g_total_slots - 1);
-
-    if (!read_slot(next_slot, &entry)) break;
-    if (slot_is_empty(entry.seq)) break;
-    if (!seq_is_later(prev_seq, entry.seq)) break;
-
-    push_ram_log(entry.entry);
-    prev_seq = entry.seq;
-    slot = next_slot;
-  }
-}
-
-/*
- * append_persisted_log
- * Writes a new log entry to the flash ring buffer.
- * Example:
- *   append_persisted_log(entry);
- */
-static void append_persisted_log(const LogEntry &entry) {
-  if (!g_logs_ready || g_total_slots == 0) return;
-
-  uint16_t new_seq = static_cast<uint16_t>(g_latest_seq + 1);
-  if (new_seq == 0) {
-    new_seq = 1;
-    g_epoch++;
-    write_epoch_to_flash(g_epoch);
-  }
-
-  int16_t next_slot = 0;
   if (g_latest_slot >= 0) {
-    next_slot = static_cast<int16_t>(g_latest_slot + 1);
-    if (next_slot >= static_cast<int16_t>(g_total_slots)) next_slot = 0;
+    g_current_slot = g_latest_slot;
+    readLogEntry(g_current_slot);
+  } else {
+    g_current_slot = -1;
+    clearLogEntry(&g_log_buffer);
   }
+  g_browse_epoch = g_log_epoch;
+  g_logs_ready = true;
 
-  PersistedLogEntry record = {};
-  record.seq = new_seq;
-  record.entry = entry;
-  if (!write_slot(next_slot, record)) return;
-
-  write_head_record(new_seq, static_cast<uint16_t>(next_slot));
-  g_latest_slot = next_slot;
-  g_latest_seq = new_seq;
-  g_current_slot = next_slot;
-  g_browse_epoch = g_epoch;
+  refresh_ram_logs();
 }
 
-} // namespace
+void logs_wipe() {
+  wipeLogs();
+  refresh_ram_logs();
+}
+
+void add_log(const LogEntry &entry) {
+  LogEntry copy = entry;
+  writeLogEntry(static_cast<void *>(&copy));
+}
+
+LogEntry build_value_log() {
+  LogEntry entry = {};
+  uint8_t soilMoisture = soilMoistureAsPercentage(getSoilMoisture());
+  initLogEntryCommon(&entry, 2, LOG_STOP_NONE, LOG_START_NONE, 0, 0, soilMoisture, 0);
+  entry.millisStart = millis();
+  rtcReadDateTime(&entry.startHour, &entry.startMinute, &entry.startDay,
+                  &entry.startMonth, &entry.startYear);
+  return entry;
+}
+
+LogEntry build_boot_log() {
+  LogEntry entry = {};
+  uint8_t soilMoistureBefore = soilMoistureAsPercentage(getSoilMoisture());
+  initLogEntryCommon(&entry, 0, LOG_STOP_NONE, LOG_START_NONE, 0, 0, soilMoistureBefore, 0);
+  entry.millisStart = 0;
+  entry.millisEnd = millis();
+  rtcReadDateTime(&entry.startHour, &entry.startMinute, &entry.startDay,
+                  &entry.startMonth, &entry.startYear);
+  return entry;
+}
+
+LogEntry build_feed_log() {
+  LogEntry entry = {};
+  uint8_t soilMoisture = soilMoistureAsPercentage(getSoilMoisture());
+  initLogEntryCommon(&entry, 1, LOG_STOP_NONE, LOG_START_USER, 0, 0, soilMoisture, soilMoisture);
+  entry.millisStart = millis();
+  rtcReadDateTime(&entry.startHour, &entry.startMinute, &entry.startDay,
+                  &entry.startMonth, &entry.startYear);
+  return entry;
+}
+
+void readLogEntry(int16_t slot) {
+  int16_t slotToRead = (slot == -1) ? g_current_slot : slot;
+  if (slotToRead < 0) {
+    clearLogEntry(&g_log_buffer);
+    return;
+  }
+  if (!read_slot(slotToRead, &g_log_buffer)) {
+    clearLogEntry(&g_log_buffer);
+  }
+}
+
+void goToLatestSlot() {
+  if (g_latest_slot >= 0) {
+    g_current_slot = g_latest_slot;
+    readLogEntry(g_current_slot);
+    g_browse_epoch = g_log_epoch;
+    return;
+  }
+  g_current_slot = -1;
+  clearLogEntry(&g_log_buffer);
+  g_browse_epoch = g_log_epoch;
+}
+
+int16_t getCurrentLogSlot() {
+  return g_current_slot;
+}
+
+void writeLogEntry(void *buffer) {
+  if (!buffer) return;
+
+  goToLatestSlot();
+  uint16_t latestSeq = g_log_buffer.seq;
+  uint16_t newSeq = static_cast<uint16_t>(latestSeq + 1);
+  if (newSeq == 0) {
+    newSeq = 1;
+    g_log_epoch++;
+    writeEpochToFlash(g_log_epoch);
+  }
+
+  goToNextLogSlot(true);
+  LogEntry *entry = static_cast<LogEntry *>(buffer);
+  entry->seq = newSeq;
+  stampLightDayKey(entry);
+  write_slot(g_current_slot, *entry);
+
+  readLogEntry();
+  writeHeadRecord(newSeq, static_cast<uint16_t>(g_current_slot));
+  g_latest_slot = g_current_slot;
+
+  cache_log_entry(*entry);
+}
+
+bool noLogs() {
+  return g_log_buffer.seq == 0;
+}
 
 /*
- * logs_init
- * Initializes flash-backed log storage and loads recent logs into RAM.
+ * goToAdjacentLogSlot
+ * Moves the current slot pointer forward/backward with epoch tracking.
  * Example:
- *   logs_init();
+ *   goToAdjacentLogSlot(1, false);
  */
-void logs_init() {
-  g_logs_ready = false;
-  g_total_slots = 0;
-  g_head_record_count = 0;
-  g_log_start_offset = 0;
+static uint8_t goToAdjacentLogSlot(int8_t direction, bool force) {
+  int16_t originalSlot = g_current_slot;
+
+  if (direction > 0 && originalSlot < 0) {
+    g_current_slot = 0;
+    return true;
+  }
+
+  if (originalSlot < 0) originalSlot = 0;
+  g_current_slot = originalSlot;
+  readLogEntry();
+  uint16_t originalSeq = g_log_buffer.seq;
+
+  g_current_slot = static_cast<int16_t>(g_current_slot + direction);
+  if (g_current_slot >= static_cast<int16_t>(g_total_slots)) g_current_slot = 0;
+  if (g_current_slot < 0) g_current_slot = static_cast<int16_t>(g_total_slots - 1);
+  readLogEntry();
+
+  if (force) return true;
+
+  uint16_t newSeq = g_log_buffer.seq;
+  if (direction > 0) {
+    if (!slotIsEmpty(newSeq) && seqIsLater(newSeq, originalSeq)) {
+      if (originalSeq == 0xFFFF && newSeq == 1) g_browse_epoch++;
+      return true;
+    }
+  } else {
+    if (!slotIsEmpty(newSeq) && seqIsLater(originalSeq, newSeq)) {
+      if (originalSeq == 1 && newSeq == 0xFFFF) g_browse_epoch--;
+      return true;
+    }
+  }
+
+  g_current_slot = originalSlot;
+  readLogEntry();
+  return false;
+}
+
+uint8_t goToNextLogSlot(bool force) {
+  return goToAdjacentLogSlot(1, force);
+}
+
+uint8_t goToPreviousLogSlot(bool force) {
+  return goToAdjacentLogSlot(-1, force);
+}
+
+void initLogs(void *, int, int, int, int) {
+  logs_init();
+}
+
+void clearLogEntry(void *buffer) {
+  if (!buffer) return;
+  memset(buffer, 0, sizeof(LogEntry));
+  LogEntry *entry = static_cast<LogEntry *>(buffer);
+  entry->baselinePercent = LOG_BASELINE_UNSET;
+  entry->drybackPercent = LOG_BASELINE_UNSET;
+}
+
+void initLogEntryCommon(LogEntry *entry, uint8_t entryType, uint8_t stopReason,
+                        uint8_t startReason, uint8_t slotIndex, uint8_t flags,
+                        uint8_t soilBefore, uint8_t soilAfter) {
+  if (!entry) return;
+  clearLogEntry(entry);
+  entry->entryType = entryType;
+  entry->stopReason = stopReason;
+  entry->startReason = startReason;
+  entry->slotIndex = slotIndex;
+  entry->flags = flags;
+  entry->soilMoistureBefore = soilBefore;
+  entry->soilMoistureAfter = soilAfter;
+  entry->drybackPercent = LOG_BASELINE_UNSET;
+  uint8_t dryback = 0;
+  if (calcDrybackFromBaseline(soilBefore, &dryback)) entry->drybackPercent = dryback;
+}
+
+void wipeLogs() {
+  if (g_head_record_count > 0) {
+    uint8_t blank[kHeadRecordSize];
+    memset(blank, 0xFF, sizeof(blank));
+    for (uint16_t i = 0; i < g_head_record_count; ++i) {
+      uint32_t addr = kLogMetaSize + static_cast<uint32_t>(i) * kHeadRecordSize;
+      write_block(addr, blank, sizeof(blank));
+    }
+  }
+
+  LogEntry blankEntry = {};
+  for (uint16_t slot = 0; slot < g_total_slots; ++slot) {
+    write_slot(static_cast<int16_t>(slot), blankEntry);
+  }
+
+  g_log_epoch = 0;
+  g_browse_epoch = 0;
+  writeEpochToFlash(g_log_epoch);
+  writeVersionToFlash(LOG_FORMAT_VERSION);
   g_current_slot = -1;
   g_latest_slot = -1;
   g_head_index = -1;
-  g_latest_seq = 0;
-  g_epoch = 0;
-  g_browse_epoch = 0;
-  clear_ram_logs();
+  clearLogEntry(&g_log_buffer);
+}
 
-  if (!ensure_fs()) return;
-  if (!ensure_log_file_size(kLogStoreBytes)) return;
+bool patchLogBaselinePercent(int16_t slot, uint8_t baselinePercent) {
+  if (slot < 0 || slot >= static_cast<int16_t>(g_total_slots)) return false;
+  uint32_t offset = slot_offset(slot) + static_cast<uint32_t>(offsetof(LogEntry, baselinePercent));
+  return write_block(offset, &baselinePercent, sizeof(baselinePercent));
+}
 
-  size_t log_area = kLogStoreBytes - kLogMetaSize;
-  size_t ring_bytes = log_area / kHeadRingDivisor;
-  ring_bytes &= ~static_cast<size_t>(3);
-  if (ring_bytes < kHeadRecordSize) ring_bytes = kHeadRecordSize;
+bool findLatestBaselineEntries(LogEntry *outLatestSetter, int16_t *outLatestSetterSlot,
+                               LogEntry *outLatestWithBaseline, int16_t *outLatestWithBaselineSlot,
+                               LogEntry *outLatestFeed) {
+  int16_t savedSlot = g_current_slot;
+  uint16_t savedBrowseEpoch = g_browse_epoch;
+  bool foundSetter = false;
+  bool foundWithBaseline = false;
+  int16_t foundSetterSlot = -1;
+  int16_t foundBaselineSlot = -1;
 
-  g_head_record_count = static_cast<uint16_t>(ring_bytes / kHeadRecordSize);
-  g_log_start_offset = static_cast<uint32_t>(kLogMetaSize + ring_bytes);
-  g_total_slots = static_cast<uint16_t>((kLogStoreBytes - g_log_start_offset) / sizeof(PersistedLogEntry));
+  goToLatestSlot();
+  if (g_current_slot >= 0) {
+    do {
+      LogEntry *entry = &g_log_buffer;
+      if (entry->entryType != 1) continue;
+      if (outLatestFeed && outLatestFeed->entryType == 0) {
+        *outLatestFeed = *entry;
+      }
+      if ((entry->flags & LOG_FLAG_BASELINE_SETTER) == 0) continue;
+      if ((entry->flags & LOG_FLAG_RUNOFF_SEEN) == 0) continue;
 
-  if (g_total_slots == 0) return;
-
-  uint8_t stored_version = read_version_from_flash();
-  if (stored_version != kLogFormatVersion) {
-    g_logs_ready = true;
-    wipe_storage();
-    return;
+      if (!foundSetter) {
+        foundSetter = true;
+        foundSetterSlot = g_current_slot;
+        if (outLatestSetter) *outLatestSetter = *entry;
+      }
+      if (!foundWithBaseline && entry->baselinePercent != LOG_BASELINE_UNSET) {
+        foundWithBaseline = true;
+        foundBaselineSlot = g_current_slot;
+        if (outLatestWithBaseline) *outLatestWithBaseline = *entry;
+      }
+      if (foundSetter && foundWithBaseline) break;
+    } while (goToPreviousLogSlot());
   }
 
-  g_epoch = read_epoch_from_flash();
-  g_browse_epoch = g_epoch;
-  find_latest_from_head();
-  load_recent_logs();
-  g_logs_ready = true;
-}
-
-/*
- * logs_wipe
- * Clears all persisted logs and resets in-memory log state.
- * Example:
- *   logs_wipe();
- */
-void logs_wipe() {
-  if (!ensure_fs()) return;
-  if (!ensure_log_file_size(kLogStoreBytes)) return;
-  if (g_total_slots == 0) {
-    size_t log_area = kLogStoreBytes - kLogMetaSize;
-    size_t ring_bytes = log_area / kHeadRingDivisor;
-    ring_bytes &= ~static_cast<size_t>(3);
-    if (ring_bytes < kHeadRecordSize) ring_bytes = kHeadRecordSize;
-    g_head_record_count = static_cast<uint16_t>(ring_bytes / kHeadRecordSize);
-    g_log_start_offset = static_cast<uint32_t>(kLogMetaSize + ring_bytes);
-    g_total_slots = static_cast<uint16_t>((kLogStoreBytes - g_log_start_offset) / sizeof(PersistedLogEntry));
+  g_browse_epoch = savedBrowseEpoch;
+  if (savedSlot >= 0) {
+    g_current_slot = savedSlot;
+    readLogEntry();
+  } else {
+    g_current_slot = savedSlot;
   }
-  g_logs_ready = true;
-  wipe_storage();
+
+  if (outLatestSetterSlot) *outLatestSetterSlot = foundSetter ? foundSetterSlot : -1;
+  if (outLatestWithBaselineSlot) *outLatestWithBaselineSlot = foundWithBaseline ? foundBaselineSlot : -1;
+  return foundSetter || foundWithBaseline;
 }
 
-/*
- * add_log
- * Adds a log entry to RAM and persists it to flash storage.
- * Example:
- *   add_log(build_boot_log());
- */
-void add_log(const LogEntry &entry) {
-  append_persisted_log(entry);
-  push_ram_log(entry);
+uint32_t getAbsoluteLogNumber() {
+  return (static_cast<uint32_t>(g_browse_epoch) << 16) | g_log_buffer.seq;
 }
 
-/*
- * build_value_log
- * Builds a type-2 values log from the current simulated state.
- * Example:
- *   LogEntry entry = build_value_log();
- */
-LogEntry build_value_log() {
-  LogEntry entry = {};
-  entry.type = 2;
-  entry.dt = g_sim.now;
-  entry.soil_pct = g_sim.moisture;
-  entry.dryback = g_sim.dryback;
-  return entry;
+uint16_t getDailyFeedTotalMlAt(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute,
+                               uint8_t *outMin, uint8_t *outMax) {
+  uint16_t targetKey = 0;
+  if (!calcLightDayKey(year, month, day, hour, minute, config.lightsOnMinutes, &targetKey)) return 0;
+
+  int16_t savedSlot = g_current_slot;
+  uint16_t savedBrowseEpoch = g_browse_epoch;
+  uint16_t total = 0;
+  bool foundTotal = false;
+  uint8_t minVal = LOG_BASELINE_UNSET;
+  uint8_t maxVal = LOG_BASELINE_UNSET;
+
+  goToLatestSlot();
+  if (g_current_slot >= 0) {
+    do {
+      LogEntry *entry = &g_log_buffer;
+      uint16_t entryKey = entry->lightDayKey;
+      if (entryKey && entryKey < targetKey) break;
+      if (entry->entryType == 1 && entryKey == targetKey) {
+        if (!foundTotal) {
+          total = entry->dailyTotalMl;
+          foundTotal = true;
+        }
+      } else if (entry->entryType == 2 && entryKey == targetKey) {
+        uint8_t val = entry->soilMoistureBefore;
+        if (minVal == LOG_BASELINE_UNSET) {
+          minVal = val;
+          maxVal = val;
+        } else {
+          if (val < minVal) minVal = val;
+          if (val > maxVal) maxVal = val;
+        }
+      }
+    } while (goToPreviousLogSlot());
+  }
+
+  g_browse_epoch = savedBrowseEpoch;
+  if (savedSlot >= 0) {
+    g_current_slot = savedSlot;
+    readLogEntry();
+  } else {
+    g_current_slot = savedSlot;
+  }
+
+  if (outMin) *outMin = minVal;
+  if (outMax) *outMax = maxVal;
+
+  return total;
 }
 
-/*
- * build_boot_log
- * Builds a type-0 boot/marker log from the current simulated state.
- * Example:
- *   add_log(build_boot_log());
- */
-LogEntry build_boot_log() {
-  LogEntry entry = {};
-  entry.type = 0;
-  entry.dt = g_sim.now;
-  entry.soil_pct = g_sim.moisture;
-  entry.dryback = g_sim.dryback;
-  return entry;
+uint16_t getDailyFeedTotalMlNow(uint8_t *outMin, uint8_t *outMax) {
+  uint8_t hour = 0;
+  uint8_t minute = 0;
+  uint8_t day = 0;
+  uint8_t month = 0;
+  uint8_t year = 0;
+
+  if (!rtcReadDateTime(&hour, &minute, &day, &month, &year)) return 0;
+  return getDailyFeedTotalMlAt(year, month, day, hour, minute, outMin, outMax);
 }
 
-/*
- * build_feed_log
- * Builds a type-1 feed log from the current feeding session.
- * Example:
- *   LogEntry entry = build_feed_log();
- */
-LogEntry build_feed_log() {
-  LogEntry entry = {};
-  entry.type = 1;
-  entry.dt = g_sim.now;
-  entry.slot = g_sim.feeding_slot + 1;
-  entry.start_moisture = clamp_int(g_sim.moisture - 6, 0, 100);
-  entry.end_moisture = g_sim.moisture;
-  entry.volume_ml = g_sim.feeding_water_ml;
-  entry.daily_total_ml = g_sim.daily_total_ml;
-  entry.dryback = g_sim.dryback;
-  entry.runoff = g_sim.runoff;
-  strncpy(entry.stop_reason, g_sim.runoff ? "Runoff" : "Target", sizeof(entry.stop_reason) - 1);
-  entry.stop_reason[sizeof(entry.stop_reason) - 1] = '\0';
-  return entry;
+bool getDrybackPercent(uint8_t *outPercent) {
+  if (!outPercent) return false;
+  if (!soilSensorReady()) return false;
+  uint8_t soilPercent = soilMoistureAsPercentage(getSoilMoisture());
+  return calcDrybackFromBaseline(soilPercent, outPercent);
 }

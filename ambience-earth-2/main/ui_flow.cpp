@@ -1,7 +1,14 @@
 #include "ui_flow.h"
 
 #include "app_utils.h"
+#include "config.h"
+#include "feedSlots.h"
+#include "feeding.h"
+#include "feedingUtils.h"
 #include "logs.h"
+#include "moistureSensor.h"
+#include "pumps.h"
+#include "rtc.h"
 #include "sim.h"
 #include "ui_components.h"
 #include "ui_screens.h"
@@ -52,6 +59,9 @@ static void set_active_screen(ScreenId id) {
 static void push_screen(ScreenId id) {
   if (g_screen_stack_size >= static_cast<int>(sizeof(g_screen_stack) / sizeof(g_screen_stack[0]))) return;
   prompt_close();
+  if (id != SCREEN_INFO) {
+    feedingPauseForUi();
+  }
   lv_obj_t *root = build_screen(id);
   g_screen_stack[g_screen_stack_size++] = {id, root};
   lv_scr_load(root);
@@ -67,10 +77,21 @@ static void push_screen(ScreenId id) {
 static void pop_screen() {
   if (g_screen_stack_size <= 1) return;
   prompt_close();
+  ScreenId popped_id = g_screen_stack[g_screen_stack_size - 1].id;
   lv_obj_t *old = g_screen_stack[g_screen_stack_size - 1].root;
   g_screen_stack_size--;
   lv_scr_load(g_screen_stack[g_screen_stack_size - 1].root);
   set_active_screen(g_screen_stack[g_screen_stack_size - 1].id);
+  if (g_screen_stack[g_screen_stack_size - 1].id == SCREEN_INFO) {
+    feedingResumeAfterUi();
+  }
+  if (popped_id == SCREEN_TEST_SENSORS || popped_id == SCREEN_CAL_MOIST) {
+    setSoilSensorLazy();
+  }
+  if (popped_id == SCREEN_CAL_FLOW || popped_id == SCREEN_TEST_PUMPS) {
+    g_cal_flow_running = false;
+    closeLineIn();
+  }
   lv_obj_del(old);
 }
 
@@ -81,13 +102,8 @@ static void pop_screen() {
  *   lv_timer_create(ui_timer_cb, 200, nullptr);
  */
 static void ui_timer_cb(lv_timer_t *) {
-  static uint32_t last_ms = 0;
   uint32_t now_ms = millis();
-  if (last_ms == 0) last_ms = now_ms;
-  if (now_ms - last_ms >= 1000) {
-    last_ms += 1000;
-    sim_tick();
-  }
+  sim_tick();
   update_screensaver(now_ms);
   update_active_screen();
 }
@@ -119,6 +135,7 @@ void open_menu_event(lv_event_t *) {
  *   lv_obj_add_event_cb(btn, open_logs_event, LV_EVENT_CLICKED, nullptr);
  */
 void open_logs_event(lv_event_t *) {
+  feedingClearRunoffWarning();
   push_screen(SCREEN_LOGS);
 }
 
@@ -151,9 +168,10 @@ void open_force_feed_event(lv_event_t *) {
  */
 static void pause_prompt_handler(int option, int) {
   if (option == 0) {
-    g_sim.paused = !g_sim.paused;
+    bool enabled = feedingIsEnabled();
+    feedingSetEnabled(!enabled);
     if (g_pause_menu_label) {
-      lv_label_set_text(g_pause_menu_label, g_sim.paused ? "Unpause feeding" : "Pause feeding");
+      lv_label_set_text(g_pause_menu_label, enabled ? "Unpause feeding" : "Pause feeding");
     }
   }
 }
@@ -166,8 +184,9 @@ static void pause_prompt_handler(int option, int) {
  */
 void toggle_pause_event(lv_event_t *) {
   const char *options[] = {"OK"};
-  const char *title = g_sim.paused ? "Unpause feeding" : "Pause feeding";
-  const char *message = g_sim.paused ? "Feeding resumed" : "Feeding paused";
+  bool enabled = feedingIsEnabled();
+  const char *title = enabled ? "Pause feeding" : "Unpause feeding";
+  const char *message = enabled ? "Feeding paused" : "Feeding resumed";
   show_prompt(title, message, options, 1, pause_prompt_handler, 0);
 }
 
@@ -188,7 +207,18 @@ void open_settings_menu_event(lv_event_t *) {
  *   lv_obj_add_event_cb(btn, open_time_date_event, LV_EVENT_CLICKED, nullptr);
  */
 void open_time_date_event(lv_event_t *) {
-  g_time_date_edit = g_sim.now;
+  uint8_t hour = 0;
+  uint8_t minute = 0;
+  uint8_t day = 1;
+  uint8_t month = 1;
+  uint8_t year = 25;
+  rtcReadDateTime(&hour, &minute, &day, &month, &year);
+  g_time_date_edit.year = 2000 + year;
+  g_time_date_edit.month = month;
+  g_time_date_edit.day = day;
+  g_time_date_edit.hour = hour;
+  g_time_date_edit.minute = minute;
+  g_time_date_edit.second = 0;
   g_time_date_step = 0;
   push_screen(SCREEN_TIME_DATE);
 }
@@ -212,13 +242,18 @@ void open_feeding_schedule_event(lv_event_t *) {
  */
 void open_max_daily_event(lv_event_t *) {
   g_number_ctx.title = "Max daily";
-  g_number_ctx.value = g_sim.max_daily_ml;
+  g_number_ctx.value = config.maxDailyWaterMl;
   g_number_ctx.min = 100;
   g_number_ctx.max = 5000;
   g_number_ctx.step = 100;
   g_number_ctx.unit = "ml";
-  g_number_ctx.target = &g_sim.max_daily_ml;
-  g_number_ctx.on_done = []() { g_setup.max_daily = true; };
+  g_number_ctx.target = nullptr;
+  g_number_ctx.on_done = []() {
+    config.maxDailyWaterMl = static_cast<uint16_t>(g_number_ctx.value);
+    config.flags |= CONFIG_FLAG_MAX_DAILY_SET;
+    saveConfig();
+    g_setup.max_daily = true;
+  };
   push_screen(SCREEN_NUMBER_INPUT);
 }
 
@@ -230,13 +265,16 @@ void open_max_daily_event(lv_event_t *) {
  */
 void open_baseline_x_event(lv_event_t *) {
   g_number_ctx.title = "Baseline - X";
-  g_number_ctx.value = g_sim.baseline_x;
-  g_number_ctx.min = 1;
+  g_number_ctx.value = clampBaselineOffset(config.baselineX);
+  g_number_ctx.min = 2;
   g_number_ctx.max = 20;
-  g_number_ctx.step = 1;
+  g_number_ctx.step = 2;
   g_number_ctx.unit = "%";
-  g_number_ctx.target = &g_sim.baseline_x;
-  g_number_ctx.on_done = nullptr;
+  g_number_ctx.target = nullptr;
+  g_number_ctx.on_done = []() {
+    config.baselineX = clampBaselineOffset(static_cast<uint8_t>(g_number_ctx.value));
+    saveConfig();
+  };
   push_screen(SCREEN_NUMBER_INPUT);
 }
 
@@ -248,13 +286,16 @@ void open_baseline_x_event(lv_event_t *) {
  */
 void open_baseline_y_event(lv_event_t *) {
   g_number_ctx.title = "Baseline - Y";
-  g_number_ctx.value = g_sim.baseline_y;
-  g_number_ctx.min = 1;
-  g_number_ctx.max = 30;
-  g_number_ctx.step = 1;
+  g_number_ctx.value = clampBaselineOffset(config.baselineY);
+  g_number_ctx.min = 2;
+  g_number_ctx.max = 20;
+  g_number_ctx.step = 2;
   g_number_ctx.unit = "%";
-  g_number_ctx.target = &g_sim.baseline_y;
-  g_number_ctx.on_done = nullptr;
+  g_number_ctx.target = nullptr;
+  g_number_ctx.on_done = []() {
+    config.baselineY = clampBaselineOffset(static_cast<uint8_t>(g_number_ctx.value));
+    saveConfig();
+  };
   push_screen(SCREEN_NUMBER_INPUT);
 }
 
@@ -266,13 +307,16 @@ void open_baseline_y_event(lv_event_t *) {
  */
 void open_baseline_delay_event(lv_event_t *) {
   g_number_ctx.title = "Baseline delay";
-  g_number_ctx.value = g_sim.baseline_delay_min;
+  g_number_ctx.value = config.baselineDelayMinutes ? config.baselineDelayMinutes : 5;
   g_number_ctx.min = 5;
   g_number_ctx.max = 120;
   g_number_ctx.step = 5;
   g_number_ctx.unit = "min";
-  g_number_ctx.target = &g_sim.baseline_delay_min;
-  g_number_ctx.on_done = nullptr;
+  g_number_ctx.target = nullptr;
+  g_number_ctx.on_done = []() {
+    config.baselineDelayMinutes = static_cast<uint8_t>(g_number_ctx.value);
+    saveConfig();
+  };
   push_screen(SCREEN_NUMBER_INPUT);
 }
 
@@ -284,11 +328,16 @@ void open_baseline_delay_event(lv_event_t *) {
  */
 void open_lights_event(lv_event_t *) {
   g_time_range_ctx.title = "Lights on/off";
-  g_time_range_ctx.on_hour = g_sim.lights_on_hour;
-  g_time_range_ctx.on_min = g_sim.lights_on_min;
-  g_time_range_ctx.off_hour = g_sim.lights_off_hour;
-  g_time_range_ctx.off_min = g_sim.lights_off_min;
-  g_time_range_ctx.on_done = []() { g_setup.lights = true; };
+  g_time_range_ctx.on_hour = static_cast<int>(config.lightsOnMinutes / 60);
+  g_time_range_ctx.on_min = static_cast<int>(config.lightsOnMinutes % 60);
+  g_time_range_ctx.off_hour = static_cast<int>(config.lightsOffMinutes / 60);
+  g_time_range_ctx.off_min = static_cast<int>(config.lightsOffMinutes % 60);
+  g_time_range_ctx.on_done = []() {
+    config.flags |= CONFIG_FLAG_LIGHTS_ON_SET;
+    config.flags |= CONFIG_FLAG_LIGHTS_OFF_SET;
+    saveConfig();
+    g_setup.lights = true;
+  };
   push_screen(SCREEN_TIME_RANGE_INPUT);
 }
 
@@ -309,7 +358,7 @@ void slot_select_event(lv_event_t *event) {
     show_prompt("Force feed", "Start feed now?", options, 2,
                 [](int option, int context) {
                   if (option == 0) {
-                    sim_start_feed(context);
+                    feedingForceFeed(static_cast<uint8_t>(context));
                   }
                 }, slot_index);
     return;
@@ -337,7 +386,7 @@ void edit_slot_event(lv_event_t *) {
  *   lv_obj_add_event_cb(btn, feed_now_event, LV_EVENT_CLICKED, nullptr);
  */
 void feed_now_event(lv_event_t *) {
-  sim_start_feed(g_selected_slot);
+  feedingForceFeed(static_cast<uint8_t>(g_selected_slot));
   const char *options[] = {"OK"};
   show_prompt("Feed", "Feeding started", options, 1, nullptr, 0);
 }
@@ -375,6 +424,76 @@ static void wizard_apply_name() {
   const char *text = lv_textarea_get_text(g_wizard_refs.text_area);
   strncpy(g_edit_slot.name, text, sizeof(g_edit_slot.name) - 1);
   g_edit_slot.name[sizeof(g_edit_slot.name) - 1] = '\0';
+}
+
+/*
+ * save_slot_to_config
+ * Persists the edited slot to config storage using feed-slot packing.
+ * Example:
+ *   save_slot_to_config(g_selected_slot, g_edit_slot);
+ */
+static void save_slot_to_config(int slot_index, const Slot &slot) {
+  if (slot_index < 0 || slot_index >= kSlotCount) return;
+  FeedSlot existing = {};
+  unpackFeedSlot(&existing, config.feedSlotsPacked[slot_index]);
+  uint8_t runoff_hold = existing.runoffHold5s ? existing.runoffHold5s : 6;
+
+  FeedSlot packed = {};
+  packed.runoffHold5s = runoff_hold;
+  packed.flags = 0;
+
+  if (slot.enabled) packed.flags |= FEED_SLOT_ENABLED;
+  if (slot.use_window) packed.flags |= FEED_SLOT_HAS_TIME_WINDOW;
+  if (slot.start_mode != MODE_OFF) packed.flags |= FEED_SLOT_HAS_MOISTURE_BELOW;
+  if (slot.target_mode != MODE_OFF) packed.flags |= FEED_SLOT_HAS_MOISTURE_TARGET;
+  if (slot.min_gap_min > 0) packed.flags |= FEED_SLOT_HAS_MIN_SINCE;
+  if (slot.stop_on_runoff) packed.flags |= FEED_SLOT_RUNOFF_REQUIRED;
+  if (slot.runoff_mode == RUNOFF_AVOID) packed.flags |= FEED_SLOT_RUNOFF_AVOID;
+  if (slot.stop_on_runoff && slot.runoff_mode == RUNOFF_MUST && slot.baseline_setter) {
+    packed.flags |= FEED_SLOT_BASELINE_SETTER;
+  }
+
+  if (slot.use_window) {
+    int start_minutes = clamp_int(slot.start_hour, 0, 23) * 60 +
+                        clamp_int(slot.start_min, 0, 59);
+    packed.windowStartMinutes = static_cast<uint16_t>(clamp_int(start_minutes, 0, 1439));
+    packed.windowDurationMinutes = static_cast<uint16_t>(clamp_int(slot.window_duration_min, 0, 1439));
+  } else {
+    packed.windowStartMinutes = 0;
+    packed.windowDurationMinutes = 0;
+  }
+
+  const uint8_t kBaselineSentinel = 127;
+  if (slot.start_mode == MODE_BASELINE) {
+    packed.moistureBelow = kBaselineSentinel;
+  } else if (slot.start_mode == MODE_PERCENT) {
+    packed.moistureBelow = static_cast<uint8_t>(clamp_int(slot.start_value, 0, 100));
+  } else {
+    packed.moistureBelow = 0;
+  }
+
+  if (slot.target_mode == MODE_BASELINE) {
+    packed.moistureTarget = kBaselineSentinel;
+  } else if (slot.target_mode == MODE_PERCENT) {
+    packed.moistureTarget = static_cast<uint8_t>(clamp_int(slot.target_value, 0, 100));
+  } else {
+    packed.moistureTarget = 0;
+  }
+
+  packed.minGapMinutes = static_cast<uint16_t>(clamp_int(slot.min_gap_min, 0, 4095));
+  packed.maxVolumeMl = static_cast<uint16_t>(clamp_int(slot.max_ml, 0, 1500));
+
+  packFeedSlot(config.feedSlotsPacked[slot_index], &packed);
+
+  strncpy(config.feedSlotNames[slot_index], slot.name, FEED_SLOT_NAME_LENGTH);
+  config.feedSlotNames[slot_index][FEED_SLOT_NAME_LENGTH] = '\0';
+
+  uint8_t pref = 0;
+  if (slot.runoff_mode == RUNOFF_MUST) pref = 1;
+  else if (slot.runoff_mode == RUNOFF_AVOID) pref = 2;
+  config.runoffExpectation[slot_index] = pref;
+
+  saveConfig();
 }
 
 /*
@@ -419,6 +538,7 @@ void wizard_next_event(lv_event_t *) {
  */
 static void wizard_save_handler(int option, int) {
   if (option == 0) {
+    save_slot_to_config(g_selected_slot, g_edit_slot);
     g_slots[g_selected_slot] = g_edit_slot;
     update_slot_summary_screen();
     pop_screen();
@@ -478,9 +598,23 @@ void time_date_next_event(lv_event_t *event) {
  *   lv_obj_add_event_cb(btn, time_date_save_event, LV_EVENT_CLICKED, nullptr);
  */
 void time_date_save_event(lv_event_t *) {
-  g_sim.now = g_time_date_edit;
-  g_setup.time_date = true;
-  maybe_refresh_initial_setup();
+  uint8_t year = 0;
+  if (g_time_date_edit.year >= 2000) {
+    year = static_cast<uint8_t>(g_time_date_edit.year - 2000);
+  } else {
+    year = static_cast<uint8_t>(g_time_date_edit.year % 100);
+  }
+  if (rtcSetDateTime(static_cast<uint8_t>(g_time_date_edit.hour),
+                     static_cast<uint8_t>(g_time_date_edit.minute),
+                     static_cast<uint8_t>(g_time_date_edit.second),
+                     static_cast<uint8_t>(g_time_date_edit.day),
+                     static_cast<uint8_t>(g_time_date_edit.month),
+                     year)) {
+    config.flags |= CONFIG_FLAG_TIME_SET;
+    saveConfig();
+    g_setup.time_date = true;
+    maybe_refresh_initial_setup();
+  }
   pop_screen();
 }
 
@@ -532,6 +666,9 @@ void open_reset_menu_event(lv_event_t *) {
  */
 void open_cal_moist_event(lv_event_t *) {
   g_cal_moist_mode = 0;
+  g_cal_moist_avg_raw = 0;
+  g_cal_moist_window_done = false;
+  setSoilSensorLazy();
   push_screen(SCREEN_CAL_MOIST);
 }
 
@@ -544,6 +681,13 @@ void open_cal_moist_event(lv_event_t *) {
 void open_cal_flow_event(lv_event_t *) {
   g_cal_flow_step = 0;
   g_cal_flow_running = false;
+  g_cal_flow_start_ms = 0;
+  g_cal_flow_elapsed_ms = 0;
+  g_cal_flow_target_ml_per_hour = static_cast<int>(config.pulseTargetUnits) * 200;
+  if (g_cal_flow_target_ml_per_hour <= 0) {
+    g_cal_flow_target_ml_per_hour = 4000;
+  }
+  closeLineIn();
   push_screen(SCREEN_CAL_FLOW);
 }
 
@@ -554,6 +698,7 @@ void open_cal_flow_event(lv_event_t *) {
  *   lv_obj_add_event_cb(btn, open_test_sensors_event, LV_EVENT_CLICKED, nullptr);
  */
 void open_test_sensors_event(lv_event_t *) {
+  setSoilSensorRealTime();
   push_screen(SCREEN_TEST_SENSORS);
 }
 
@@ -599,7 +744,7 @@ void reset_logs_event(lv_event_t *) {
  */
 static void reset_factory_handler(int option, int) {
   if (option == 0) {
-    sim_init();
+    sim_factory_reset();
   }
 }
 
@@ -648,10 +793,12 @@ void number_input_ok_event(lv_event_t *) {
  *   lv_obj_add_event_cb(btn, time_range_ok_event, LV_EVENT_CLICKED, nullptr);
  */
 void time_range_ok_event(lv_event_t *) {
-  g_sim.lights_on_hour = g_time_range_ctx.on_hour;
-  g_sim.lights_on_min = g_time_range_ctx.on_min;
-  g_sim.lights_off_hour = g_time_range_ctx.off_hour;
-  g_sim.lights_off_min = g_time_range_ctx.off_min;
+  int on_minutes = clamp_int(g_time_range_ctx.on_hour, 0, 23) * 60 +
+                   clamp_int(g_time_range_ctx.on_min, 0, 59);
+  int off_minutes = clamp_int(g_time_range_ctx.off_hour, 0, 23) * 60 +
+                    clamp_int(g_time_range_ctx.off_min, 0, 59);
+  config.lightsOnMinutes = static_cast<uint16_t>(on_minutes);
+  config.lightsOffMinutes = static_cast<uint16_t>(off_minutes);
   if (g_time_range_ctx.on_done) {
     g_time_range_ctx.on_done();
   }
@@ -669,6 +816,11 @@ void time_range_ok_event(lv_event_t *) {
 void cal_moist_mode_event(lv_event_t *event) {
   int mode = static_cast<int>(reinterpret_cast<intptr_t>(lv_event_get_user_data(event)));
   g_cal_moist_mode = mode;
+  g_cal_moist_avg_raw = 0;
+  g_cal_moist_window_done = false;
+  if (g_cal_moist_mode != 0) {
+    soilSensorWindowStart();
+  }
   update_cal_moist_screen();
 }
 
@@ -679,10 +831,21 @@ void cal_moist_mode_event(lv_event_t *event) {
  *   lv_obj_add_event_cb(btn, cal_moist_save_event, LV_EVENT_CLICKED, nullptr);
  */
 void cal_moist_save_event(lv_event_t *) {
-  if (g_cal_moist_mode == 1) g_sim.moisture_raw_dry = g_sim.moisture_raw;
-  if (g_cal_moist_mode == 2) g_sim.moisture_raw_wet = g_sim.moisture_raw;
+  if (g_cal_moist_mode != 1 && g_cal_moist_mode != 2) {
+    const char *options[] = {"OK"};
+    show_prompt("Select mode", "Choose Dry or Wet first", options, 1, nullptr, 0);
+    return;
+  }
+  uint16_t value = g_cal_moist_window_done ? g_cal_moist_avg_raw : soilSensorWindowLastRaw();
+  if (g_cal_moist_mode == 1) {
+    config.moistSensorCalibrationDry = value;
+  } else if (g_cal_moist_mode == 2) {
+    config.moistSensorCalibrationSoaked = value;
+  }
+  saveConfig();
   g_setup.moisture_cal = true;
   maybe_refresh_initial_setup();
+  setSoilSensorLazy();
   const char *options[] = {"OK"};
   show_prompt("Saved", "Calibration stored", options, 1, nullptr, 0);
 }
@@ -695,13 +858,66 @@ void cal_moist_save_event(lv_event_t *) {
  */
 void cal_flow_action_event(lv_event_t *) {
   if (g_cal_flow_step == 2) {
+    g_cal_flow_running = false;
+    closeLineIn();
+    uint32_t per_liter = config.dripperMsPerLiter;
+    if (g_cal_flow_elapsed_ms > 0) {
+      per_liter = g_cal_flow_elapsed_ms * 10UL;
+      if (per_liter < g_cal_flow_elapsed_ms) per_liter = 0xFFFFFFFFUL;
+    }
+
+    int target_ml = g_cal_flow_target_ml_per_hour;
+    if (target_ml <= 0) target_ml = static_cast<int>(config.pulseTargetUnits) * 200;
+    if (target_ml <= 0) target_ml = 4000;
+    uint8_t target_units = static_cast<uint8_t>(target_ml / 200);
+
+    uint8_t on_sec = 0;
+    uint8_t off_sec = 0;
+    if (target_units >= 5 && target_units <= 50 && per_liter) {
+      uint32_t full_rate = 3600000000UL / per_liter;
+      uint32_t target_rate = static_cast<uint32_t>(target_units) * 200UL;
+      if (full_rate > target_rate) {
+        uint32_t diff = full_rate - target_rate;
+        uint8_t on = 10;
+        uint32_t off_calc = static_cast<uint32_t>(on) * diff / target_rate;
+        if (off_calc > 60) {
+          on = 5;
+          off_calc = static_cast<uint32_t>(on) * diff / target_rate;
+        }
+        if (off_calc > 255) off_calc = 255;
+        on_sec = on;
+        off_sec = static_cast<uint8_t>(off_calc);
+      }
+    }
+
+    config.dripperMsPerLiter = per_liter;
+    config.pulseTargetUnits = target_units;
+    config.pulseOnSeconds = on_sec;
+    config.pulseOffSeconds = off_sec;
+    config.flags |= CONFIG_FLAG_DRIPPER_CALIBRATED;
+    config.flags |= CONFIG_FLAG_PULSE_SET;
+    saveConfig();
+
     g_setup.dripper_cal = true;
     maybe_refresh_initial_setup();
     const char *options[] = {"OK"};
     show_prompt("Saved", "Flow calibrated", options, 1, nullptr, 0);
     return;
   }
-  g_cal_flow_running = !g_cal_flow_running;
+  if (!g_cal_flow_running) {
+    g_cal_flow_running = true;
+    g_cal_flow_start_ms = millis();
+    if (g_cal_flow_step == 1) g_cal_flow_elapsed_ms = 0;
+    openLineIn();
+  } else {
+    g_cal_flow_running = false;
+    closeLineIn();
+    if (g_cal_flow_step == 1) {
+      uint32_t elapsed = millis() - g_cal_flow_start_ms;
+      if (elapsed == 0) elapsed = 1;
+      g_cal_flow_elapsed_ms = elapsed;
+    }
+  }
   update_cal_flow_screen();
 }
 
@@ -713,10 +929,18 @@ void cal_flow_action_event(lv_event_t *) {
  */
 void cal_flow_next_event(lv_event_t *) {
   if (g_cal_flow_step < 2) {
+    if (g_cal_flow_running) {
+      g_cal_flow_running = false;
+      closeLineIn();
+    }
     g_cal_flow_step++;
     g_cal_flow_running = false;
+    g_cal_flow_start_ms = 0;
     if (g_cal_flow_step == 2) {
-      g_sim.dripper_ml_per_hour = 1600 + static_cast<int>(g_sim.uptime_sec % 400);
+      if (g_cal_flow_target_ml_per_hour <= 0) {
+        g_cal_flow_target_ml_per_hour = static_cast<int>(config.pulseTargetUnits) * 200;
+        if (g_cal_flow_target_ml_per_hour <= 0) g_cal_flow_target_ml_per_hour = 4000;
+      }
     }
     update_cal_flow_screen();
   }

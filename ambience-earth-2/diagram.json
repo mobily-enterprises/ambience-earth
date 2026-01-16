@@ -17,6 +17,34 @@
       "left": -105.41,
       "rotate": 90,
       "attrs": {}
+    },
+    {
+      "type": "wokwi-slide-potentiometer",
+      "id": "soilPot",
+      "top": 118,
+      "left": 86,
+      "attrs": { "value": "512", "travelLength": "60", "label": "Soil" }
+    },
+    {
+      "type": "wokwi-slide-switch",
+      "id": "runoff",
+      "top": 112,
+      "left": -160,
+      "attrs": { "label": "Runoff" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "pumpLed",
+      "top": 18,
+      "left": -150,
+      "attrs": { "color": "white", "lightColor": "#00ff3c", "label": "Pump" }
+    },
+    {
+      "type": "wokwi-ds3231",
+      "id": "rtc1",
+      "top": 50,
+      "left": 86,
+      "attrs": { "label": "RTC" }
     }
   ],
   "connections": [
@@ -32,7 +60,18 @@
     ["lcd1:SCL", "esp32:8", "blue", ["v243.21", "h-498.53", "v-173.08"]],
     ["lcd1:SDA", "esp32:10", "gold", ["v234.02", "h-493.69", "v-125.49"]],
     ["lcd1:RST", "esp32:4", "pink", ["v60.57", "h-154.09", "v-134.4", "h-252.92", "v67.16"]],
-    ["lcd1:MISO", "esp32:13", "green", ["v0"]]
+    ["lcd1:MISO", "esp32:13", "green", ["v0"]],
+    ["soilPot:VCC", "esp32:3", "red", ["v0"]],
+    ["soilPot:GND", "esp32:GND.1", "black", ["v0"]],
+    ["soilPot:SIG", "esp32:1", "green", ["v0"]],
+    ["runoff:2", "esp32:GND.1", "black", ["v0"]],
+    ["runoff:3", "esp32:7", "green", ["v0"]],
+    ["pumpLed:A", "esp32:5V", "red", ["v0"]],
+    ["pumpLed:C", "esp32:9", "green", ["v0"]],
+    ["rtc1:VCC", "esp32:5V", "red", ["v0"]],
+    ["rtc1:GND", "esp32:GND.1", "black", ["v0"]],
+    ["rtc1:SDA", "esp32:10", "green", ["v0"]],
+    ["rtc1:SCL", "esp32:8", "blue", ["v0"]]
   ],
   "dependencies": {}
 }

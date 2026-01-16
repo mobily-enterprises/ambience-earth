@@ -1,7 +1,16 @@
 #include "ui_screens.h"
 
 #include "app_utils.h"
+#include "config.h"
+#include "feeding.h"
+#include "feedingUtils.h"
+#include "logs.h"
+#include "moistureSensor.h"
+#include "pumps.h"
+#include "rtc.h"
+#include "runoffSensor.h"
 #include "ui_components.h"
+#include "volume.h"
 #include <Arduino.h>
 #include <stdio.h>
 #include <string.h>
@@ -77,59 +86,97 @@ static void update_info_screen() {
   lv_obj_clear_flag(g_info_refs.container, LV_OBJ_FLAG_HIDDEN);
   lv_obj_add_flag(g_info_refs.star, LV_OBJ_FLAG_HIDDEN);
 
-  if (g_sim.feeding_active) {
-    lv_label_set_text_fmt(g_info_refs.line0, "Feeding S%d %ds/%ds", g_sim.feeding_slot + 1, 2, 3);
-    lv_label_set_text_fmt(g_info_refs.line1, "Pump:%s Mst:%d%% %ds",
-                          g_sim.feeding_active ? "ON" : "OFF",
-                          g_sim.moisture, g_sim.feeding_elapsed);
-    if (g_slots[g_sim.feeding_slot].target_mode != MODE_OFF) {
-      lv_label_set_text_fmt(g_info_refs.line2, "Stop: M>%d%% %s",
-                            g_slots[g_sim.feeding_slot].target_value,
-                            g_slots[g_sim.feeding_slot].stop_on_runoff ? "Runoff" : "");
+  FeedStatus status = {};
+  if (feedingGetStatus(&status)) {
+    lv_label_set_text_fmt(g_info_refs.line0, "Feeding S%d %ds/%ds", status.slotIndex + 1,
+                          config.pulseOnSeconds, config.pulseOffSeconds);
+    if (status.moistureReady) {
+      lv_label_set_text_fmt(g_info_refs.line1, "Pump:%s Mst:%d%% %ds",
+                            status.pumpOn ? "ON" : "OFF",
+                            status.moisturePercent, status.elapsedSeconds);
     } else {
-      lv_label_set_text(g_info_refs.line2, "Stop: N/A");
+      lv_label_set_text_fmt(g_info_refs.line1, "Pump:%s Mst:--%% %ds",
+                            status.pumpOn ? "ON" : "OFF", status.elapsedSeconds);
     }
-    lv_label_set_text_fmt(g_info_refs.line3, "Max:%dml W:%dml",
-                          g_sim.feeding_max_ml, g_sim.feeding_water_ml);
+
+    char line2[48] = {0};
+    bool any_stop = false;
+    if (status.hasMoistureTarget) {
+      snprintf(line2, sizeof(line2), "Stop: M>%d%%", status.moistureTarget);
+      any_stop = true;
+    }
+    if (status.runoffRequired) {
+      if (any_stop) {
+        strncat(line2, " Runoff", sizeof(line2) - strlen(line2) - 1);
+      } else {
+        snprintf(line2, sizeof(line2), "Stop: Runoff");
+      }
+      any_stop = true;
+    }
+    if (!any_stop) {
+      snprintf(line2, sizeof(line2), "Stop: N/A");
+    }
+    lv_label_set_text(g_info_refs.line2, line2);
+
+    uint16_t delivered = msToVolumeMl(static_cast<uint32_t>(status.elapsedSeconds) * 1000UL,
+                                      config.dripperMsPerLiter);
+    lv_label_set_text_fmt(g_info_refs.line3, "Max:%dml W:%dml", status.maxVolumeMl, delivered);
     return;
   }
 
+  uint8_t dryback = 0;
+  bool has_dryback = getDrybackPercent(&dryback);
   char time_buf[8] = {0};
   format_time(g_sim.now, time_buf, sizeof(time_buf));
-  lv_label_set_text_fmt(g_info_refs.line0, "Moist:%d%% Db:%d%%  %s", g_sim.moisture, g_sim.dryback, time_buf);
-
-  bool day_now = false;
-  int lights_on_min = g_sim.lights_on_hour * 60 + g_sim.lights_on_min;
-  int lights_off_min = g_sim.lights_off_hour * 60 + g_sim.lights_off_min;
-  int now_min = g_sim.now.hour * 60 + g_sim.now.minute;
-  if (lights_on_min != lights_off_min) {
-    if (lights_off_min > lights_on_min) {
-      day_now = (now_min >= lights_on_min && now_min < lights_off_min);
-    } else {
-      day_now = (now_min >= lights_on_min || now_min < lights_off_min);
-    }
+  if (has_dryback) {
+    lv_label_set_text_fmt(g_info_refs.line0, "Moist:%d%% Db:%d%%  %s",
+                          g_sim.moisture, dryback, time_buf);
+  } else {
+    lv_label_set_text_fmt(g_info_refs.line0, "Moist:%d%% Db:--  %s",
+                          g_sim.moisture, time_buf);
   }
 
-  if (g_sim.paused) {
+  uint16_t now_minutes = static_cast<uint16_t>(g_sim.now.hour * 60 + g_sim.now.minute);
+  uint16_t on_minutes = config.lightsOnMinutes;
+  uint16_t off_minutes = config.lightsOffMinutes;
+  uint16_t duration = (off_minutes >= on_minutes)
+                        ? static_cast<uint16_t>(off_minutes - on_minutes)
+                        : static_cast<uint16_t>(1440 - on_minutes + off_minutes);
+  bool day_now = (on_minutes != off_minutes) && rtcIsWithinWindow(now_minutes, on_minutes, duration);
+
+  if (!feedingIsEnabled()) {
     lv_label_set_text_fmt(g_info_refs.line1, "%s (PAUSED)", day_now ? "DAY" : "NIGHT");
   } else {
     lv_label_set_text(g_info_refs.line1, day_now ? "DAY" : "NIGHT");
   }
 
-  char ago_buf[12] = {0};
-  uint32_t elapsed = (g_sim.uptime_sec >= g_sim.last_feed_uptime)
-                       ? (g_sim.uptime_sec - g_sim.last_feed_uptime)
-                       : 0;
-  format_ago(elapsed, ago_buf, sizeof(ago_buf));
-  lv_label_set_text_fmt(g_info_refs.line2, "Last: %s ago %dml", ago_buf, g_sim.last_feed_ml);
-
-  if (g_sim.info_toggle == 0) {
-    lv_label_set_text_fmt(g_info_refs.line3, "Today: %dml  BL:%d%%", g_sim.daily_total_ml,
-                          clamp_int(g_sim.moisture - g_sim.baseline_x, 10, 90));
+  if (!millisAtEndOfLastFeed) {
+    lv_label_set_text(g_info_refs.line2, "Last: -- ago --ml");
   } else {
-    lv_label_set_text_fmt(g_info_refs.line3, "Today: %dml  L%d H%d", g_sim.daily_total_ml,
-                          clamp_int(g_sim.moisture - g_sim.baseline_x, 10, 90),
-                          clamp_int(g_sim.moisture + g_sim.baseline_y, 10, 90));
+    unsigned long elapsed_minutes = (millis() - millisAtEndOfLastFeed) / 60000UL;
+    unsigned long tenths = (elapsed_minutes + 3) / 6;
+    char ago_buf[12] = {0};
+    snprintf(ago_buf, sizeof(ago_buf), "%lu.%luh",
+             tenths / 10UL, static_cast<unsigned long>(tenths % 10UL));
+    lv_label_set_text_fmt(g_info_refs.line2, "Last: %s ago %dml", ago_buf, lastFeedMl);
+  }
+
+  uint8_t day_lo = LOG_BASELINE_UNSET;
+  uint8_t day_hi = LOG_BASELINE_UNSET;
+  uint16_t daily_total = getDailyFeedTotalMlNow(&day_lo, &day_hi);
+  if (g_sim.info_toggle == 0) {
+    uint8_t baseline = 0;
+    if (feedingGetBaselinePercent(&baseline)) {
+      lv_label_set_text_fmt(g_info_refs.line3, "Today: %dml  BL:%d%%", daily_total, baseline);
+    } else {
+      lv_label_set_text_fmt(g_info_refs.line3, "Today: %dml  BL:--", daily_total);
+    }
+  } else {
+    if (day_lo != LOG_BASELINE_UNSET && day_hi != LOG_BASELINE_UNSET) {
+      lv_label_set_text_fmt(g_info_refs.line3, "Today: %dml  L%d H%d", daily_total, day_lo, day_hi);
+    } else {
+      lv_label_set_text_fmt(g_info_refs.line3, "Today: %dml  L-- H--", daily_total);
+    }
   }
 }
 
@@ -153,26 +200,62 @@ void update_logs_screen() {
   if (g_log_index >= g_log_count) g_log_index = g_log_count - 1;
   const LogEntry &entry = g_logs[g_log_index];
 
-  char dt_buf[16] = {0};
-  format_datetime(entry.dt, dt_buf, sizeof(dt_buf));
+  DateTime dt = {};
+  dt.month = entry.startMonth;
+  dt.day = entry.startDay;
+  dt.year = 2000 + entry.startYear;
+  dt.hour = entry.startHour;
+  dt.minute = entry.startMinute;
+  dt.second = 0;
 
-  if (entry.type == 0) {
-    lv_label_set_text_fmt(g_logs_refs.header, "# Boot");
+  char dt_buf[16] = {0};
+  format_datetime(dt, dt_buf, sizeof(dt_buf));
+
+  if (entry.entryType == 0) {
+    lv_label_set_text_fmt(g_logs_refs.header, "# BootUp");
     lv_label_set_text_fmt(g_logs_refs.line1, "At: %s", dt_buf);
-    lv_label_set_text_fmt(g_logs_refs.line2, "Soil: %d%%", entry.soil_pct);
-    lv_label_set_text_fmt(g_logs_refs.line3, "Db: %d%%", entry.dryback);
-  } else if (entry.type == 1) {
-    lv_label_set_text_fmt(g_logs_refs.header, "# Feed S%d %s", entry.slot, entry.stop_reason);
+    lv_label_set_text_fmt(g_logs_refs.line2, "Soil: %d%%", entry.soilMoistureBefore);
+    if (entry.drybackPercent != LOG_BASELINE_UNSET) {
+      lv_label_set_text_fmt(g_logs_refs.line3, "Db: %d%%", entry.drybackPercent);
+    } else {
+      lv_label_set_text(g_logs_refs.line3, "Db: --");
+    }
+  } else if (entry.entryType == 1) {
+    static const char *kStopLabels[] = {"---", "Mst", "Run", "Max", "Off", "Cfg", "Day", "Cal"};
+    uint8_t reason = entry.stopReason;
+    if (reason >= (sizeof(kStopLabels) / sizeof(kStopLabels[0]))) reason = 0;
+    lv_label_set_text_fmt(g_logs_refs.header, "# Feed S%d %s", entry.slotIndex + 1, kStopLabels[reason]);
     lv_label_set_text_fmt(g_logs_refs.line1, "Start: %s", dt_buf);
-    lv_label_set_text_fmt(g_logs_refs.line2, "V:%dml Mst:%d-%d%%", entry.volume_ml,
-                          entry.start_moisture, entry.end_moisture);
-    lv_label_set_text_fmt(g_logs_refs.line3, "T:%dml Db:%d%% %s",
-                          entry.daily_total_ml, entry.dryback, entry.runoff ? "R" : "");
+
+    uint16_t volume_ml = entry.feedMl;
+    if (!volume_ml && entry.millisEnd > entry.millisStart) {
+      uint32_t elapsed = entry.millisEnd - entry.millisStart;
+      volume_ml = msToVolumeMl(elapsed, config.dripperMsPerLiter);
+    }
+    lv_label_set_text_fmt(g_logs_refs.line2, "V:%dml Mst:%d-%d%%",
+                          volume_ml, entry.soilMoistureBefore, entry.soilMoistureAfter);
+
+    bool warn = (entry.flags & LOG_FLAG_RUNOFF_ANY) != 0;
+    char db_buf[8] = {0};
+    if (entry.drybackPercent != LOG_BASELINE_UNSET) {
+      snprintf(db_buf, sizeof(db_buf), "%d%%", entry.drybackPercent);
+    } else {
+      snprintf(db_buf, sizeof(db_buf), "--");
+    }
+    lv_label_set_text_fmt(g_logs_refs.line3, "T:%dml%s Db:%s%s",
+                          entry.dailyTotalMl,
+                          warn ? "!" : "",
+                          db_buf,
+                          (entry.flags & LOG_FLAG_RUNOFF_SEEN) ? " R" : "");
   } else {
     lv_label_set_text_fmt(g_logs_refs.header, "# Values");
     lv_label_set_text_fmt(g_logs_refs.line1, "At: %s", dt_buf);
-    lv_label_set_text_fmt(g_logs_refs.line2, "Moisture: %d%%", entry.soil_pct);
-    lv_label_set_text_fmt(g_logs_refs.line3, "Db: %d%%", entry.dryback);
+    lv_label_set_text_fmt(g_logs_refs.line2, "Moisture: %d%%", entry.soilMoistureBefore);
+    if (entry.drybackPercent != LOG_BASELINE_UNSET) {
+      lv_label_set_text_fmt(g_logs_refs.line3, "Db: %d%%", entry.drybackPercent);
+    } else {
+      lv_label_set_text(g_logs_refs.line3, "Db: --");
+    }
   }
 
   if (g_logs_refs.index_label) {
@@ -188,8 +271,22 @@ void update_logs_screen() {
  */
 void update_cal_moist_screen() {
   if (!g_cal_moist_refs.raw_label) return;
-  lv_label_set_text_fmt(g_cal_moist_refs.raw_label, "Raw: %d", g_sim.moisture_raw);
-  lv_label_set_text_fmt(g_cal_moist_refs.percent_label, "Moist: %d%%", g_sim.moisture);
+  SoilSensorWindowStats stats = {};
+  if (!g_cal_moist_window_done && soilSensorWindowTick(&stats)) {
+    g_cal_moist_avg_raw = stats.avgRaw;
+    g_cal_moist_window_done = true;
+    setSoilSensorLazy();
+  }
+
+  uint16_t raw = soilSensorWindowLastRaw();
+  lv_label_set_text_fmt(g_cal_moist_refs.raw_label, "Raw: %d", raw);
+  if (g_cal_moist_window_done && g_cal_moist_avg_raw) {
+    uint8_t avg_pct = soilMoistureAsPercentage(g_cal_moist_avg_raw);
+    lv_label_set_text_fmt(g_cal_moist_refs.percent_label, "Avg: %d (%d%%)", g_cal_moist_avg_raw, avg_pct);
+  } else {
+    uint8_t pct = soilMoistureAsPercentage(raw);
+    lv_label_set_text_fmt(g_cal_moist_refs.percent_label, "Moist: %d%%", pct);
+  }
   if (g_cal_moist_mode == 1) {
     lv_label_set_text(g_cal_moist_refs.mode_label, "Mode: Dry");
   } else if (g_cal_moist_mode == 2) {
@@ -207,9 +304,12 @@ void update_cal_moist_screen() {
  */
 static void update_test_sensors_screen() {
   if (!g_test_sensors_refs.raw_label) return;
-  lv_label_set_text_fmt(g_test_sensors_refs.raw_label, "Raw: %d", g_sim.moisture_raw);
-  lv_label_set_text_fmt(g_test_sensors_refs.percent_label, "Moisture: %d%%", g_sim.moisture);
-  lv_label_set_text_fmt(g_test_sensors_refs.runoff_label, "Runoff: %s", g_sim.runoff ? "1" : "0");
+  getSoilMoisture();
+  uint16_t raw = soilSensorGetRealtimeRaw();
+  uint8_t pct = soilMoistureAsPercentage(raw);
+  lv_label_set_text_fmt(g_test_sensors_refs.raw_label, "Raw: %d", raw);
+  lv_label_set_text_fmt(g_test_sensors_refs.percent_label, "Moisture: %d%%", pct);
+  lv_label_set_text_fmt(g_test_sensors_refs.runoff_label, "Runoff: %s", runoffDetected() ? "1" : "0");
 }
 
 /*
@@ -227,9 +327,21 @@ void update_cal_flow_screen() {
   lv_label_set_text_fmt(g_cal_flow_refs.step_label, "Step %d: %s", g_cal_flow_step + 1, step_title);
 
   if (g_cal_flow_step == 2) {
-    lv_label_set_text_fmt(g_cal_flow_refs.status_label, "Flow: %d ml/h", g_sim.dripper_ml_per_hour);
+    uint32_t per_liter = g_cal_flow_elapsed_ms ? (g_cal_flow_elapsed_ms * 10UL) : 0;
+    uint32_t ml_per_hour = per_liter ? (3600000000UL / per_liter) : 0;
+    if (ml_per_hour) {
+      lv_label_set_text_fmt(g_cal_flow_refs.status_label, "Flow: %lu ml/h", static_cast<unsigned long>(ml_per_hour));
+    } else {
+      lv_label_set_text(g_cal_flow_refs.status_label, "Flow: n/a");
+    }
   } else {
-    lv_label_set_text_fmt(g_cal_flow_refs.status_label, "State: %s", g_cal_flow_running ? "Running" : "Stopped");
+    if (g_cal_flow_step == 1 && g_cal_flow_running && g_cal_flow_start_ms) {
+      uint32_t elapsed = (millis() - g_cal_flow_start_ms) / 1000UL;
+      lv_label_set_text_fmt(g_cal_flow_refs.status_label, "Filling... %lus",
+                            static_cast<unsigned long>(elapsed));
+    } else {
+      lv_label_set_text_fmt(g_cal_flow_refs.status_label, "State: %s", g_cal_flow_running ? "Running" : "Stopped");
+    }
   }
 
   if (g_cal_flow_refs.action_label) {
@@ -237,6 +349,14 @@ void update_cal_flow_screen() {
       lv_label_set_text(g_cal_flow_refs.action_label, "Save");
     } else {
       lv_label_set_text(g_cal_flow_refs.action_label, g_cal_flow_running ? "Stop" : "Start");
+    }
+  }
+
+  if (g_cal_flow_refs.target_row) {
+    if (g_cal_flow_step == 2) {
+      lv_obj_clear_flag(g_cal_flow_refs.target_row, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_obj_add_flag(g_cal_flow_refs.target_row, LV_OBJ_FLAG_HIDDEN);
     }
   }
 }
@@ -250,18 +370,24 @@ void update_cal_flow_screen() {
 static void update_pump_test_screen() {
   if (!g_pump_test_refs.status_label) return;
   uint32_t now_ms = millis();
-  if (g_pump_test_cycle >= 3) {
+  if (g_pump_test_cycle >= 6) {
+    closeLineIn();
     lv_label_set_text(g_pump_test_refs.status_label, "Done. Press Back.");
     return;
   }
   if (now_ms - g_pump_test_last_ms >= 1000) {
     g_pump_test_last_ms = now_ms;
     g_pump_test_cycle++;
+    if (g_pump_test_cycle % 2 == 0) openLineIn();
+    else closeLineIn();
   }
-  if (g_pump_test_cycle >= 3) {
+  if (g_pump_test_cycle >= 6) {
+    closeLineIn();
     lv_label_set_text(g_pump_test_refs.status_label, "Done. Press Back.");
   } else {
-    lv_label_set_text_fmt(g_pump_test_refs.status_label, "Blinking... %d/3", g_pump_test_cycle + 1);
+    int cycle = (g_pump_test_cycle / 2) + 1;
+    if (cycle > 3) cycle = 3;
+    lv_label_set_text_fmt(g_pump_test_refs.status_label, "Blinking... %d/3", cycle);
   }
 }
 
@@ -276,7 +402,7 @@ void update_screensaver(uint32_t now_ms) {
     g_screensaver_active = false;
     return;
   }
-  if (g_sim.feeding_active) {
+  if (feedingIsActive()) {
     g_screensaver_active = false;
     return;
   }
@@ -341,7 +467,7 @@ static lv_obj_t *build_info_screen() {
   lv_obj_set_style_pad_all(screen, 12, 0);
 
   lv_obj_t *title = lv_label_create(screen);
-  lv_label_set_text(title, "Ambience X");
+  lv_label_set_text(title, "Ambience");
   lv_obj_set_style_text_font(title, &lv_font_montserrat_22, 0);
   lv_obj_set_style_text_color(title, kColorAccent, 0);
   lv_obj_set_width(title, LV_PCT(100));
@@ -399,17 +525,24 @@ static lv_obj_t *build_menu_screen() {
   lv_obj_t *screen = create_screen_root();
   create_header(screen, "Main Menu", true, back_event);
 
-  lv_obj_t *list = create_menu_list(screen);
-  add_menu_item(list, "Logs", nullptr, open_logs_event, nullptr, nullptr);
-  add_menu_item(list, "Feeding", nullptr, open_feeding_event, nullptr, nullptr);
-  add_menu_item(list, "Force feed", nullptr, open_force_feed_event, nullptr, nullptr);
+  lv_obj_t *grid = create_menu_grid(screen);
+  int tile_count = 0;
+  add_menu_tile(grid, "Logs", open_logs_event, nullptr, nullptr);
+  tile_count++;
+  add_menu_tile(grid, "Feeding", open_feeding_event, nullptr, nullptr);
+  tile_count++;
+  add_menu_tile(grid, "Force feed", open_force_feed_event, nullptr, nullptr);
+  tile_count++;
 
   lv_obj_t *pause_label = nullptr;
-  add_menu_item(list, g_sim.paused ? "Unpause feeding" : "Pause feeding", nullptr,
+  add_menu_tile(grid, feedingIsEnabled() ? "Pause feeding" : "Unpause feeding",
                 toggle_pause_event, nullptr, &pause_label);
+  tile_count++;
   g_pause_menu_label = pause_label;
 
-  add_menu_item(list, "Settings", nullptr, open_settings_menu_event, nullptr, nullptr);
+  add_menu_tile(grid, "Settings", open_settings_menu_event, nullptr, nullptr);
+  tile_count++;
+  if (tile_count % 2 != 0) add_menu_spacer(grid);
 
   return screen;
 }
@@ -490,13 +623,21 @@ static lv_obj_t *build_feeding_menu_screen() {
   lv_obj_t *screen = create_screen_root();
   create_header(screen, "Feeding", true, back_event);
 
-  lv_obj_t *list = create_menu_list(screen);
-  add_menu_item(list, "Schedule", nullptr, open_feeding_schedule_event, nullptr, nullptr);
-  add_menu_item(list, "Max daily", nullptr, open_max_daily_event, nullptr, nullptr);
-  add_menu_item(list, "Baseline - X", nullptr, open_baseline_x_event, nullptr, nullptr);
-  add_menu_item(list, "Baseline - Y", nullptr, open_baseline_y_event, nullptr, nullptr);
-  add_menu_item(list, "Baseline delay", nullptr, open_baseline_delay_event, nullptr, nullptr);
-  add_menu_item(list, "Lights on/off", nullptr, open_lights_event, nullptr, nullptr);
+  lv_obj_t *grid = create_menu_grid(screen);
+  int tile_count = 0;
+  add_menu_tile(grid, "Schedule", open_feeding_schedule_event, nullptr, nullptr);
+  tile_count++;
+  add_menu_tile(grid, "Max daily", open_max_daily_event, nullptr, nullptr);
+  tile_count++;
+  add_menu_tile(grid, "Baseline - X", open_baseline_x_event, nullptr, nullptr);
+  tile_count++;
+  add_menu_tile(grid, "Baseline - Y", open_baseline_y_event, nullptr, nullptr);
+  tile_count++;
+  add_menu_tile(grid, "Baseline delay", open_baseline_delay_event, nullptr, nullptr);
+  tile_count++;
+  add_menu_tile(grid, "Lights on/off", open_lights_event, nullptr, nullptr);
+  tile_count++;
+  if (tile_count % 2 != 0) add_menu_spacer(grid);
 
   return screen;
 }
@@ -508,36 +649,109 @@ static lv_obj_t *build_feeding_menu_screen() {
  *   char *lines[4] = {nullptr};
  *   build_slot_summary_text(g_slots[0], 0, lines, 4);
  */
+static void format_hhmm(char *out, size_t len, uint16_t minutes) {
+  if (minutes > 1439) minutes = 1439;
+  uint16_t hour = minutes / 60;
+  uint16_t minute = minutes % 60;
+  snprintf(out, len, "%02u:%02u", static_cast<unsigned>(hour), static_cast<unsigned>(minute));
+}
+
+static void format_offset(char *out, size_t len, uint16_t minutes) {
+  if (len == 0) return;
+  out[0] = '+';
+  format_hhmm(out + 1, (len > 0) ? len - 1 : 0, minutes);
+}
+
 static void build_slot_summary_text(const Slot &slot, int slot_index, char *lines[4], size_t len) {
   static char line0[64];
   static char line1[64];
   static char line2[64];
   static char line3[64];
 
-  snprintf(line0, sizeof(line0), "S%d %s [%s]", slot_index + 1, slot.name, slot.enabled ? "On" : "Off");
+  const char *name = slot.name[0] ? slot.name : "(Empty)";
+  snprintf(line0, sizeof(line0), "S%d %s (%s)%s",
+           slot_index + 1, name, slot.enabled ? "On" : "Off",
+           slot.baseline_setter ? " Settr" : "");
 
-  if (slot.use_window) {
-    snprintf(line1, sizeof(line1), "Start: %02d:%02d +%dmin", slot.start_hour, slot.start_min, slot.window_duration_min);
+  line1[0] = '\0';
+  if (!slot.use_window && slot.start_mode == MODE_OFF) {
+    snprintf(line1, sizeof(line1), "Start: N/A");
   } else {
-    snprintf(line1, sizeof(line1), "Start: No time window");
-  }
-  if (slot.start_mode == MODE_PERCENT) {
-    size_t len1 = strlen(line1);
-    snprintf(line1 + len1, sizeof(line1) - len1, " M<%d%%", slot.start_value);
-  } else if (slot.start_mode == MODE_BASELINE) {
-    size_t len1 = strlen(line1);
-    snprintf(line1 + len1, sizeof(line1) - len1, " B<%d", slot.start_value);
+    if (slot.use_window) {
+      char start_buf[8] = {0};
+      char dur_buf[8] = {0};
+      format_offset(start_buf, sizeof(start_buf), static_cast<uint16_t>(slot.start_hour * 60 + slot.start_min));
+      if (slot.window_duration_min > 0) {
+        format_hhmm(dur_buf, sizeof(dur_buf), static_cast<uint16_t>(slot.window_duration_min));
+        snprintf(line1, sizeof(line1), "T%s/%s", start_buf, dur_buf);
+      } else {
+        snprintf(line1, sizeof(line1), "T%s", start_buf);
+      }
+    }
+    if (slot.start_mode != MODE_OFF) {
+      char cond[24] = {0};
+      if (slot.start_mode == MODE_PERCENT) {
+        snprintf(cond, sizeof(cond), "M<%d%%", slot.start_value);
+      } else {
+        uint8_t baseline = 0;
+        if (feedingGetBaselinePercent(&baseline)) {
+          uint8_t value = baselineMinus(baseline, config.baselineX);
+          if (value == 0) snprintf(cond, sizeof(cond), "M<--");
+          else snprintf(cond, sizeof(cond), "M<%d%%", value);
+        } else {
+          snprintf(cond, sizeof(cond), "M<--");
+        }
+      }
+      if (line1[0] != '\0') strncat(line1, " ", sizeof(line1) - strlen(line1) - 1);
+      strncat(line1, cond, sizeof(line1) - strlen(line1) - 1);
+    }
   }
 
-  if (slot.target_mode == MODE_OFF) {
+  bool has_target = slot.target_mode != MODE_OFF;
+  bool has_runoff = slot.stop_on_runoff;
+  if (!has_target && !has_runoff) {
     snprintf(line2, sizeof(line2), "Stop: N/A");
-  } else if (slot.target_mode == MODE_PERCENT) {
-    snprintf(line2, sizeof(line2), "Stop: M>%d%%", slot.target_value);
   } else {
-    snprintf(line2, sizeof(line2), "Stop: Baseline %d", slot.target_value);
+    snprintf(line2, sizeof(line2), "Stop:");
+    if (has_target) {
+      char target_buf[24] = {0};
+      if (slot.target_mode == MODE_PERCENT) {
+        snprintf(target_buf, sizeof(target_buf), " M>%d%%", slot.target_value);
+      } else {
+        uint8_t baseline = 0;
+        if (feedingGetBaselinePercent(&baseline)) {
+          uint8_t value = baselineMinus(baseline, config.baselineY);
+          if (value == 0) snprintf(target_buf, sizeof(target_buf), " M>--");
+          else snprintf(target_buf, sizeof(target_buf), " M>%d%%", value);
+        } else {
+          snprintf(target_buf, sizeof(target_buf), " M>--");
+        }
+      }
+      strncat(line2, target_buf, sizeof(line2) - strlen(line2) - 1);
+    }
+    if (has_runoff) {
+      char runoff_buf[16] = {0};
+      const char suffix = (slot.runoff_mode == RUNOFF_MUST) ? '+'
+                          : (slot.runoff_mode == RUNOFF_AVOID) ? '-' : '\0';
+      if (suffix) {
+        snprintf(runoff_buf, sizeof(runoff_buf), " Runoff%c", suffix);
+      } else {
+        snprintf(runoff_buf, sizeof(runoff_buf), " Runoff");
+      }
+      strncat(line2, runoff_buf, sizeof(line2) - strlen(line2) - 1);
+    } else if (slot.runoff_mode != RUNOFF_NEITHER) {
+      char runoff_buf[8] = {0};
+      snprintf(runoff_buf, sizeof(runoff_buf), " R%c",
+               slot.runoff_mode == RUNOFF_MUST ? '+' : '-');
+      strncat(line2, runoff_buf, sizeof(line2) - strlen(line2) - 1);
+    }
   }
 
-  snprintf(line3, sizeof(line3), "Max:%dml  Gap:%dmin", slot.max_ml, slot.min_gap_min);
+  if (slot.max_ml > 0) {
+    snprintf(line3, sizeof(line3), "Max:%dml  D:%dm", slot.max_ml, slot.min_gap_min);
+  } else {
+    snprintf(line3, sizeof(line3), "Max:N/A  D:%dm", slot.min_gap_min);
+  }
 
   lines[0] = line0;
   lines[1] = line1;
@@ -569,28 +783,60 @@ void update_slot_summary_screen() {
  */
 static lv_obj_t *build_slots_list_screen() {
   lv_obj_t *screen = create_screen_root();
+  lv_obj_set_style_pad_all(screen, 4, 0);
+  lv_obj_set_style_pad_row(screen, 2, 0);
   create_header(screen, g_force_feed_mode ? "Force feed" : "Feeding slots", true, back_event);
 
-  lv_obj_t *list = create_menu_list(screen);
+  lv_obj_t *grid = create_menu_grid(screen);
+  lv_obj_set_style_pad_all(grid, 0, 0);
+  lv_obj_set_style_pad_row(grid, 2, 0);
+  lv_obj_set_style_pad_column(grid, 2, 0);
+  lv_obj_clear_flag(grid, LV_OBJ_FLAG_SCROLLABLE);
   for (int i = 0; i < kSlotCount; ++i) {
-    lv_obj_t *btn = lv_btn_create(list);
-    lv_obj_set_width(btn, LV_PCT(100));
-    lv_obj_set_height(btn, 46);
+    lv_obj_t *btn = lv_btn_create(grid);
+    lv_obj_set_width(btn, LV_PCT(48));
+    lv_obj_set_height(btn, 40);
+    lv_obj_set_style_pad_all(btn, 3, 0);
+    lv_obj_set_style_pad_row(btn, 1, 0);
+    lv_obj_set_flex_flow(btn, LV_FLEX_FLOW_COLUMN);
+    lv_obj_clear_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_event_cb(btn, slot_select_event, LV_EVENT_CLICKED, reinterpret_cast<void *>(static_cast<intptr_t>(i)));
 
+    const char *slot_name = g_slots[i].name[0] ? g_slots[i].name : "(Empty)";
     lv_obj_t *name = lv_label_create(btn);
-    lv_label_set_text_fmt(name, "S%d %s", i + 1, g_slots[i].name);
-    lv_obj_align(name, LV_ALIGN_TOP_LEFT, 4, 2);
+    lv_label_set_text_fmt(name, "S%d %s", i + 1, slot_name);
+    lv_label_set_long_mode(name, LV_LABEL_LONG_CLIP);
+    lv_obj_set_width(name, LV_PCT(100));
+    lv_obj_set_style_text_font(name, &lv_font_montserrat_12, 0);
 
     lv_obj_t *summary = lv_label_create(btn);
+    char summary_buf[48] = {0};
+    snprintf(summary_buf, sizeof(summary_buf), "%s%s",
+             g_slots[i].enabled ? "ON" : "OFF",
+             g_slots[i].baseline_setter ? " Settr" : "");
     if (g_slots[i].use_window) {
-      lv_label_set_text_fmt(summary, "%02d:%02d +%dmin", g_slots[i].start_hour, g_slots[i].start_min,
-                            g_slots[i].window_duration_min);
+      char start_buf[8] = {0};
+      char dur_buf[8] = {0};
+      format_offset(start_buf, sizeof(start_buf),
+                    static_cast<uint16_t>(g_slots[i].start_hour * 60 + g_slots[i].start_min));
+      if (g_slots[i].window_duration_min > 0) {
+        format_hhmm(dur_buf, sizeof(dur_buf), static_cast<uint16_t>(g_slots[i].window_duration_min));
+        strncat(summary_buf, " T", sizeof(summary_buf) - strlen(summary_buf) - 1);
+        strncat(summary_buf, start_buf, sizeof(summary_buf) - strlen(summary_buf) - 1);
+        strncat(summary_buf, "/", sizeof(summary_buf) - strlen(summary_buf) - 1);
+        strncat(summary_buf, dur_buf, sizeof(summary_buf) - strlen(summary_buf) - 1);
+      } else {
+        strncat(summary_buf, " T", sizeof(summary_buf) - strlen(summary_buf) - 1);
+        strncat(summary_buf, start_buf, sizeof(summary_buf) - strlen(summary_buf) - 1);
+      }
     } else {
-      lv_label_set_text(summary, "Window: Off");
+      strncat(summary_buf, " Window: Off", sizeof(summary_buf) - strlen(summary_buf) - 1);
     }
+    lv_label_set_text(summary, summary_buf);
+    lv_label_set_long_mode(summary, LV_LABEL_LONG_CLIP);
+    lv_obj_set_width(summary, LV_PCT(100));
     lv_obj_set_style_text_color(summary, kColorMuted, 0);
-    lv_obj_align(summary, LV_ALIGN_BOTTOM_LEFT, 4, -2);
+    lv_obj_set_style_text_font(summary, &lv_font_montserrat_12, 0);
   }
 
   return screen;
@@ -666,6 +912,8 @@ static void option_select_event(lv_event_t *event);
  */
 static lv_obj_t *build_slot_wizard_screen() {
   lv_obj_t *screen = create_screen_root();
+  lv_obj_set_style_pad_all(screen, 6, 0);
+  lv_obj_set_style_pad_row(screen, 4, 0);
   create_header(screen, "Edit slot", false, nullptr);
 
   lv_obj_t *step_label = lv_label_create(screen);
@@ -682,7 +930,7 @@ static lv_obj_t *build_slot_wizard_screen() {
 
   lv_obj_t *footer = lv_obj_create(screen);
   lv_obj_set_width(footer, LV_PCT(100));
-  lv_obj_set_height(footer, 36);
+  lv_obj_set_height(footer, 32);
   lv_obj_set_style_bg_opa(footer, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(footer, 0, 0);
   lv_obj_set_style_pad_all(footer, 0, 0);
@@ -725,14 +973,21 @@ static lv_obj_t *build_settings_menu_screen() {
   lv_obj_t *screen = create_screen_root();
   create_header(screen, "Settings", true, back_event);
 
-  lv_obj_t *list = create_menu_list(screen);
+  lv_obj_t *grid = create_menu_grid(screen);
+  int tile_count = 0;
   if (!setup_complete()) {
-    add_menu_item(list, "Initial setup", nullptr, open_initial_setup_event, nullptr, nullptr);
+    add_menu_tile(grid, "Initial setup", open_initial_setup_event, nullptr, nullptr);
+    tile_count++;
   }
-  add_menu_item(list, "Set time/date", nullptr, open_time_date_event, nullptr, nullptr);
-  add_menu_item(list, "Calibrate", nullptr, open_cal_menu_event, nullptr, nullptr);
-  add_menu_item(list, "Test peripherals", nullptr, open_test_menu_event, nullptr, nullptr);
-  add_menu_item(list, "Reset", nullptr, open_reset_menu_event, nullptr, nullptr);
+  add_menu_tile(grid, "Set time/date", open_time_date_event, nullptr, nullptr);
+  tile_count++;
+  add_menu_tile(grid, "Calibrate", open_cal_menu_event, nullptr, nullptr);
+  tile_count++;
+  add_menu_tile(grid, "Test peripherals", open_test_menu_event, nullptr, nullptr);
+  tile_count++;
+  add_menu_tile(grid, "Reset", open_reset_menu_event, nullptr, nullptr);
+  tile_count++;
+  if (tile_count % 2 != 0) add_menu_spacer(grid);
 
   return screen;
 }
@@ -745,6 +1000,8 @@ static lv_obj_t *build_settings_menu_screen() {
  */
 static lv_obj_t *build_time_date_screen() {
   lv_obj_t *screen = create_screen_root();
+  lv_obj_set_style_pad_all(screen, 6, 0);
+  lv_obj_set_style_pad_row(screen, 4, 0);
   create_header(screen, "Set time/date", false, nullptr);
 
   lv_obj_t *step_label = lv_label_create(screen);
@@ -761,7 +1018,7 @@ static lv_obj_t *build_time_date_screen() {
 
   lv_obj_t *footer = lv_obj_create(screen);
   lv_obj_set_width(footer, LV_PCT(100));
-  lv_obj_set_height(footer, 36);
+  lv_obj_set_height(footer, 32);
   lv_obj_set_style_bg_opa(footer, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(footer, 0, 0);
   lv_obj_set_style_pad_all(footer, 0, 0);
@@ -882,6 +1139,8 @@ static lv_obj_t *build_cal_flow_screen() {
   lv_obj_t *screen = create_screen_root();
   create_header(screen, "Cal flow", true, back_event);
 
+  reset_binding_pool();
+
   lv_obj_t *content = lv_obj_create(screen);
   lv_obj_set_width(content, LV_PCT(100));
   lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
@@ -894,6 +1153,9 @@ static lv_obj_t *build_cal_flow_screen() {
   lv_obj_t *step_label = lv_label_create(content);
   lv_obj_set_style_text_color(step_label, kColorMuted, 0);
   lv_obj_t *status_label = lv_label_create(content);
+
+  lv_obj_t *target_row = create_number_selector(content, "Target ml/h", &g_cal_flow_target_ml_per_hour, 200, 10000, 200, "%d");
+  lv_obj_add_flag(target_row, LV_OBJ_FLAG_HIDDEN);
 
   lv_obj_t *action_btn = lv_btn_create(content);
   lv_obj_set_width(action_btn, LV_PCT(100));
@@ -912,6 +1174,7 @@ static lv_obj_t *build_cal_flow_screen() {
   g_cal_flow_refs.step_label = step_label;
   g_cal_flow_refs.status_label = status_label;
   g_cal_flow_refs.action_label = action_label;
+  g_cal_flow_refs.target_row = target_row;
 
   update_cal_flow_screen();
   return screen;
@@ -993,6 +1256,7 @@ static lv_obj_t *build_test_pumps_screen() {
   g_pump_test_refs.status_label = status_label;
   g_pump_test_cycle = 0;
   g_pump_test_last_ms = millis();
+  openLineIn();
 
   update_pump_test_screen();
   return screen;
@@ -1130,6 +1394,8 @@ static lv_obj_t *build_number_input_screen() {
  */
 static lv_obj_t *build_time_range_screen() {
   lv_obj_t *screen = create_screen_root();
+  lv_obj_set_style_pad_all(screen, 6, 0);
+  lv_obj_set_style_pad_row(screen, 4, 0);
   create_header(screen, g_time_range_ctx.title ? g_time_range_ctx.title : "Lights", true, back_event);
 
   reset_binding_pool();
@@ -1139,8 +1405,9 @@ static lv_obj_t *build_time_range_screen() {
   lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_style_bg_opa(content, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(content, 0, 0);
-  lv_obj_set_style_pad_row(content, 6, 0);
+  lv_obj_set_style_pad_row(content, 2, 0);
   lv_obj_set_flex_grow(content, 1);
+  lv_obj_set_flex_align(content, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
   lv_obj_clear_flag(content, LV_OBJ_FLAG_SCROLLABLE);
 
   create_time_input_block(content, "Lights on", &g_time_range_ctx.on_hour, &g_time_range_ctx.on_min);
@@ -1148,6 +1415,7 @@ static lv_obj_t *build_time_range_screen() {
 
   lv_obj_t *ok_btn = lv_btn_create(content);
   lv_obj_set_width(ok_btn, LV_PCT(100));
+  lv_obj_set_height(ok_btn, 32);
   lv_obj_add_event_cb(ok_btn, time_range_ok_event, LV_EVENT_CLICKED, nullptr);
   lv_obj_t *ok_label = lv_label_create(ok_btn);
   lv_label_set_text(ok_label, "OK");
@@ -1278,10 +1546,11 @@ void wizard_render_step() {
     lv_obj_t *text_area = lv_textarea_create(g_wizard_refs.content);
     lv_textarea_set_one_line(text_area, true);
     lv_textarea_set_text(text_area, g_edit_slot.name);
+    lv_obj_set_height(text_area, 28);
     g_wizard_refs.text_area = text_area;
 
     lv_obj_t *keyboard = lv_keyboard_create(g_wizard_refs.content);
-    lv_obj_set_height(keyboard, 110);
+    lv_obj_set_height(keyboard, 80);
     lv_keyboard_set_textarea(keyboard, text_area);
   } else if (g_wizard_step == 2) {
     lv_obj_t *label = lv_label_create(g_wizard_refs.content);
@@ -1364,8 +1633,22 @@ void wizard_render_step() {
     if (g_edit_slot.start_mode == MODE_PERCENT) lv_obj_add_state(group->btns[1], LV_STATE_CHECKED);
     if (g_edit_slot.start_mode == MODE_BASELINE) lv_obj_add_state(group->btns[2], LV_STATE_CHECKED);
 
-    if (g_edit_slot.start_mode != MODE_OFF) {
+    if (g_edit_slot.start_mode == MODE_PERCENT) {
       create_number_selector(g_wizard_refs.content, "Value", &g_edit_slot.start_value, 20, 90, 1, "%d");
+    } else if (g_edit_slot.start_mode == MODE_BASELINE) {
+      uint8_t baseline = 0;
+      lv_obj_t *note = lv_label_create(g_wizard_refs.content);
+      if (feedingGetBaselinePercent(&baseline)) {
+        uint8_t value = baselineMinus(baseline, config.baselineX);
+        if (value == 0) {
+          lv_label_set_text(note, "Baseline: --");
+        } else {
+          lv_label_set_text_fmt(note, "Baseline: %d%%", value);
+        }
+      } else {
+        lv_label_set_text(note, "Baseline: --");
+      }
+      lv_obj_set_style_text_color(note, kColorMuted, 0);
     }
   } else if (g_wizard_step == 4) {
     lv_obj_t *label = lv_label_create(g_wizard_refs.content);
@@ -1406,8 +1689,22 @@ void wizard_render_step() {
     if (g_edit_slot.target_mode == MODE_PERCENT) lv_obj_add_state(group->btns[1], LV_STATE_CHECKED);
     if (g_edit_slot.target_mode == MODE_BASELINE) lv_obj_add_state(group->btns[2], LV_STATE_CHECKED);
 
-    if (g_edit_slot.target_mode != MODE_OFF) {
+    if (g_edit_slot.target_mode == MODE_PERCENT) {
       create_number_selector(g_wizard_refs.content, "Value", &g_edit_slot.target_value, 20, 95, 1, "%d");
+    } else if (g_edit_slot.target_mode == MODE_BASELINE) {
+      uint8_t baseline = 0;
+      lv_obj_t *note = lv_label_create(g_wizard_refs.content);
+      if (feedingGetBaselinePercent(&baseline)) {
+        uint8_t value = baselineMinus(baseline, config.baselineY);
+        if (value == 0) {
+          lv_label_set_text(note, "Baseline: --");
+        } else {
+          lv_label_set_text_fmt(note, "Baseline: %d%%", value);
+        }
+      } else {
+        lv_label_set_text(note, "Baseline: --");
+      }
+      lv_obj_set_style_text_color(note, kColorMuted, 0);
     }
   } else if (g_wizard_step == 5) {
     lv_obj_t *label = lv_label_create(g_wizard_refs.content);
@@ -1451,42 +1748,81 @@ void wizard_render_step() {
     if (g_edit_slot.stop_on_runoff) lv_obj_add_state(group->btns[1], LV_STATE_CHECKED);
     else lv_obj_add_state(group->btns[0], LV_STATE_CHECKED);
 
-    if (g_edit_slot.stop_on_runoff) {
-      OptionGroup *runoff_group = alloc_option_group();
-      if (!runoff_group) return;
-      runoff_group->target = reinterpret_cast<int *>(&g_edit_slot.runoff_mode);
-      runoff_group->target_type = OPTION_TARGET_INT;
+    OptionGroup *runoff_group = alloc_option_group();
+    if (!runoff_group) return;
+    runoff_group->target = reinterpret_cast<int *>(&g_edit_slot.runoff_mode);
+    runoff_group->target_type = OPTION_TARGET_INT;
 
-      lv_obj_t *runoff_row = lv_obj_create(g_wizard_refs.content);
-      lv_obj_set_width(runoff_row, LV_PCT(100));
-      lv_obj_set_style_bg_opa(runoff_row, LV_OPA_TRANSP, 0);
-      lv_obj_set_style_border_width(runoff_row, 0, 0);
-      lv_obj_set_style_pad_all(runoff_row, 0, 0);
-      lv_obj_set_style_pad_gap(runoff_row, 6, 0);
-      lv_obj_set_flex_flow(runoff_row, LV_FLEX_FLOW_ROW);
-      lv_obj_clear_flag(runoff_row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t *runoff_row = lv_obj_create(g_wizard_refs.content);
+    lv_obj_set_width(runoff_row, LV_PCT(100));
+    lv_obj_set_style_bg_opa(runoff_row, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(runoff_row, 0, 0);
+    lv_obj_set_style_pad_all(runoff_row, 0, 0);
+    lv_obj_set_style_pad_gap(runoff_row, 6, 0);
+    lv_obj_set_flex_flow(runoff_row, LV_FLEX_FLOW_ROW);
+    lv_obj_clear_flag(runoff_row, LV_OBJ_FLAG_SCROLLABLE);
 
-      const char *rlabels[] = {"Neither", "Must", "Avoid"};
-      int rvalues[] = {RUNOFF_NEITHER, RUNOFF_MUST, RUNOFF_AVOID};
-      for (int i = 0; i < 3; ++i) {
-        lv_obj_t *btn = lv_btn_create(runoff_row);
+    const char *rlabels[] = {"Neither", "Must", "Avoid"};
+    int rvalues[] = {RUNOFF_NEITHER, RUNOFF_MUST, RUNOFF_AVOID};
+    for (int i = 0; i < 3; ++i) {
+      lv_obj_t *btn = lv_btn_create(runoff_row);
+      lv_obj_add_flag(btn, LV_OBJ_FLAG_CHECKABLE);
+      OptionButtonData *data = alloc_option_button();
+      if (!data) continue;
+      data->group = runoff_group;
+      data->index = runoff_group->count;
+      runoff_group->btns[runoff_group->count] = btn;
+      runoff_group->values[runoff_group->count] = rvalues[i];
+      runoff_group->count++;
+      lv_obj_add_event_cb(btn, option_select_event, LV_EVENT_CLICKED, data);
+      lv_obj_t *lab = lv_label_create(btn);
+      lv_label_set_text(lab, rlabels[i]);
+      lv_obj_center(lab);
+    }
+    if (g_edit_slot.runoff_mode == RUNOFF_NEITHER) lv_obj_add_state(runoff_group->btns[0], LV_STATE_CHECKED);
+    if (g_edit_slot.runoff_mode == RUNOFF_MUST) lv_obj_add_state(runoff_group->btns[1], LV_STATE_CHECKED);
+    if (g_edit_slot.runoff_mode == RUNOFF_AVOID) lv_obj_add_state(runoff_group->btns[2], LV_STATE_CHECKED);
+
+    if (g_edit_slot.stop_on_runoff && g_edit_slot.runoff_mode == RUNOFF_MUST) {
+      OptionGroup *baseline_group = alloc_option_group();
+      if (!baseline_group) return;
+      baseline_group->target = &g_edit_slot.baseline_setter;
+      baseline_group->target_type = OPTION_TARGET_BOOL;
+
+      lv_obj_t *label = lv_label_create(g_wizard_refs.content);
+      lv_label_set_text(label, "Baseline setter?");
+      lv_obj_set_style_text_color(label, kColorMuted, 0);
+
+      lv_obj_t *baseline_row = lv_obj_create(g_wizard_refs.content);
+      lv_obj_set_width(baseline_row, LV_PCT(100));
+      lv_obj_set_style_bg_opa(baseline_row, LV_OPA_TRANSP, 0);
+      lv_obj_set_style_border_width(baseline_row, 0, 0);
+      lv_obj_set_style_pad_all(baseline_row, 0, 0);
+      lv_obj_set_style_pad_gap(baseline_row, 6, 0);
+      lv_obj_set_flex_flow(baseline_row, LV_FLEX_FLOW_ROW);
+      lv_obj_clear_flag(baseline_row, LV_OBJ_FLAG_SCROLLABLE);
+
+      const char *blabels[] = {"No", "Yes"};
+      int bvalues[] = {0, 1};
+      for (int i = 0; i < 2; ++i) {
+        lv_obj_t *btn = lv_btn_create(baseline_row);
         lv_obj_add_flag(btn, LV_OBJ_FLAG_CHECKABLE);
         OptionButtonData *data = alloc_option_button();
         if (!data) continue;
-        data->group = runoff_group;
-        data->index = runoff_group->count;
-        runoff_group->btns[runoff_group->count] = btn;
-        runoff_group->values[runoff_group->count] = rvalues[i];
-        runoff_group->count++;
+        data->group = baseline_group;
+        data->index = baseline_group->count;
+        baseline_group->btns[baseline_group->count] = btn;
+        baseline_group->values[baseline_group->count] = bvalues[i];
+        baseline_group->count++;
         lv_obj_add_event_cb(btn, option_select_event, LV_EVENT_CLICKED, data);
         lv_obj_t *lab = lv_label_create(btn);
-        lv_label_set_text(lab, rlabels[i]);
+        lv_label_set_text(lab, blabels[i]);
         lv_obj_center(lab);
       }
-      if (g_edit_slot.runoff_mode == RUNOFF_NEITHER) lv_obj_add_state(runoff_group->btns[0], LV_STATE_CHECKED);
-      if (g_edit_slot.runoff_mode == RUNOFF_MUST) lv_obj_add_state(runoff_group->btns[1], LV_STATE_CHECKED);
-      if (g_edit_slot.runoff_mode == RUNOFF_AVOID) lv_obj_add_state(runoff_group->btns[2], LV_STATE_CHECKED);
-      create_number_selector(g_wizard_refs.content, "Runoff base", &g_edit_slot.runoff_baseline, 40, 90, 1, "%d");
+      if (g_edit_slot.baseline_setter) lv_obj_add_state(baseline_group->btns[1], LV_STATE_CHECKED);
+      else lv_obj_add_state(baseline_group->btns[0], LV_STATE_CHECKED);
+    } else {
+      g_edit_slot.baseline_setter = false;
     }
   } else if (g_wizard_step == 7) {
     lv_obj_t *label = lv_label_create(g_wizard_refs.content);

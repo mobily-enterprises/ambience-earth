@@ -1,0 +1,407 @@
+#include "moistureSensor.h"
+
+#include "config.h"
+
+extern Config config;
+
+enum ReadMode : uint8_t {
+  READ_MODE_LAZY = 0,
+  READ_MODE_REALTIME = 1
+};
+
+enum LazyState : uint8_t {
+  LAZY_STATE_IDLE = 0,
+  LAZY_STATE_WARMING,
+  LAZY_STATE_SAMPLING
+};
+
+enum WindowOwner : uint8_t {
+  WINDOW_OWNER_LAZY = 0,
+  WINDOW_OWNER_CALIBRATION
+};
+
+static uint16_t lazyValue = 0;
+static uint16_t realtimeRaw = 0;
+static int32_t realtimeAvgQ8 = 0;
+static ReadMode readMode = READ_MODE_LAZY;
+static LazyState lazyState = LAZY_STATE_IDLE;
+static WindowOwner windowOwner = WINDOW_OWNER_LAZY;
+static bool sensorPowered = false;
+
+static unsigned long sensorOnTime = 0;
+static unsigned long windowStartAt = 0;
+static unsigned long nextSampleAt = 0;
+static unsigned long nextWindowAt = 0;
+static unsigned long lastWindowEndAt = 0;
+static unsigned long realtimeWarmupUntil = 0;
+static unsigned long realtimeLastSampleAt = 0;
+static bool realtimeSeeded = false;
+
+static uint32_t windowSum = 0;
+static uint16_t windowCount = 0;
+static uint16_t windowMinRaw = 0;
+static uint16_t windowMaxRaw = 0;
+static uint16_t windowLastRaw = 0;
+static bool moistureReady = false;
+
+/*
+ * sensorPowerOn
+ * Enables power to the soil sensor input.
+ * Example:
+ *   sensorPowerOn();
+ */
+static void sensorPowerOn() {
+  if (sensorPowered) return;
+  digitalWrite(SOIL_MOISTURE_SENSOR_POWER, HIGH);
+  sensorPowered = true;
+}
+
+/*
+ * sensorPowerOff
+ * Disables power to the soil sensor input.
+ * Example:
+ *   sensorPowerOff();
+ */
+static void sensorPowerOff() {
+  if (!sensorPowered) return;
+  digitalWrite(SOIL_MOISTURE_SENSOR_POWER, LOW);
+  sensorPowered = false;
+}
+
+uint16_t readMedian3FromPin(uint8_t pin) {
+  uint16_t a = analogRead(pin);
+  uint16_t b = analogRead(pin);
+  uint16_t c = analogRead(pin);
+
+  uint16_t min_ab = (a < b) ? a : b;
+  uint16_t max_ab = (a > b) ? a : b;
+
+  if (c < min_ab) return min_ab;
+  if (c > max_ab) return max_ab;
+  return c;
+}
+
+/*
+ * resetWindowAccum
+ * Clears the accumulator used for lazy window sampling.
+ * Example:
+ *   resetWindowAccum();
+ */
+static void resetWindowAccum() {
+  windowSum = 0;
+  windowCount = 0;
+  windowMinRaw = 0xFFFF;
+  windowMaxRaw = 0;
+  windowLastRaw = 0;
+}
+
+/*
+ * finalizeWindow
+ * Finalizes window stats and updates the cached lazy value.
+ * Example:
+ *   finalizeWindow(&stats);
+ */
+static void finalizeWindow(SoilSensorWindowStats *out) {
+  if (windowCount == 0) {
+    if (out) {
+      out->minRaw = 0;
+      out->maxRaw = 0;
+      out->avgRaw = 0;
+      out->count = 0;
+    }
+    return;
+  }
+
+  uint16_t avg = static_cast<uint16_t>(windowSum / windowCount);
+  lazyValue = avg;
+  moistureReady = true;
+  lastWindowEndAt = millis();
+  if (out) {
+    out->minRaw = windowMinRaw;
+    out->maxRaw = windowMaxRaw;
+    out->avgRaw = avg;
+    out->count = windowCount;
+  }
+}
+
+/*
+ * startWindow
+ * Starts the lazy or calibration sampling window.
+ * Example:
+ *   startWindow(WINDOW_OWNER_LAZY);
+ */
+static void startWindow(WindowOwner owner) {
+  windowOwner = owner;
+  readMode = READ_MODE_LAZY;
+  lazyState = LAZY_STATE_WARMING;
+  windowStartAt = 0;
+  nextSampleAt = 0;
+  windowLastRaw = 0;
+  sensorPowerOn();
+  sensorOnTime = millis();
+}
+
+/*
+ * tickWindow
+ * Advances the lazy sampling state machine.
+ * Example:
+ *   tickWindow(nullptr);
+ */
+static bool tickWindow(SoilSensorWindowStats *out) {
+  if (lazyState == LAZY_STATE_IDLE) return false;
+
+  unsigned long now = millis();
+  switch (lazyState) {
+    case LAZY_STATE_WARMING:
+      if (now - sensorOnTime >= SENSOR_STABILIZATION_TIME) {
+        windowStartAt = now;
+        nextSampleAt = now;
+        resetWindowAccum();
+        lazyState = LAZY_STATE_SAMPLING;
+      }
+      break;
+
+    case LAZY_STATE_SAMPLING:
+      if (now >= nextSampleAt) {
+        uint16_t raw = readMedian3FromPin(SOIL_MOISTURE_SENSOR_PIN);
+        windowLastRaw = raw;
+        windowSum += raw;
+        windowCount++;
+        if (raw < windowMinRaw) windowMinRaw = raw;
+        if (raw > windowMaxRaw) windowMaxRaw = raw;
+        nextSampleAt = now + SENSOR_SAMPLE_INTERVAL;
+      }
+
+      if (now - windowStartAt >= SENSOR_WINDOW_DURATION) {
+        finalizeWindow(out);
+        sensorPowerOff();
+        lazyState = LAZY_STATE_IDLE;
+        if (windowOwner == WINDOW_OWNER_LAZY) {
+          unsigned long planned = windowStartAt + SENSOR_WINDOW_DURATION + SENSOR_SLEEP_INTERVAL;
+          nextWindowAt = (planned > now) ? planned : now + SENSOR_SLEEP_INTERVAL;
+        }
+        return true;
+      }
+      break;
+
+    default:
+      break;
+  }
+
+  return false;
+}
+
+/*
+ * resetRealtimeFilter
+ * Seeds the real-time EMA with a starting value.
+ * Example:
+ *   resetRealtimeFilter(lazyValue);
+ */
+static void resetRealtimeFilter(uint16_t seed) {
+  uint16_t init = seed ? seed : 512;
+  realtimeAvgQ8 = static_cast<int32_t>(init) << 8;
+  realtimeRaw = init;
+  realtimeSeeded = true;
+  realtimeLastSampleAt = 0;
+  realtimeWarmupUntil = millis() + SENSOR_STABILIZATION_TIME;
+}
+
+/*
+ * tickRealtime
+ * Updates the real-time EMA using new samples.
+ * Example:
+ *   tickRealtime(true);
+ */
+static void tickRealtime(bool forceSample) {
+  if (!sensorPowered) return;
+
+  unsigned long now = millis();
+  if (now < realtimeWarmupUntil) return;
+
+  if (!forceSample && realtimeLastSampleAt && now - realtimeLastSampleAt < SENSOR_SAMPLE_INTERVAL) {
+    return;
+  }
+
+  uint16_t raw = readMedian3FromPin(SOIL_MOISTURE_SENSOR_PIN);
+  realtimeRaw = raw;
+  moistureReady = true;
+
+  if (!realtimeSeeded) {
+    realtimeAvgQ8 = static_cast<int32_t>(raw) << 8;
+    realtimeSeeded = true;
+  }
+
+  uint32_t dt = realtimeLastSampleAt ? (now - realtimeLastSampleAt) : SENSOR_SAMPLE_INTERVAL;
+  uint32_t denom = SENSOR_FEED_TAU_SLOW_MS + dt;
+  uint32_t alphaQ8 = denom ? ((dt << 8) / denom) : 0;
+  if (alphaQ8 > 256) alphaQ8 = 256;
+  int32_t rawQ8 = static_cast<int32_t>(raw) << 8;
+  int32_t deltaQ8 = rawQ8 - realtimeAvgQ8;
+  realtimeAvgQ8 += (deltaQ8 * static_cast<int32_t>(alphaQ8)) >> 8;
+
+  realtimeLastSampleAt = now;
+}
+
+void initMoistureSensor() {
+  pinMode(SOIL_MOISTURE_SENSOR_POWER, OUTPUT);
+  pinMode(SOIL_MOISTURE_SENSOR_PIN, INPUT);
+  analogReadResolution(10);
+
+  sensorPowerOff();
+  readMode = READ_MODE_LAZY;
+  lazyState = LAZY_STATE_IDLE;
+  windowOwner = WINDOW_OWNER_LAZY;
+  nextWindowAt = millis();
+  resetWindowAccum();
+
+  lazyValue = 0;
+  windowLastRaw = 0;
+  realtimeRaw = 0;
+  realtimeAvgQ8 = 0;
+  realtimeSeeded = false;
+  moistureReady = false;
+  lastWindowEndAt = 0;
+
+  startWindow(WINDOW_OWNER_LAZY);
+}
+
+uint16_t runSoilSensorLazyReadings() {
+  return soilSensorOp(0);
+}
+
+uint16_t getSoilMoisture() {
+  return soilSensorOp(1);
+}
+
+void setSoilSensorLazy() {
+  soilSensorOp(2);
+}
+
+void setSoilSensorLazySeed(uint16_t seed) {
+  lazyValue = seed;
+  soilSensorOp(2);
+}
+
+void setSoilSensorRealTime() {
+  soilSensorOp(3);
+}
+
+bool soilSensorIsActive() {
+  return sensorPowered;
+}
+
+bool soilSensorRealtimeReady() {
+  if (readMode != READ_MODE_REALTIME) return false;
+  if (!sensorPowered) return false;
+  return millis() >= realtimeWarmupUntil;
+}
+
+bool soilSensorReady() {
+  return moistureReady;
+}
+
+uint16_t soilSensorGetRealtimeAvg() {
+  if (!realtimeSeeded) return lazyValue;
+  return static_cast<uint16_t>((realtimeAvgQ8 + 128) >> 8);
+}
+
+uint16_t soilSensorGetRealtimeRaw() {
+  return realtimeRaw;
+}
+
+void soilSensorWindowStart() {
+  sensorPowerOff();
+  lazyState = LAZY_STATE_IDLE;
+  realtimeSeeded = false;
+  startWindow(WINDOW_OWNER_CALIBRATION);
+}
+
+bool soilSensorWindowTick(SoilSensorWindowStats *out) {
+  if (windowOwner != WINDOW_OWNER_CALIBRATION) return false;
+  return tickWindow(out);
+}
+
+uint16_t soilSensorWindowLastRaw() {
+  return windowLastRaw;
+}
+
+unsigned long soilSensorLastWindowEndAt() {
+  return lastWindowEndAt;
+}
+
+uint16_t soilSensorOp(uint8_t op) {
+  switch (op) {
+    case 0: {
+      if (readMode != READ_MODE_LAZY) {
+        tickRealtime(false);
+        return soilSensorGetRealtimeAvg();
+      }
+
+      if (windowOwner != WINDOW_OWNER_LAZY) return lazyValue;
+
+      if (lazyState == LAZY_STATE_IDLE) {
+        if (millis() >= nextWindowAt) {
+          startWindow(WINDOW_OWNER_LAZY);
+        }
+      } else {
+        tickWindow(nullptr);
+      }
+
+      return lazyValue;
+    }
+
+    case 1: {
+      if (readMode == READ_MODE_REALTIME) {
+        tickRealtime(true);
+        return soilSensorGetRealtimeAvg();
+      }
+      return lazyValue;
+    }
+
+    case 2: {
+      readMode = READ_MODE_LAZY;
+      lazyState = LAZY_STATE_IDLE;
+      windowOwner = WINDOW_OWNER_LAZY;
+      sensorPowerOff();
+      nextWindowAt = millis();
+      realtimeSeeded = false;
+      moistureReady = false;
+      break;
+    }
+
+    case 3: {
+      readMode = READ_MODE_REALTIME;
+      lazyState = LAZY_STATE_IDLE;
+      windowOwner = WINDOW_OWNER_LAZY;
+      sensorPowerOn();
+      resetRealtimeFilter(lazyValue);
+      break;
+    }
+
+    default:
+      return 0xFFFF;
+  }
+
+  return 0;
+}
+
+uint8_t soilMoistureAsPercentage(uint16_t soilMoisture) {
+  int32_t dry = config.moistSensorCalibrationDry;
+  int32_t soaked = config.moistSensorCalibrationSoaked;
+  if (dry == soaked) return 0;
+
+  int32_t delta;
+  int32_t shifted;
+  if (dry > soaked) {
+    delta = dry - soaked;
+    shifted = dry - soilMoisture;
+  } else {
+    delta = soaked - dry;
+    shifted = soilMoisture - dry;
+  }
+
+  if (shifted < 0) shifted = 0;
+  if (shifted > delta) shifted = delta;
+
+  return static_cast<uint8_t>((shifted * 100) / delta);
+}

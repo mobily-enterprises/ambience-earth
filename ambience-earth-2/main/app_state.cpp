@@ -10,10 +10,14 @@ SetupFlags g_setup = {};
 Slot g_slots[kSlotCount] = {};
 Slot g_edit_slot = {};
 LogEntry g_logs[kMaxLogs] = {};
+LogEntry newLogEntry = {};
 int g_log_count = 0;
 int g_log_index = 0;
 int g_selected_slot = 0;
 bool g_force_feed_mode = false;
+
+unsigned long int millisAtEndOfLastFeed = 0;
+uint16_t lastFeedMl = 0;
 
 ScreenNode g_screen_stack[kScreenStackMax] = {};
 int g_screen_stack_size = 0;
@@ -44,6 +48,11 @@ int g_time_date_step = 0;
 DateTime g_time_date_edit = {};
 int g_cal_flow_step = 0;
 bool g_cal_flow_running = false;
+uint32_t g_cal_flow_start_ms = 0;
+uint32_t g_cal_flow_elapsed_ms = 0;
+int g_cal_flow_target_ml_per_hour = 0;
+uint16_t g_cal_moist_avg_raw = 0;
+bool g_cal_moist_window_done = false;
 int g_cal_moist_mode = 0;
 int g_pump_test_cycle = 0;
 uint32_t g_pump_test_last_ms = 0;

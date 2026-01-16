@@ -11,12 +11,11 @@ constexpr uint16_t kTouchWidth = 240;
 constexpr uint16_t kTouchHeight = 320;
 constexpr uint16_t kBufferLines = 20;
 
-constexpr uint32_t kFeedIntervalSec = 180;
-constexpr uint32_t kFeedDurationSec = 12;
 constexpr uint32_t kScreensaverDelayMs = 15000;
 constexpr uint32_t kScreensaverMoveMs = 2000;
+constexpr uint32_t kLogValuesIntervalMs = 3600000;
 
-constexpr int kSlotCount = 6;
+constexpr int kSlotCount = 8;
 constexpr int kMaxLogs = 24;
 constexpr size_t kLogStoreBytes = 48 * 1024;
 constexpr int kScreenStackMax = 10;
@@ -130,22 +129,36 @@ struct Slot {
   int max_ml;
   bool stop_on_runoff;
   RunoffMode runoff_mode;
-  int runoff_baseline;
+  bool baseline_setter;
   int min_gap_min;
 };
 
 struct LogEntry {
-  uint8_t type;
-  DateTime dt;
-  int soil_pct;
-  int dryback;
-  int slot;
-  int start_moisture;
-  int end_moisture;
-  int volume_ml;
-  int daily_total_ml;
-  bool runoff;
-  char stop_reason[12];
+  uint16_t seq;
+  uint8_t entryType;
+  uint8_t stopReason;
+  uint8_t startReason;
+  uint8_t slotIndex;
+  uint8_t flags;
+  uint8_t soilMoistureBefore;
+  uint8_t soilMoistureAfter;
+  uint8_t baselinePercent;
+  uint8_t drybackPercent;
+  uint16_t feedMl;
+  uint16_t dailyTotalMl;
+  uint16_t lightDayKey;
+  uint8_t startYear;
+  uint8_t startMonth;
+  uint8_t startDay;
+  uint8_t startHour;
+  uint8_t startMinute;
+  uint8_t endYear;
+  uint8_t endMonth;
+  uint8_t endDay;
+  uint8_t endHour;
+  uint8_t endMinute;
+  uint32_t millisStart;
+  uint32_t millisEnd;
 };
 
 struct ScreenNode {
@@ -201,6 +214,7 @@ struct CalFlowRefs {
   lv_obj_t *step_label;
   lv_obj_t *status_label;
   lv_obj_t *action_label;
+  lv_obj_t *target_row;
 };
 
 struct TestSensorsRefs {
@@ -268,10 +282,13 @@ extern SetupFlags g_setup;
 extern Slot g_slots[kSlotCount];
 extern Slot g_edit_slot;
 extern LogEntry g_logs[kMaxLogs];
+extern LogEntry newLogEntry;
 extern int g_log_count;
 extern int g_log_index;
 extern int g_selected_slot;
 extern bool g_force_feed_mode;
+extern unsigned long int millisAtEndOfLastFeed;
+extern uint16_t lastFeedMl;
 
 extern ScreenNode g_screen_stack[kScreenStackMax];
 extern int g_screen_stack_size;
@@ -302,6 +319,11 @@ extern int g_time_date_step;
 extern DateTime g_time_date_edit;
 extern int g_cal_flow_step;
 extern bool g_cal_flow_running;
+extern uint32_t g_cal_flow_start_ms;
+extern uint32_t g_cal_flow_elapsed_ms;
+extern int g_cal_flow_target_ml_per_hour;
+extern uint16_t g_cal_moist_avg_raw;
+extern bool g_cal_moist_window_done;
 extern int g_cal_moist_mode;
 extern int g_pump_test_cycle;
 extern uint32_t g_pump_test_last_ms;
