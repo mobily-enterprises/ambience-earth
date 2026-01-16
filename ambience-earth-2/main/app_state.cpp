@@ -54,6 +54,7 @@ int g_cal_flow_target_ml_per_hour = 0;
 uint16_t g_cal_moist_avg_raw = 0;
 bool g_cal_moist_window_done = false;
 int g_cal_moist_mode = 0;
+bool g_cal_moist_prompt_shown = false;
 int g_pump_test_cycle = 0;
 uint32_t g_pump_test_last_ms = 0;
 

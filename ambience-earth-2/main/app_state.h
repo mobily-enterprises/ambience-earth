@@ -208,6 +208,7 @@ struct CalMoistRefs {
   lv_obj_t *mode_label;
   lv_obj_t *raw_label;
   lv_obj_t *percent_label;
+  lv_obj_t *choice_row;
 };
 
 struct CalFlowRefs {
@@ -325,6 +326,7 @@ extern int g_cal_flow_target_ml_per_hour;
 extern uint16_t g_cal_moist_avg_raw;
 extern bool g_cal_moist_window_done;
 extern int g_cal_moist_mode;
+extern bool g_cal_moist_prompt_shown;
 extern int g_pump_test_cycle;
 extern uint32_t g_pump_test_last_ms;
 extern lv_obj_t *g_pause_menu_label;

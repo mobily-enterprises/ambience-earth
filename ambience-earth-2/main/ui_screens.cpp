@@ -55,6 +55,8 @@ void number_input_ok_event(lv_event_t *);
 void time_range_ok_event(lv_event_t *);
 void cal_moist_mode_event(lv_event_t *);
 void cal_moist_save_event(lv_event_t *);
+void cal_moist_back_event(lv_event_t *);
+void cal_moist_done_prompt(int, int);
 void cal_flow_action_event(lv_event_t *);
 void cal_flow_next_event(lv_event_t *);
 
@@ -271,28 +273,56 @@ void update_logs_screen() {
  */
 void update_cal_moist_screen() {
   if (!g_cal_moist_refs.raw_label) return;
+
+  if (g_cal_moist_refs.choice_row) {
+    if (g_cal_moist_mode == 0) {
+      lv_obj_clear_flag(g_cal_moist_refs.choice_row, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_obj_add_flag(g_cal_moist_refs.choice_row, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+
   SoilSensorWindowStats stats = {};
-  if (!g_cal_moist_window_done && soilSensorWindowTick(&stats)) {
+  if (g_cal_moist_mode != 0 && !g_cal_moist_window_done && soilSensorWindowTick(&stats)) {
     g_cal_moist_avg_raw = stats.avgRaw;
     g_cal_moist_window_done = true;
     setSoilSensorLazy();
   }
 
-  uint16_t raw = soilSensorWindowLastRaw();
-  lv_label_set_text_fmt(g_cal_moist_refs.raw_label, "Raw: %d", raw);
-  if (g_cal_moist_window_done && g_cal_moist_avg_raw) {
-    uint8_t avg_pct = soilMoistureAsPercentage(g_cal_moist_avg_raw);
-    lv_label_set_text_fmt(g_cal_moist_refs.percent_label, "Avg: %d (%d%%)", g_cal_moist_avg_raw, avg_pct);
-  } else {
-    uint8_t pct = soilMoistureAsPercentage(raw);
-    lv_label_set_text_fmt(g_cal_moist_refs.percent_label, "Moist: %d%%", pct);
+  if (g_cal_moist_mode == 0) {
+    lv_label_set_text(g_cal_moist_refs.mode_label, "Select Dry or Wet");
+    lv_label_set_text(g_cal_moist_refs.raw_label, "Dry/Wet: --");
+    lv_label_set_text(g_cal_moist_refs.percent_label, "Tap a mode to start 30s average");
+    return;
   }
-  if (g_cal_moist_mode == 1) {
-    lv_label_set_text(g_cal_moist_refs.mode_label, "Mode: Dry");
-  } else if (g_cal_moist_mode == 2) {
-    lv_label_set_text(g_cal_moist_refs.mode_label, "Mode: Wet");
-  } else {
-    lv_label_set_text(g_cal_moist_refs.mode_label, "Mode: Choose");
+
+  const char *mode_name = (g_cal_moist_mode == 1) ? "Dry" : "Wet";
+  lv_label_set_text_fmt(g_cal_moist_refs.mode_label, "Calibrate %s", mode_name);
+
+  uint16_t value = g_cal_moist_window_done && g_cal_moist_avg_raw
+                     ? g_cal_moist_avg_raw
+                     : soilSensorWindowLastRaw();
+  lv_label_set_text_fmt(g_cal_moist_refs.raw_label, "%s: %d", mode_name, value);
+
+  if (!g_cal_moist_window_done) {
+    lv_label_set_text_fmt(g_cal_moist_refs.percent_label, "Hold sensor %s (30s avg)", mode_name);
+    return;
+  }
+
+  lv_label_set_text(g_cal_moist_refs.percent_label, "Average captured");
+
+  if (!g_cal_moist_prompt_shown) {
+    if (g_cal_moist_mode == 1) {
+      config.moistSensorCalibrationDry = g_cal_moist_avg_raw;
+    } else if (g_cal_moist_mode == 2) {
+      config.moistSensorCalibrationSoaked = g_cal_moist_avg_raw;
+    }
+    saveConfig();
+    g_setup.moisture_cal = true;
+    maybe_refresh_initial_setup();
+    g_cal_moist_prompt_shown = true;
+    const char *options[] = {"OK", "Back"};
+    show_prompt("Save?", "Calibration stored", options, 2, cal_moist_done_prompt, 0);
   }
 }
 
@@ -1075,7 +1105,7 @@ static lv_obj_t *build_cal_menu_screen() {
  */
 static lv_obj_t *build_cal_moist_screen() {
   lv_obj_t *screen = create_screen_root();
-  create_header(screen, "Cal moisture", true, back_event);
+  create_header(screen, "Cal moisture", true, cal_moist_back_event);
 
   lv_obj_t *content = lv_obj_create(screen);
   lv_obj_set_width(content, LV_PCT(100));
@@ -1114,16 +1144,10 @@ static lv_obj_t *build_cal_moist_screen() {
   lv_obj_t *raw_label = lv_label_create(content);
   lv_obj_t *percent_label = lv_label_create(content);
 
-  lv_obj_t *save_btn = lv_btn_create(content);
-  lv_obj_set_width(save_btn, LV_PCT(100));
-  lv_obj_add_event_cb(save_btn, cal_moist_save_event, LV_EVENT_CLICKED, nullptr);
-  lv_obj_t *save_label = lv_label_create(save_btn);
-  lv_label_set_text(save_label, "Save" );
-  lv_obj_center(save_label);
-
   g_cal_moist_refs.mode_label = mode_label;
   g_cal_moist_refs.raw_label = raw_label;
   g_cal_moist_refs.percent_label = percent_label;
+  g_cal_moist_refs.choice_row = row;
 
   update_cal_moist_screen();
   return screen;

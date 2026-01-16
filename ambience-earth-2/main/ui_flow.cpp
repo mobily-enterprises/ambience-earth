@@ -668,8 +668,24 @@ void open_cal_moist_event(lv_event_t *) {
   g_cal_moist_mode = 0;
   g_cal_moist_avg_raw = 0;
   g_cal_moist_window_done = false;
+  g_cal_moist_prompt_shown = false;
   setSoilSensorLazy();
   push_screen(SCREEN_CAL_MOIST);
+}
+
+/*
+ * cal_moist_back_event
+ * Event handler that cancels moisture calibration and returns.
+ * Example:
+ *   lv_obj_add_event_cb(btn, cal_moist_back_event, LV_EVENT_CLICKED, nullptr);
+ */
+void cal_moist_back_event(lv_event_t *) {
+  setSoilSensorLazy();
+  g_cal_moist_mode = 0;
+  g_cal_moist_avg_raw = 0;
+  g_cal_moist_window_done = false;
+  g_cal_moist_prompt_shown = false;
+  pop_screen();
 }
 
 /*
@@ -814,14 +830,30 @@ void time_range_ok_event(lv_event_t *) {
  *                       reinterpret_cast<void *>(static_cast<intptr_t>(1)));
  */
 void cal_moist_mode_event(lv_event_t *event) {
+  if (g_cal_moist_mode != 0 && !g_cal_moist_window_done) return;
   int mode = static_cast<int>(reinterpret_cast<intptr_t>(lv_event_get_user_data(event)));
   g_cal_moist_mode = mode;
   g_cal_moist_avg_raw = 0;
   g_cal_moist_window_done = false;
+  g_cal_moist_prompt_shown = false;
   if (g_cal_moist_mode != 0) {
     soilSensorWindowStart();
   }
   update_cal_moist_screen();
+}
+
+/*
+ * cal_moist_done_prompt
+ * Prompt callback that closes the calibration screen after saving.
+ * Example:
+ *   show_prompt("Save?", "Calibration stored", opts, 2, cal_moist_done_prompt, 0);
+ */
+void cal_moist_done_prompt(int, int) {
+  g_cal_moist_mode = 0;
+  g_cal_moist_avg_raw = 0;
+  g_cal_moist_window_done = false;
+  g_cal_moist_prompt_shown = false;
+  pop_screen();
 }
 
 /*
