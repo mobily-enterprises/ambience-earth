@@ -44,6 +44,10 @@ static uint16_t windowMaxRaw = 0;
 static uint16_t windowLastRaw = 0;
 static bool moistureReady = false;
 
+static unsigned long windowDurationMs() {
+  return (windowOwner == WINDOW_OWNER_CALIBRATION) ? SENSOR_CAL_WINDOW_DURATION : SENSOR_WINDOW_DURATION;
+}
+
 /*
  * sensorPowerOn
  * Enables power to the soil sensor input.
@@ -172,12 +176,12 @@ static bool tickWindow(SoilSensorWindowStats *out) {
         nextSampleAt = now + SENSOR_SAMPLE_INTERVAL;
       }
 
-      if (now - windowStartAt >= SENSOR_WINDOW_DURATION) {
+      if (now - windowStartAt >= windowDurationMs()) {
         finalizeWindow(out);
         sensorPowerOff();
         lazyState = LAZY_STATE_IDLE;
         if (windowOwner == WINDOW_OWNER_LAZY) {
-          unsigned long planned = windowStartAt + SENSOR_WINDOW_DURATION + SENSOR_SLEEP_INTERVAL;
+          unsigned long planned = windowStartAt + windowDurationMs() + SENSOR_SLEEP_INTERVAL;
           nextWindowAt = (planned > now) ? planned : now + SENSOR_SLEEP_INTERVAL;
         }
         return true;
@@ -327,6 +331,17 @@ uint16_t soilSensorWindowLastRaw() {
 
 unsigned long soilSensorLastWindowEndAt() {
   return lastWindowEndAt;
+}
+
+uint32_t soilSensorCalWindowRemainingMs() {
+  if (windowOwner != WINDOW_OWNER_CALIBRATION) return 0;
+  if (lazyState == LAZY_STATE_WARMING) return SENSOR_CAL_WINDOW_DURATION;
+  if (lazyState != LAZY_STATE_SAMPLING || windowStartAt == 0) return 0;
+
+  unsigned long now = millis();
+  unsigned long elapsed = now - windowStartAt;
+  if (elapsed >= SENSOR_CAL_WINDOW_DURATION) return 0;
+  return static_cast<uint32_t>(SENSOR_CAL_WINDOW_DURATION - elapsed);
 }
 
 uint16_t soilSensorOp(uint8_t op) {

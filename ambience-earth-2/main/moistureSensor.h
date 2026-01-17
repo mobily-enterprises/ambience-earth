@@ -7,6 +7,7 @@
 
 #define SENSOR_SLEEP_INTERVAL 30000UL
 #define SENSOR_WINDOW_DURATION 30000UL
+#define SENSOR_CAL_WINDOW_DURATION 15000UL
 #define SENSOR_SAMPLE_INTERVAL 250UL
 #define SENSOR_STABILIZATION_TIME 2000UL
 #define SENSOR_FEED_TAU_FAST_MS 700UL
@@ -147,6 +148,14 @@ uint16_t soilSensorWindowLastRaw();
  *   unsigned long t = soilSensorLastWindowEndAt();
  */
 unsigned long soilSensorLastWindowEndAt();
+
+/*
+ * soilSensorCalWindowRemainingMs
+ * Returns remaining milliseconds in the calibration averaging window.
+ * Example:
+ *   uint32_t remaining = soilSensorCalWindowRemainingMs();
+ */
+uint32_t soilSensorCalWindowRemainingMs();
 
 /*
  * initMoistureSensor
