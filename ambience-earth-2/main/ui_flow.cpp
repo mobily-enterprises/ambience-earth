@@ -515,6 +515,35 @@ void wizard_back_event(lv_event_t *) {
 }
 
 /*
+ * wizard_name_done_event
+ * Event handler that commits the slot name and advances the wizard.
+ * Example:
+ *   lv_obj_add_event_cb(btn, wizard_name_done_event, LV_EVENT_CLICKED, nullptr);
+ */
+void wizard_name_done_event(lv_event_t *) {
+  if (g_wizard_step != 1) return;
+  wizard_apply_name();
+  if (g_wizard_step < 8) g_wizard_step++;
+  wizard_render_step();
+}
+
+/*
+ * wizard_name_cancel_event
+ * Event handler that abandons name edits and returns to the previous step.
+ * Example:
+ *   lv_obj_add_event_cb(btn, wizard_name_cancel_event, LV_EVENT_CLICKED, nullptr);
+ */
+void wizard_name_cancel_event(lv_event_t *) {
+  if (g_wizard_step != 1) return;
+  if (g_wizard_step == 0) {
+    pop_screen();
+    return;
+  }
+  g_wizard_step = clamp_int(g_wizard_step - 1, 0, 8);
+  wizard_render_step();
+}
+
+/*
  * wizard_next_event
  * Event handler that advances the slot wizard to the next step.
  * Example:

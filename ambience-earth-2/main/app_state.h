@@ -188,11 +188,13 @@ struct SlotSummaryRefs {
 };
 
 struct WizardRefs {
+  lv_obj_t *header;
   lv_obj_t *step_label;
   lv_obj_t *content;
   lv_obj_t *next_btn;
   lv_obj_t *next_label;
   lv_obj_t *back_btn;
+  lv_obj_t *footer;
   lv_obj_t *text_area;
 };
 

@@ -59,6 +59,8 @@ void cal_moist_back_event(lv_event_t *);
 void cal_moist_done_prompt(int, int);
 void cal_flow_action_event(lv_event_t *);
 void cal_flow_next_event(lv_event_t *);
+void wizard_name_done_event(lv_event_t *);
+void wizard_name_cancel_event(lv_event_t *);
 
 /*
  * setup_complete
@@ -944,7 +946,7 @@ static lv_obj_t *build_slot_wizard_screen() {
   lv_obj_t *screen = create_screen_root();
   lv_obj_set_style_pad_all(screen, 6, 0);
   lv_obj_set_style_pad_row(screen, 4, 0);
-  create_header(screen, "Edit slot", false, nullptr);
+  lv_obj_t *header = create_header(screen, "Edit slot", false, nullptr);
 
   lv_obj_t *step_label = lv_label_create(screen);
   lv_obj_set_style_text_color(step_label, kColorMuted, 0);
@@ -982,11 +984,13 @@ static lv_obj_t *build_slot_wizard_screen() {
   lv_label_set_text(next_label, "Next");
   lv_obj_center(next_label);
 
+  g_wizard_refs.header = header;
   g_wizard_refs.step_label = step_label;
   g_wizard_refs.content = content;
   g_wizard_refs.next_btn = next_btn;
   g_wizard_refs.next_label = next_label;
   g_wizard_refs.back_btn = back_btn;
+  g_wizard_refs.footer = footer;
   g_wizard_refs.text_area = nullptr;
 
   wizard_render_step();
@@ -1525,6 +1529,19 @@ void wizard_render_step() {
   g_wizard_refs.text_area = nullptr;
 
   lv_label_set_text_fmt(g_wizard_refs.step_label, "Step %d/9", g_wizard_step + 1);
+  if (g_wizard_refs.header) {
+    if (g_wizard_step == 1) lv_obj_add_flag(g_wizard_refs.header, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_clear_flag(g_wizard_refs.header, LV_OBJ_FLAG_HIDDEN);
+  }
+  if (g_wizard_refs.step_label) {
+    if (g_wizard_step == 1) lv_obj_add_flag(g_wizard_refs.step_label, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_clear_flag(g_wizard_refs.step_label, LV_OBJ_FLAG_HIDDEN);
+  }
+  if (g_wizard_refs.footer) {
+    if (g_wizard_step == 1) lv_obj_add_flag(g_wizard_refs.footer, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_clear_flag(g_wizard_refs.footer, LV_OBJ_FLAG_HIDDEN);
+  }
+  lv_obj_set_style_pad_row(g_wizard_refs.content, g_wizard_step == 1 ? 2 : 6, 0);
 
   if (g_wizard_step == 0) {
     lv_obj_t *label = lv_label_create(g_wizard_refs.content);
@@ -1564,18 +1581,9 @@ void wizard_render_step() {
     if (g_edit_slot.enabled) lv_obj_add_state(group->btns[1], LV_STATE_CHECKED);
     else lv_obj_add_state(group->btns[0], LV_STATE_CHECKED);
   } else if (g_wizard_step == 1) {
-    lv_obj_t *label = lv_label_create(g_wizard_refs.content);
-    lv_label_set_text(label, "Edit name");
-
-    lv_obj_t *text_area = lv_textarea_create(g_wizard_refs.content);
-    lv_textarea_set_one_line(text_area, true);
-    lv_textarea_set_text(text_area, g_edit_slot.name);
-    lv_obj_set_height(text_area, 28);
-    g_wizard_refs.text_area = text_area;
-
-    lv_obj_t *keyboard = lv_keyboard_create(g_wizard_refs.content);
-    lv_obj_set_height(keyboard, 80);
-    lv_keyboard_set_textarea(keyboard, text_area);
+    KeyboardInputRefs refs = create_keyboard_input(g_wizard_refs.content, g_edit_slot.name,
+                                                   wizard_name_done_event, wizard_name_cancel_event, nullptr);
+    g_wizard_refs.text_area = refs.text_area;
   } else if (g_wizard_step == 2) {
     lv_obj_t *label = lv_label_create(g_wizard_refs.content);
     lv_label_set_text(label, "Time window?");
