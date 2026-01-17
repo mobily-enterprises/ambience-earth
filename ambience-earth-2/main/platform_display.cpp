@@ -15,7 +15,11 @@ static const uint8_t kTftDc = 2;
 static const uint8_t kTftRst = 4;
 static const uint8_t kTftLed = 6;
 static const uint8_t kTftRotation = 1;
+#ifdef WOKWI_SIM
+static const uint32_t kTftSpiHz = 80000000;
+#else
 static const uint32_t kTftSpiHz = 40000000;
+#endif
 
 static const uint8_t kTouchSda = 10;
 static const uint8_t kTouchScl = 8;

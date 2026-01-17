@@ -9,7 +9,11 @@ constexpr uint16_t kScreenWidth = 320;
 constexpr uint16_t kScreenHeight = 240;
 constexpr uint16_t kTouchWidth = 240;
 constexpr uint16_t kTouchHeight = 320;
+#ifdef WOKWI_SIM
+constexpr uint16_t kBufferLines = 240;
+#else
 constexpr uint16_t kBufferLines = 20;
+#endif
 
 constexpr uint32_t kScreensaverDelayMs = 15000;
 constexpr uint32_t kScreensaverMoveMs = 2000;

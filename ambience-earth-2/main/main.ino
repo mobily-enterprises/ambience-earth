@@ -5,6 +5,15 @@
 #include "sim.h"
 #include "ui_flow.h"
 
+// Reduce LVGL tick rate in Wokwi to avoid slow webview refresh.
+#ifdef WOKWI_SIM
+static const uint32_t kMinLoopDelayMs = 16;
+static const uint32_t kMaxLoopDelayMs = 50;
+#else
+static const uint32_t kMinLoopDelayMs = 5;
+static const uint32_t kMaxLoopDelayMs = 20;
+#endif
+
 /*
  * setup
  * Arduino entry point that initializes display, simulation, and UI.
@@ -28,7 +37,7 @@ void setup() {
  */
 void loop() {
   uint32_t delayMs = lv_timer_handler();
-  if (delayMs < 5) delayMs = 5;
-  else if (delayMs > 20) delayMs = 20;
+  if (delayMs < kMinLoopDelayMs) delayMs = kMinLoopDelayMs;
+  else if (delayMs > kMaxLoopDelayMs) delayMs = kMaxLoopDelayMs;
   delay(delayMs);
 }

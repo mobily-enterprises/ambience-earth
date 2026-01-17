@@ -1026,5 +1026,10 @@ void build_ui() {
   lv_obj_set_style_text_color(g_debug_label, kColorMuted, 0);
   lv_obj_align(g_debug_label, LV_ALIGN_TOP_RIGHT, -4, 4);
 
-  g_ui_timer = lv_timer_create(ui_timer_cb, 200, nullptr);
+#ifdef WOKWI_SIM
+  const uint32_t kUiTimerPeriodMs = 1200;
+#else
+  const uint32_t kUiTimerPeriodMs = 200;
+#endif
+  g_ui_timer = lv_timer_create(ui_timer_cb, kUiTimerPeriodMs, nullptr);
 }

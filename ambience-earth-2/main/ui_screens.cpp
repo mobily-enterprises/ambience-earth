@@ -294,7 +294,7 @@ void update_cal_moist_screen() {
   if (g_cal_moist_mode == 0) {
     lv_label_set_text(g_cal_moist_refs.mode_label, "Select Dry or Wet");
     lv_label_set_text(g_cal_moist_refs.raw_label, "Dry/Wet: --");
-    lv_label_set_text(g_cal_moist_refs.percent_label, "Tap a mode to start 30s average");
+    lv_label_set_text(g_cal_moist_refs.percent_label, "Tap a mode to start 15s average");
     return;
   }
 
@@ -307,7 +307,15 @@ void update_cal_moist_screen() {
   lv_label_set_text_fmt(g_cal_moist_refs.raw_label, "%s: %d", mode_name, value);
 
   if (!g_cal_moist_window_done) {
-    lv_label_set_text_fmt(g_cal_moist_refs.percent_label, "Hold sensor %s (30s avg)", mode_name);
+    uint32_t remaining_ms = soilSensorCalWindowRemainingMs();
+    uint32_t remaining_s = (remaining_ms + 999) / 1000;
+    if (remaining_s > 0) {
+      lv_label_set_text_fmt(g_cal_moist_refs.percent_label,
+                            "Hold sensor %s (%lus left)", mode_name,
+                            static_cast<unsigned long>(remaining_s));
+    } else {
+      lv_label_set_text_fmt(g_cal_moist_refs.percent_label, "Hold sensor %s (15s avg)", mode_name);
+    }
     return;
   }
 
