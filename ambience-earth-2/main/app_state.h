@@ -180,6 +180,7 @@ struct InfoRefs {
   lv_obj_t *time_value;
   lv_obj_t *today_value;
   lv_obj_t *play_pause_icon;
+  lv_obj_t *status_row;
   lv_obj_t *status_value;
   lv_obj_t *status_icon;
   lv_obj_t *day_night_icon;
