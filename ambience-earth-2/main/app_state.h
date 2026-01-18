@@ -33,6 +33,7 @@ extern const lv_color_t kColorAccent;
 
 enum ScreenId {
   SCREEN_INFO = 0,
+  SCREEN_FEEDING_STATUS,
   SCREEN_MENU,
   SCREEN_LOGS,
   SCREEN_FEEDING_MENU,
@@ -200,6 +201,14 @@ struct LogsRefs {
   lv_obj_t *index_label;
 };
 
+struct FeedingRefs {
+  lv_obj_t *header;
+  lv_obj_t *line1;
+  lv_obj_t *line2;
+  lv_obj_t *line3;
+  lv_obj_t *menu_btn;
+};
+
 struct SlotSummaryRefs {
   lv_obj_t *lines[4];
 };
@@ -316,6 +325,7 @@ extern ScreenId g_active_screen;
 
 extern InfoRefs g_info_refs;
 extern LogsRefs g_logs_refs;
+extern FeedingRefs g_feeding_refs;
 extern SlotSummaryRefs g_slot_summary_refs;
 extern WizardRefs g_wizard_refs;
 extern TimeDateRefs g_time_date_refs;

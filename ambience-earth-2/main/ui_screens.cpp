@@ -254,6 +254,61 @@ static void update_info_screen() {
 }
 
 /*
+ * update_feeding_screen
+ * Updates the feeding status screen labels.
+ * Example:
+ *   update_feeding_screen();
+ */
+static void update_feeding_screen() {
+  if (!g_feeding_refs.header) return;
+  FeedStatus status = {};
+  if (!feedingGetStatus(&status)) return;
+
+  lv_label_set_text_fmt(g_feeding_refs.header, "Feeding S%d %d/%d",
+                        status.slotIndex + 1,
+                        config.pulseOnSeconds,
+                        config.pulseOffSeconds);
+
+  if (status.moistureReady) {
+    lv_label_set_text_fmt(g_feeding_refs.line1, "Pump:%s  Mst:%d%%  %ds",
+                          status.pumpOn ? "ON" : "OFF",
+                          status.moisturePercent,
+                          status.elapsedSeconds);
+  } else {
+    lv_label_set_text_fmt(g_feeding_refs.line1, "Pump:%s  Mst:--%%  %ds",
+                          status.pumpOn ? "ON" : "OFF",
+                          status.elapsedSeconds);
+  }
+
+  char stop_buf[48] = {0};
+  snprintf(stop_buf, sizeof(stop_buf), "Stop:");
+  bool any_stop = false;
+  if (status.hasMoistureTarget) {
+    char target_buf[16] = {0};
+    snprintf(target_buf, sizeof(target_buf), " M>%d%%", status.moistureTarget);
+    strncat(stop_buf, target_buf, sizeof(stop_buf) - strlen(stop_buf) - 1);
+    any_stop = true;
+  }
+  if (status.runoffRequired) {
+    strncat(stop_buf, any_stop ? " Runoff" : " Runoff", sizeof(stop_buf) - strlen(stop_buf) - 1);
+    any_stop = true;
+  }
+  if (!any_stop) {
+    strncat(stop_buf, " n/a", sizeof(stop_buf) - strlen(stop_buf) - 1);
+  }
+  lv_label_set_text(g_feeding_refs.line2, stop_buf);
+
+  uint16_t delivered = msToVolumeMl(static_cast<uint32_t>(status.elapsedSeconds) * 1000UL,
+                                    config.dripperMsPerLiter);
+  if (status.maxVolumeMl) {
+    lv_label_set_text_fmt(g_feeding_refs.line3, "Max:%dml  W:%dml",
+                          status.maxVolumeMl, delivered);
+  } else {
+    lv_label_set_text_fmt(g_feeding_refs.line3, "Max:-  W:%dml", delivered);
+  }
+}
+
+/*
  * update_logs_screen
  * Refreshes the log viewer labels for the current log index.
  * Example:
@@ -550,6 +605,9 @@ void update_active_screen() {
   switch (g_active_screen) {
     case SCREEN_INFO:
       update_info_screen();
+      break;
+    case SCREEN_FEEDING_STATUS:
+      update_feeding_screen();
       break;
     case SCREEN_LOGS:
       update_logs_screen();
@@ -925,6 +983,67 @@ static lv_obj_t *build_info_screen() {
   g_info_refs.screensaver_icon = status;
 
   update_info_screen();
+  return screen;
+}
+
+/*
+ * build_feeding_status_screen
+ * Builds the feeding status screen layout.
+ * Example:
+ *   lv_obj_t *screen = build_feeding_status_screen();
+ */
+static lv_obj_t *build_feeding_status_screen() {
+  lv_obj_t *screen = create_screen_root();
+  lv_obj_set_style_pad_all(screen, 0, 0);
+  lv_obj_set_style_pad_row(screen, 0, 0);
+  lv_obj_set_layout(screen, LV_LAYOUT_NONE);
+
+  lv_obj_t *content = lv_obj_create(screen);
+  lv_obj_set_size(content, kScreenWidth, kScreenHeight);
+  lv_obj_set_pos(content, 0, 0);
+  lv_obj_set_style_bg_opa(content, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(content, 0, 0);
+  lv_obj_set_style_pad_all(content, 8, 0);
+  lv_obj_set_style_pad_row(content, 8, 0);
+  lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
+  lv_obj_clear_flag(content, LV_OBJ_FLAG_SCROLLABLE);
+
+  lv_obj_t *header = lv_label_create(content);
+  lv_obj_set_style_text_font(header, &lv_font_montserrat_18, 0);
+
+  lv_obj_t *line1 = lv_label_create(content);
+  lv_obj_set_style_text_font(line1, &lv_font_montserrat_16, 0);
+
+  lv_obj_t *line2 = lv_label_create(content);
+  lv_obj_set_style_text_font(line2, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(line2, kColorMuted, 0);
+
+  lv_obj_t *line3 = lv_label_create(content);
+  lv_obj_set_style_text_font(line3, &lv_font_montserrat_14, 0);
+
+  lv_obj_t *menu_row = lv_obj_create(screen);
+  lv_obj_set_size(menu_row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(menu_row, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(menu_row, 0, 0);
+  lv_obj_set_style_pad_all(menu_row, 0, 0);
+  lv_obj_set_layout(menu_row, LV_LAYOUT_NONE);
+  lv_obj_add_flag(menu_row, LV_OBJ_FLAG_FLOATING);
+
+  lv_obj_t *menu_btn = lv_btn_create(menu_row);
+  lv_obj_set_size(menu_btn, 34, 34);
+  lv_obj_add_event_cb(menu_btn, open_menu_event, LV_EVENT_CLICKED, nullptr);
+  lv_obj_t *menu_label = lv_label_create(menu_btn);
+  lv_label_set_text(menu_label, LV_SYMBOL_LIST);
+  lv_obj_center(menu_label);
+  lv_obj_set_pos(menu_row, kScreenWidth - 34 - 5, kScreenHeight - 34 - 5);
+
+  g_feeding_refs.header = header;
+  g_feeding_refs.line1 = line1;
+  g_feeding_refs.line2 = line2;
+  g_feeding_refs.line3 = line3;
+  g_feeding_refs.menu_btn = menu_btn;
+
+  update_feeding_screen();
   return screen;
 }
 
@@ -1842,6 +1961,7 @@ static lv_obj_t *build_time_range_screen() {
 lv_obj_t *build_screen(ScreenId id) {
   switch (id) {
     case SCREEN_INFO: return build_info_screen();
+    case SCREEN_FEEDING_STATUS: return build_feeding_status_screen();
     case SCREEN_MENU: return build_menu_screen();
     case SCREEN_LOGS: return build_logs_screen();
     case SCREEN_FEEDING_MENU: return build_feeding_menu_screen();

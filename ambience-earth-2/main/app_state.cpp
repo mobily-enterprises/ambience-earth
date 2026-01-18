@@ -25,6 +25,7 @@ ScreenId g_active_screen = SCREEN_INFO;
 
 InfoRefs g_info_refs = {};
 LogsRefs g_logs_refs = {};
+FeedingRefs g_feeding_refs = {};
 SlotSummaryRefs g_slot_summary_refs = {};
 WizardRefs g_wizard_refs = {};
 TimeDateRefs g_time_date_refs = {};

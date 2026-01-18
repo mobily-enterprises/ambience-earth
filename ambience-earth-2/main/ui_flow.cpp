@@ -27,6 +27,7 @@ static void set_active_screen(ScreenId id) {
   const char *name = "";
   switch (id) {
     case SCREEN_INFO: name = "INFO"; break;
+    case SCREEN_FEEDING_STATUS: name = "FEED"; break;
     case SCREEN_MENU: name = "MENU"; break;
     case SCREEN_LOGS: name = "LOGS"; break;
     case SCREEN_FEEDING_MENU: name = "FEED"; break;
@@ -48,6 +49,43 @@ static void set_active_screen(ScreenId id) {
     default: name = "UI"; break;
   }
   lv_label_set_text_fmt(g_debug_label, "[%s]", name);
+}
+
+/*
+ * replace_top_screen
+ * Replaces the current top screen without changing the stack depth.
+ * Example:
+ *   replace_top_screen(SCREEN_INFO);
+ */
+static void replace_top_screen(ScreenId id) {
+  if (g_screen_stack_size <= 0) return;
+  if (g_screen_stack[g_screen_stack_size - 1].id == id) return;
+  prompt_close();
+  lv_obj_t *old = g_screen_stack[g_screen_stack_size - 1].root;
+  lv_obj_t *root = build_screen(id);
+  g_screen_stack[g_screen_stack_size - 1] = {id, root};
+  lv_scr_load(root);
+  set_active_screen(id);
+  lv_obj_del(old);
+}
+
+/*
+ * sync_feeding_screen
+ * Swaps between info and feeding screens based on runtime state.
+ * Example:
+ *   sync_feeding_screen();
+ */
+static void sync_feeding_screen() {
+  bool feeding = feedingIsActive();
+  if (feeding) {
+    if (g_active_screen == SCREEN_INFO) {
+      replace_top_screen(SCREEN_FEEDING_STATUS);
+    }
+  } else {
+    if (g_active_screen == SCREEN_FEEDING_STATUS) {
+      replace_top_screen(SCREEN_INFO);
+    }
+  }
 }
 
 /*
@@ -105,6 +143,7 @@ static void ui_timer_cb(lv_timer_t *) {
   uint32_t now_ms = millis();
   sim_tick();
   update_screensaver(now_ms);
+  sync_feeding_screen();
   update_active_screen();
 }
 
