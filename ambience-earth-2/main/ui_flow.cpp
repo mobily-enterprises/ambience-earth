@@ -1020,11 +1020,7 @@ void build_ui() {
 
   push_screen(SCREEN_INFO);
 
-  g_debug_label = lv_label_create(lv_layer_top());
-  lv_label_set_text(g_debug_label, "[INFO]");
-  lv_obj_set_style_text_font(g_debug_label, &lv_font_montserrat_12, 0);
-  lv_obj_set_style_text_color(g_debug_label, kColorMuted, 0);
-  lv_obj_align(g_debug_label, LV_ALIGN_TOP_RIGHT, -4, 4);
+  g_debug_label = nullptr;
 
 #ifdef WOKWI_SIM
   const uint32_t kUiTimerPeriodMs = 1200;
