@@ -11,6 +11,69 @@
 #include "runoffSensor.h"
 #include "ui_components.h"
 #include "volume.h"
+
+static const uint16_t kPlantPixelBg = 0x10A3;
+static const uint16_t kPlantPixelLeaf = 0x4D6A;
+static const uint16_t kPlantPixelLeafHi = 0x8E09;
+static const uint16_t kPlantPixelPot = 0x8B6C;
+
+static const int16_t kPlantW = 16;
+static const int16_t kPlantH = 16;
+static const uint32_t kPlantScale = 768; // 3x
+static const int16_t kPlantDrawW = static_cast<int16_t>(kPlantW * kPlantScale / 256);
+static const int16_t kPlantDrawH = static_cast<int16_t>(kPlantH * kPlantScale / 256);
+static const int16_t kPlantIconGap = 8;
+
+static const uint16_t kPlantPixels[kPlantW * kPlantH] = {
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelLeafHi, kPlantPixelLeafHi,
+  kPlantPixelLeafHi, kPlantPixelLeafHi, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelLeafHi, kPlantPixelLeafHi, kPlantPixelLeaf, kPlantPixelLeaf,
+  kPlantPixelLeaf, kPlantPixelLeaf, kPlantPixelLeafHi, kPlantPixelLeafHi, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelLeafHi, kPlantPixelLeaf, kPlantPixelLeaf, kPlantPixelLeaf, kPlantPixelLeaf,
+  kPlantPixelLeaf, kPlantPixelLeaf, kPlantPixelLeaf, kPlantPixelLeaf, kPlantPixelLeafHi, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelLeaf, kPlantPixelLeaf, kPlantPixelLeaf, kPlantPixelLeaf,
+  kPlantPixelLeaf, kPlantPixelLeaf, kPlantPixelLeaf, kPlantPixelLeaf, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelLeaf, kPlantPixelLeaf, kPlantPixelLeaf,
+  kPlantPixelLeaf, kPlantPixelLeaf, kPlantPixelLeaf, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelLeaf, kPlantPixelLeaf,
+  kPlantPixelLeaf, kPlantPixelLeaf, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelPot,
+  kPlantPixelPot, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelPot, kPlantPixelPot, kPlantPixelPot,
+  kPlantPixelPot, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelPot, kPlantPixelPot, kPlantPixelPot,
+  kPlantPixelPot, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelPot, kPlantPixelPot, kPlantPixelPot,
+  kPlantPixelPot, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelPot, kPlantPixelPot, kPlantPixelPot, kPlantPixelPot,
+  kPlantPixelPot, kPlantPixelPot, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelPot, kPlantPixelPot, kPlantPixelPot, kPlantPixelPot,
+  kPlantPixelPot, kPlantPixelPot, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelPot, kPlantPixelPot,
+  kPlantPixelPot, kPlantPixelPot, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg,
+  kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg, kPlantPixelBg
+};
+
+static const lv_img_dsc_t kPlantImage = {
+  .header = {
+    .magic = LV_IMAGE_HEADER_MAGIC,
+    .cf = LV_COLOR_FORMAT_RGB565,
+    .flags = 0,
+    .w = kPlantW,
+    .h = kPlantH,
+    .stride = kPlantW * 2,
+    .reserved_2 = 0
+  },
+  .data_size = sizeof(kPlantPixels),
+  .data = reinterpret_cast<const uint8_t *>(kPlantPixels),
+  .reserved = nullptr,
+  .reserved_2 = nullptr
+};
 #include <Arduino.h>
 #include <stdio.h>
 #include <string.h>
@@ -83,12 +146,28 @@ static void update_info_screen() {
 
   if (g_screensaver_active) {
     lv_obj_add_flag(g_info_refs.container, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(g_info_refs.star, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(g_info_refs.title, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(g_info_refs.menu_btn, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(g_info_refs.screensaver_root, LV_OBJ_FLAG_HIDDEN);
+    if (g_debug_label) lv_obj_add_flag(g_debug_label, LV_OBJ_FLAG_HIDDEN);
+    // TEMP: force warning icon for screensaver preview.
+    if (true || feedingRunoffWarning()) {
+      lv_label_set_text(g_info_refs.screensaver_icon, "!");
+      lv_obj_clear_flag(g_info_refs.screensaver_icon, LV_OBJ_FLAG_HIDDEN);
+    } else if (!feedingIsEnabled()) {
+      lv_label_set_text(g_info_refs.screensaver_icon, LV_SYMBOL_PAUSE);
+      lv_obj_clear_flag(g_info_refs.screensaver_icon, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_obj_add_flag(g_info_refs.screensaver_icon, LV_OBJ_FLAG_HIDDEN);
+    }
     return;
   }
 
   lv_obj_clear_flag(g_info_refs.container, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_add_flag(g_info_refs.star, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_clear_flag(g_info_refs.title, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_clear_flag(g_info_refs.menu_btn, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(g_info_refs.screensaver_root, LV_OBJ_FLAG_HIDDEN);
+  if (g_debug_label) lv_obj_clear_flag(g_debug_label, LV_OBJ_FLAG_HIDDEN);
 
   FeedStatus status = {};
   if (feedingGetStatus(&status)) {
@@ -133,11 +212,11 @@ static void update_info_screen() {
   char time_buf[8] = {0};
   format_time(g_sim.now, time_buf, sizeof(time_buf));
   if (has_dryback) {
-    lv_label_set_text_fmt(g_info_refs.line0, "Moist:%d%% Db:%d%%  %s",
-                          g_sim.moisture, dryback, time_buf);
+    lv_label_set_text_fmt(g_info_refs.line0, "Moist:%d%% Db:%d%%",
+                          g_sim.moisture, dryback);
   } else {
-    lv_label_set_text_fmt(g_info_refs.line0, "Moist:%d%% Db:--  %s",
-                          g_sim.moisture, time_buf);
+    lv_label_set_text_fmt(g_info_refs.line0, "Moist:%d%% Db:--",
+                          g_sim.moisture);
   }
 
   uint16_t now_minutes = static_cast<uint16_t>(g_sim.now.hour * 60 + g_sim.now.minute);
@@ -148,11 +227,14 @@ static void update_info_screen() {
                         : static_cast<uint16_t>(1440 - on_minutes + off_minutes);
   bool day_now = (on_minutes != off_minutes) && rtcIsWithinWindow(now_minutes, on_minutes, duration);
 
-  if (!feedingIsEnabled()) {
-    lv_label_set_text_fmt(g_info_refs.line1, "%s (PAUSED)", day_now ? "DAY" : "NIGHT");
-  } else {
-    lv_label_set_text(g_info_refs.line1, day_now ? "DAY" : "NIGHT");
+  const char *status_text = "OK";
+  if (feedingRunoffWarning()) {
+    status_text = "!";
+  } else if (!feedingIsEnabled()) {
+    status_text = "PAUSED";
   }
+  lv_label_set_text_fmt(g_info_refs.line1, "%s  %s  St:%s",
+                        day_now ? "DAY" : "NIGHT", time_buf, status_text);
 
   if (!millisAtEndOfLastFeed) {
     lv_label_set_text(g_info_refs.line2, "Last: -- ago --ml");
@@ -168,20 +250,27 @@ static void update_info_screen() {
   uint8_t day_lo = LOG_BASELINE_UNSET;
   uint8_t day_hi = LOG_BASELINE_UNSET;
   uint16_t daily_total = getDailyFeedTotalMlNow(&day_lo, &day_hi);
-  if (g_sim.info_toggle == 0) {
-    uint8_t baseline = 0;
-    if (feedingGetBaselinePercent(&baseline)) {
-      lv_label_set_text_fmt(g_info_refs.line3, "Today: %dml  BL:%d%%", daily_total, baseline);
+  uint8_t baseline = 0;
+  bool has_baseline = feedingGetBaselinePercent(&baseline);
+  char line3_buf[64] = {0};
+  if (day_lo != LOG_BASELINE_UNSET && day_hi != LOG_BASELINE_UNSET) {
+    if (has_baseline) {
+      snprintf(line3_buf, sizeof(line3_buf), "Today:%dml BL:%d%% L%d H%d",
+               daily_total, baseline, day_lo, day_hi);
     } else {
-      lv_label_set_text_fmt(g_info_refs.line3, "Today: %dml  BL:--", daily_total);
+      snprintf(line3_buf, sizeof(line3_buf), "Today:%dml BL:-- L%d H%d",
+               daily_total, day_lo, day_hi);
     }
   } else {
-    if (day_lo != LOG_BASELINE_UNSET && day_hi != LOG_BASELINE_UNSET) {
-      lv_label_set_text_fmt(g_info_refs.line3, "Today: %dml  L%d H%d", daily_total, day_lo, day_hi);
+    if (has_baseline) {
+      snprintf(line3_buf, sizeof(line3_buf), "Today:%dml BL:%d%% L-- H--",
+               daily_total, baseline);
     } else {
-      lv_label_set_text_fmt(g_info_refs.line3, "Today: %dml  L-- H--", daily_total);
+      snprintf(line3_buf, sizeof(line3_buf), "Today:%dml BL:-- L-- H--",
+               daily_total);
     }
   }
+  lv_label_set_text(g_info_refs.line3, line3_buf);
 }
 
 /*
@@ -433,7 +522,7 @@ static void update_pump_test_screen() {
 
 /*
  * update_screensaver
- * Toggles screensaver state and moves the star when idle.
+ * Toggles screensaver state and moves the plant when idle.
  * Example:
  *   update_screensaver(millis());
  */
@@ -455,12 +544,18 @@ void update_screensaver(uint32_t now_ms) {
     g_screensaver_active = false;
   }
 
-  if (g_screensaver_active && g_info_refs.star) {
+  if (g_screensaver_active && g_info_refs.screensaver_plant) {
     if (now_ms - g_last_screensaver_move_ms > kScreensaverMoveMs) {
+      int16_t max_x = static_cast<int16_t>(kScreenWidth - kPlantDrawW);
+      int16_t max_y = static_cast<int16_t>(kScreenHeight - (kPlantDrawH + kPlantIconGap + 16));
+      if (max_x < 0) max_x = 0;
+      if (max_y < 0) max_y = 0;
+
+      int16_t x = static_cast<int16_t>(random(0, max_x + 1));
+      int16_t y = static_cast<int16_t>(random(0, max_y + 1));
+
       g_last_screensaver_move_ms = now_ms;
-      int x = random(0, kScreenWidth - 10);
-      int y = random(0, kScreenHeight - 10);
-      lv_obj_set_pos(g_info_refs.star, x, y);
+      lv_obj_set_pos(g_info_refs.screensaver_plant, x, y);
     }
   }
 }
@@ -539,17 +634,41 @@ static lv_obj_t *build_info_screen() {
   lv_label_set_text(menu_label, "Menu");
   lv_obj_center(menu_label);
 
-  lv_obj_t *star = lv_label_create(screen);
-  lv_label_set_text(star, "*");
-  lv_obj_set_style_text_font(star, &lv_font_montserrat_18, 0);
-  lv_obj_add_flag(star, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_t *screensaver = lv_obj_create(screen);
+  lv_obj_set_size(screensaver, LV_PCT(100), LV_PCT(100));
+  lv_obj_set_style_bg_opa(screensaver, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(screensaver, 0, 0);
+  lv_obj_clear_flag(screensaver, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(screensaver, LV_OBJ_FLAG_HIDDEN);
 
+  lv_obj_t *plant_wrap = lv_obj_create(screensaver);
+  lv_obj_set_size(plant_wrap, kPlantDrawW, kPlantDrawH + kPlantIconGap + 16);
+  lv_obj_set_style_bg_opa(plant_wrap, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(plant_wrap, 0, 0);
+  lv_obj_clear_flag(plant_wrap, LV_OBJ_FLAG_SCROLLABLE);
+
+  lv_obj_t *plant = lv_img_create(plant_wrap);
+  lv_img_set_src(plant, &kPlantImage);
+  lv_image_set_scale(plant, kPlantScale);
+  lv_obj_align(plant, LV_ALIGN_TOP_MID, 0, 0);
+
+  lv_obj_t *status = lv_label_create(plant_wrap);
+  lv_obj_set_style_text_font(status, &lv_font_montserrat_18, 0);
+  lv_obj_set_style_text_color(status, kColorMuted, 0);
+  lv_label_set_text(status, "");
+  lv_obj_align(status, LV_ALIGN_TOP_MID, 0, kPlantDrawH + kPlantIconGap);
+  lv_obj_add_flag(status, LV_OBJ_FLAG_HIDDEN);
+
+  g_info_refs.title = title;
   g_info_refs.container = container;
   g_info_refs.line0 = line0;
   g_info_refs.line1 = line1;
   g_info_refs.line2 = line2;
   g_info_refs.line3 = line3;
-  g_info_refs.star = star;
+  g_info_refs.menu_btn = menu_btn;
+  g_info_refs.screensaver_root = screensaver;
+  g_info_refs.screensaver_plant = plant_wrap;
+  g_info_refs.screensaver_icon = status;
 
   update_info_screen();
   return screen;

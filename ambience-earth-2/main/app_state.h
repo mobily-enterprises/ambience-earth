@@ -171,12 +171,16 @@ struct ScreenNode {
 };
 
 struct InfoRefs {
+  lv_obj_t *title;
   lv_obj_t *container;
   lv_obj_t *line0;
   lv_obj_t *line1;
   lv_obj_t *line2;
   lv_obj_t *line3;
-  lv_obj_t *star;
+  lv_obj_t *menu_btn;
+  lv_obj_t *screensaver_root;
+  lv_obj_t *screensaver_plant;
+  lv_obj_t *screensaver_icon;
 };
 
 struct LogsRefs {
