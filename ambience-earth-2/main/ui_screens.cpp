@@ -152,7 +152,7 @@ static void update_info_screen() {
     snprintf(last_buf, sizeof(last_buf), "%sh ago %dml", ago_buf, lastFeedMl);
   }
   // DEBUG: preview last-feed display. TODO: remove debug override.
-  snprintf(last_buf, sizeof(last_buf), "12.0h ago 800ml");
+  // snprintf(last_buf, sizeof(last_buf), "12.0h ago 800ml");
 
   uint8_t day_lo = LOG_BASELINE_UNSET;
   uint8_t day_hi = LOG_BASELINE_UNSET;
@@ -173,8 +173,8 @@ static void update_info_screen() {
       lv_label_set_text(g_info_refs.play_pause_icon, feedingIsEnabled() ? LV_SYMBOL_PLAY : LV_SYMBOL_PAUSE);
     }
     // DEBUG: simulation preview for Today value. TODO: remove debug override.
-    lv_label_set_text(g_info_refs.today_value, "5000ml");
-    // lv_label_set_text_fmt(g_info_refs.today_value, "%dml", daily_total);
+    // lv_label_set_text(g_info_refs.today_value, "5000ml");
+    lv_label_set_text_fmt(g_info_refs.today_value, "%dml", daily_total);
     toggle_day_night_icons(day_now);
     lv_obj_add_flag(g_info_refs.status_icon, LV_OBJ_FLAG_HIDDEN);
     if (status.moistureReady) {
@@ -229,8 +229,8 @@ static void update_info_screen() {
     lv_label_set_text(g_info_refs.play_pause_icon, feedingIsEnabled() ? LV_SYMBOL_PLAY : LV_SYMBOL_PAUSE);
   }
   // DEBUG: simulation preview for Today value. TODO: remove debug override.
-  lv_label_set_text(g_info_refs.today_value, "5000ml");
-  // lv_label_set_text_fmt(g_info_refs.today_value, "%dml", daily_total);
+  // lv_label_set_text(g_info_refs.today_value, "5000ml");
+  lv_label_set_text_fmt(g_info_refs.today_value, "%dml", daily_total);
   lv_label_set_text(g_info_refs.time_value, time_buf);
   lv_label_set_text(g_info_refs.last_value, last_buf);
   toggle_day_night_icons(day_now);
