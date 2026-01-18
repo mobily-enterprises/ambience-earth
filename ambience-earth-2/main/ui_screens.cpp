@@ -23,6 +23,7 @@ static const int16_t kPlantH = 16;
 static const uint32_t kPlantScale = 768; // 3x
 static const int16_t kPlantDrawW = static_cast<int16_t>(kPlantW * kPlantScale / 256);
 static const int16_t kPlantDrawH = static_cast<int16_t>(kPlantH * kPlantScale / 256);
+static const uint32_t kDayNightScale = 144; // ~18px for 32px icons
 static const int16_t kPlantIconGap = 8;
 
 static const uint16_t kPlantPixels[kPlantW * kPlantH] = {
@@ -167,57 +168,8 @@ static void update_info_screen() {
   lv_obj_add_flag(g_info_refs.screensaver_root, LV_OBJ_FLAG_HIDDEN);
   if (g_debug_label) lv_obj_clear_flag(g_debug_label, LV_OBJ_FLAG_HIDDEN);
 
-  FeedStatus status = {};
-  if (feedingGetStatus(&status)) {
-    lv_label_set_text_fmt(g_info_refs.moist_value, "S%d", status.slotIndex + 1);
-    lv_label_set_text(g_info_refs.baseline_value, "--");
-    lv_label_set_text(g_info_refs.dry_value, "--");
-    lv_label_set_text(g_info_refs.minmax_value, "--/--%");
-
-    lv_label_set_text_fmt(g_info_refs.time_value, "Pump %s",
-                          status.pumpOn ? "ON" : "OFF");
-    lv_obj_add_flag(g_info_refs.night_icon, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(g_info_refs.day_night_icon, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(g_info_refs.status_icon, LV_OBJ_FLAG_HIDDEN);
-    if (status.moistureReady) {
-      lv_label_set_text_fmt(g_info_refs.status_value, "Mst %d%% | %ds",
-                            status.moisturePercent, status.elapsedSeconds);
-    } else {
-      lv_label_set_text_fmt(g_info_refs.status_value, "Mst --%% | %ds",
-                            status.elapsedSeconds);
-    }
-
-    char stop_buf[64] = {0};
-    bool any_stop = false;
-    if (status.hasMoistureTarget) {
-      snprintf(stop_buf, sizeof(stop_buf), "Stop M>%d%%", status.moistureTarget);
-      any_stop = true;
-    }
-    if (status.runoffRequired) {
-      if (any_stop) {
-        strncat(stop_buf, " Runoff", sizeof(stop_buf) - strlen(stop_buf) - 1);
-      } else {
-        snprintf(stop_buf, sizeof(stop_buf), "Stop Runoff");
-      }
-      any_stop = true;
-    }
-    if (!any_stop) {
-      snprintf(stop_buf, sizeof(stop_buf), "Stop N/A");
-    }
-    lv_label_set_text(g_info_refs.last_value, stop_buf);
-
-    uint16_t delivered = msToVolumeMl(static_cast<uint32_t>(status.elapsedSeconds) * 1000UL,
-                                      config.dripperMsPerLiter);
-    lv_label_set_text_fmt(g_info_refs.totals_value, "Max %dml | W %dml",
-                          status.maxVolumeMl, delivered);
-    return;
-  }
-
-  uint8_t dryback = 0;
-  bool has_dryback = getDrybackPercent(&dryback);
   char time_buf[8] = {0};
   format_time(g_sim.now, time_buf, sizeof(time_buf));
-  lv_label_set_text_fmt(g_info_refs.moist_value, "%d%%", g_sim.moisture);
 
   uint16_t now_minutes = static_cast<uint16_t>(g_sim.now.hour * 60 + g_sim.now.minute);
   uint16_t on_minutes = config.lightsOnMinutes;
@@ -229,36 +181,17 @@ static void update_info_screen() {
 
   char last_buf[32] = {0};
   if (!millisAtEndOfLastFeed) {
-    snprintf(last_buf, sizeof(last_buf), "-- ago: --ml");
+    snprintf(last_buf, sizeof(last_buf), "Never");
   } else {
     unsigned long elapsed_minutes = (millis() - millisAtEndOfLastFeed) / 60000UL;
     unsigned long tenths = (elapsed_minutes + 3) / 6;
     char ago_buf[12] = {0};
     snprintf(ago_buf, sizeof(ago_buf), "%lu.%luh",
              tenths / 10UL, static_cast<unsigned long>(tenths % 10UL));
-    snprintf(last_buf, sizeof(last_buf), "%s ago: %dml", ago_buf, lastFeedMl);
+    snprintf(last_buf, sizeof(last_buf), "%sh ago", ago_buf);
   }
-
-  lv_label_set_text_fmt(g_info_refs.time_value, "%s  %s", time_buf, last_buf);
-  if (day_now) {
-    lv_obj_clear_flag(g_info_refs.day_night_icon, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(g_info_refs.night_icon, LV_OBJ_FLAG_HIDDEN);
-  } else {
-    lv_obj_add_flag(g_info_refs.day_night_icon, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(g_info_refs.night_icon, LV_OBJ_FLAG_HIDDEN);
-  }
-  lv_label_set_text(g_info_refs.status_value, "");
-  if (feedingRunoffWarning()) {
-    lv_label_set_text(g_info_refs.status_icon, "!");
-    lv_obj_clear_flag(g_info_refs.status_icon, LV_OBJ_FLAG_HIDDEN);
-  } else if (!feedingIsEnabled()) {
-    lv_label_set_text(g_info_refs.status_icon, LV_SYMBOL_PAUSE);
-    lv_obj_clear_flag(g_info_refs.status_icon, LV_OBJ_FLAG_HIDDEN);
-  } else {
-    lv_obj_add_flag(g_info_refs.status_icon, LV_OBJ_FLAG_HIDDEN);
-  }
-
-  lv_label_set_text(g_info_refs.last_value, last_buf);
+  // DEBUG: preview last-feed display.
+  snprintf(last_buf, sizeof(last_buf), "12.0h ago 800ml");
 
   uint8_t day_lo = LOG_BASELINE_UNSET;
   uint8_t day_hi = LOG_BASELINE_UNSET;
@@ -266,7 +199,47 @@ static void update_info_screen() {
   uint8_t baseline = 0;
   bool has_baseline = feedingGetBaselinePercent(&baseline);
 
-  char top_buf[96] = {0};
+  FeedStatus status = {};
+  if (feedingGetStatus(&status)) {
+    lv_label_set_text_fmt(g_info_refs.moist_value, "S%d", status.slotIndex + 1);
+    lv_label_set_text(g_info_refs.baseline_value, "--");
+    lv_label_set_text(g_info_refs.dry_value, "--");
+    lv_label_set_text(g_info_refs.minmax_value, "--/--%");
+
+    lv_label_set_text(g_info_refs.time_value, time_buf);
+    lv_label_set_text(g_info_refs.last_value, last_buf);
+    lv_label_set_text_fmt(g_info_refs.today_value, "%dml", daily_total);
+    if (day_now) {
+      lv_obj_clear_flag(g_info_refs.day_night_icon, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_add_flag(g_info_refs.night_icon, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_obj_add_flag(g_info_refs.day_night_icon, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_clear_flag(g_info_refs.night_icon, LV_OBJ_FLAG_HIDDEN);
+    }
+    lv_obj_add_flag(g_info_refs.status_icon, LV_OBJ_FLAG_HIDDEN);
+    if (status.moistureReady) {
+      lv_label_set_text_fmt(g_info_refs.status_value, "Pump %s | Mst %d%% | %ds",
+                            status.pumpOn ? "ON" : "OFF",
+                            status.moisturePercent, status.elapsedSeconds);
+    } else {
+      lv_label_set_text_fmt(g_info_refs.status_value, "Pump %s | Mst --%% | %ds",
+                            status.pumpOn ? "ON" : "OFF",
+                            status.elapsedSeconds);
+    }
+
+    uint16_t delivered = msToVolumeMl(static_cast<uint32_t>(status.elapsedSeconds) * 1000UL,
+                                      config.dripperMsPerLiter);
+    if (g_info_refs.totals_value) {
+      lv_label_set_text_fmt(g_info_refs.totals_value, "Max %dml | W %dml",
+                            status.maxVolumeMl, delivered);
+    }
+    return;
+  }
+
+  uint8_t dryback = 0;
+  bool has_dryback = getDrybackPercent(&dryback);
+  lv_label_set_text_fmt(g_info_refs.moist_value, "%d%%", g_sim.moisture);
+
   char baseline_buf[8] = {0};
   char dryback_buf[8] = {0};
   char minmax_buf[16] = {0};
@@ -292,6 +265,26 @@ static void update_info_screen() {
   lv_label_set_text(g_info_refs.baseline_value, baseline_buf);
   lv_label_set_text(g_info_refs.dry_value, dryback_buf);
   lv_label_set_text(g_info_refs.minmax_value, minmax_buf);
+  lv_label_set_text_fmt(g_info_refs.today_value, "%dml", daily_total);
+  lv_label_set_text(g_info_refs.time_value, time_buf);
+  lv_label_set_text(g_info_refs.last_value, last_buf);
+  if (day_now) {
+    lv_obj_clear_flag(g_info_refs.day_night_icon, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(g_info_refs.night_icon, LV_OBJ_FLAG_HIDDEN);
+  } else {
+    lv_obj_add_flag(g_info_refs.day_night_icon, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(g_info_refs.night_icon, LV_OBJ_FLAG_HIDDEN);
+  }
+  lv_label_set_text(g_info_refs.status_value, "");
+  if (feedingRunoffWarning()) {
+    lv_label_set_text(g_info_refs.status_icon, "!");
+    lv_obj_clear_flag(g_info_refs.status_icon, LV_OBJ_FLAG_HIDDEN);
+  } else if (!feedingIsEnabled()) {
+    lv_label_set_text(g_info_refs.status_icon, LV_SYMBOL_PAUSE);
+    lv_obj_clear_flag(g_info_refs.status_icon, LV_OBJ_FLAG_HIDDEN);
+  } else {
+    lv_obj_add_flag(g_info_refs.status_icon, LV_OBJ_FLAG_HIDDEN);
+  }
   char line3_buf[64] = {0};
   if (day_lo != LOG_BASELINE_UNSET && day_hi != LOG_BASELINE_UNSET) {
     if (has_baseline) {
@@ -310,7 +303,9 @@ static void update_info_screen() {
                daily_total);
     }
   }
-  lv_label_set_text(g_info_refs.totals_value, line3_buf);
+  if (g_info_refs.totals_value) {
+    lv_label_set_text(g_info_refs.totals_value, line3_buf);
+  }
 }
 
 /*
@@ -746,33 +741,90 @@ static lv_obj_t *build_info_screen() {
 
   lv_obj_t *time_band = lv_obj_create(main);
   lv_obj_set_width(time_band, LV_PCT(100));
-  lv_obj_set_height(time_band, 48);
+  lv_obj_set_height(time_band, LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(time_band, LV_FLEX_FLOW_ROW);
   lv_obj_set_style_bg_opa(time_band, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(time_band, 0, 0);
   lv_obj_set_style_pad_all(time_band, 0, 0);
-  lv_obj_set_style_pad_column(time_band, 12, 0);
-  lv_obj_set_flex_align(time_band, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_column(time_band, 8, 0);
+  lv_obj_set_flex_align(time_band, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
 
-  lv_obj_t *time_col = lv_obj_create(time_band);
-  lv_obj_set_height(time_col, LV_SIZE_CONTENT);
-  lv_obj_set_flex_flow(time_col, LV_FLEX_FLOW_ROW);
-  lv_obj_set_style_bg_opa(time_col, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(time_col, 0, 0);
-  lv_obj_set_style_pad_all(time_col, 0, 0);
-  lv_obj_set_style_pad_column(time_col, 6, 0);
-  lv_obj_set_flex_align(time_col, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_t *time_block = lv_obj_create(time_band);
+  lv_obj_set_width(time_block, 110);
+  lv_obj_set_flex_grow(time_block, 0);
+  lv_obj_set_height(time_block, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(time_block, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_bg_opa(time_block, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(time_block, 0, 0);
+  lv_obj_set_style_pad_all(time_block, 0, 0);
+  lv_obj_set_style_pad_row(time_block, 1, 0);
 
-  lv_obj_t *day_night_icon = lv_img_create(time_col);
+  lv_obj_t *time_label = lv_label_create(time_block);
+  lv_label_set_text(time_label, "Time");
+  lv_obj_set_style_text_font(time_label, &lv_font_montserrat_12, 0);
+  lv_obj_set_style_text_color(time_label, kColorMuted, 0);
+
+  lv_obj_t *time_row = lv_obj_create(time_block);
+  lv_obj_set_height(time_row, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(time_row, LV_FLEX_FLOW_ROW);
+  lv_obj_set_style_bg_opa(time_row, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(time_row, 0, 0);
+  lv_obj_set_style_pad_all(time_row, 0, 0);
+  lv_obj_set_style_pad_column(time_row, 1, 0);
+  lv_obj_set_flex_align(time_row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+  lv_obj_t *time_value = lv_label_create(time_row);
+  lv_obj_set_style_text_font(time_value, &lv_font_montserrat_18, 0);
+  lv_label_set_text(time_value, "00:00");
+
+  lv_obj_t *day_night_icon = lv_img_create(time_row);
   lv_img_set_src(day_night_icon, &kSunImage);
+  lv_image_set_scale(day_night_icon, kDayNightScale);
 
-  lv_obj_t *night_icon = lv_img_create(time_col);
+  lv_obj_t *night_icon = lv_img_create(time_row);
   lv_img_set_src(night_icon, &kMoonImage);
+  lv_image_set_scale(night_icon, kDayNightScale);
   lv_obj_add_flag(night_icon, LV_OBJ_FLAG_HIDDEN);
 
-  lv_obj_t *time_value = lv_label_create(time_col);
-  lv_obj_set_style_text_font(time_value, &lv_font_montserrat_22, 0);
-  lv_label_set_text(time_value, "00:00");
+  lv_obj_t *last_block = lv_obj_create(time_band);
+  lv_obj_set_width(last_block, LV_PCT(100));
+  lv_obj_set_flex_grow(last_block, 1);
+  lv_obj_set_height(last_block, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(last_block, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_bg_opa(last_block, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(last_block, 0, 0);
+  lv_obj_set_style_pad_all(last_block, 0, 0);
+  lv_obj_set_style_pad_row(last_block, 2, 0);
+
+  lv_obj_t *last_label = lv_label_create(last_block);
+  lv_label_set_text(last_label, "Last feed");
+  lv_obj_set_style_text_font(last_label, &lv_font_montserrat_12, 0);
+  lv_obj_set_style_text_color(last_label, kColorMuted, 0);
+
+  lv_obj_t *last_value = lv_label_create(last_block);
+  lv_obj_set_style_text_font(last_value, &lv_font_montserrat_14, 0);
+  lv_label_set_text(last_value, "Never");
+
+  lv_obj_t *today_block = lv_obj_create(time_band);
+  lv_obj_set_width(today_block, LV_SIZE_CONTENT);
+  lv_obj_set_flex_grow(today_block, 0);
+  lv_obj_set_height(today_block, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(today_block, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_bg_opa(today_block, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(today_block, 0, 0);
+  lv_obj_set_style_pad_all(today_block, 0, 0);
+  lv_obj_set_style_pad_row(today_block, 2, 0);
+  lv_obj_add_flag(today_block, LV_OBJ_FLAG_FLOATING);
+  lv_obj_align(today_block, LV_ALIGN_RIGHT_MID, 0, 0);
+
+  lv_obj_t *today_label = lv_label_create(today_block);
+  lv_label_set_text(today_label, "Today");
+  lv_obj_set_style_text_font(today_label, &lv_font_montserrat_12, 0);
+  lv_obj_set_style_text_color(today_label, kColorMuted, 0);
+
+  lv_obj_t *today_value = lv_label_create(today_block);
+  lv_obj_set_style_text_font(today_value, &lv_font_montserrat_14, 0);
+  lv_label_set_text(today_value, "0ml");
 
   lv_obj_t *status_row = lv_obj_create(time_band);
   lv_obj_set_height(status_row, LV_SIZE_CONTENT);
@@ -782,6 +834,8 @@ static lv_obj_t *build_info_screen() {
   lv_obj_set_style_pad_all(status_row, 0, 0);
   lv_obj_set_style_pad_column(status_row, 6, 0);
   lv_obj_set_flex_align(status_row, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_add_flag(status_row, LV_OBJ_FLAG_FLOATING);
+  lv_obj_align(status_row, LV_ALIGN_RIGHT_MID, 0, 0);
 
   lv_obj_t *status_value = lv_label_create(status_row);
   lv_obj_set_style_text_font(status_value, &lv_font_montserrat_14, 0);
@@ -791,23 +845,6 @@ static lv_obj_t *build_info_screen() {
   lv_obj_set_style_text_font(status_icon, &lv_font_montserrat_18, 0);
   lv_label_set_text(status_icon, "");
   lv_obj_add_flag(status_icon, LV_OBJ_FLAG_HIDDEN);
-
-  lv_obj_t *totals_band = lv_obj_create(main);
-  lv_obj_set_width(totals_band, LV_PCT(100));
-  lv_obj_set_height(totals_band, 40);
-  lv_obj_set_flex_flow(totals_band, LV_FLEX_FLOW_COLUMN);
-  lv_obj_set_style_bg_opa(totals_band, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(totals_band, 0, 0);
-  lv_obj_set_style_pad_all(totals_band, 0, 0);
-
-  lv_obj_t *totals_label = lv_label_create(totals_band);
-  lv_label_set_text(totals_label, "TOTALS");
-  lv_obj_set_style_text_font(totals_label, &lv_font_montserrat_12, 0);
-  lv_obj_set_style_text_color(totals_label, kColorMuted, 0);
-
-  lv_obj_t *totals_value = lv_label_create(totals_band);
-  lv_obj_set_style_text_font(totals_value, &lv_font_montserrat_14, 0);
-  lv_label_set_text(totals_value, "Today 0ml | BL -- | L-- H--");
 
   lv_obj_t *menu_row = lv_obj_create(screen);
   lv_obj_set_width(menu_row, LV_PCT(100));
@@ -824,10 +861,6 @@ static lv_obj_t *build_info_screen() {
   lv_obj_t *menu_label = lv_label_create(menu_btn);
   lv_label_set_text(menu_label, LV_SYMBOL_LIST);
   lv_obj_center(menu_label);
-
-  lv_obj_t *last_value = lv_label_create(screen);
-  lv_obj_add_flag(last_value, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_add_flag(last_value, LV_OBJ_FLAG_FLOATING);
 
   lv_obj_t *screensaver = lv_obj_create(screen);
   lv_obj_set_size(screensaver, LV_PCT(100), LV_PCT(100));
@@ -863,12 +896,13 @@ static lv_obj_t *build_info_screen() {
   g_info_refs.baseline_value = baseline_value;
   g_info_refs.minmax_value = minmax_value;
   g_info_refs.time_value = time_value;
+  g_info_refs.today_value = today_value;
   g_info_refs.status_value = status_value;
   g_info_refs.status_icon = status_icon;
   g_info_refs.day_night_icon = day_night_icon;
   g_info_refs.night_icon = night_icon;
   g_info_refs.last_value = last_value;
-  g_info_refs.totals_value = totals_value;
+  g_info_refs.totals_value = nullptr;
   g_info_refs.screensaver_root = screensaver;
   g_info_refs.screensaver_plant = plant_wrap;
   g_info_refs.screensaver_icon = status;

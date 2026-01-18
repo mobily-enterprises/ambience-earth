@@ -179,6 +179,7 @@ struct InfoRefs {
   lv_obj_t *baseline_value;
   lv_obj_t *minmax_value;
   lv_obj_t *time_value;
+  lv_obj_t *today_value;
   lv_obj_t *status_value;
   lv_obj_t *status_icon;
   lv_obj_t *day_night_icon;
