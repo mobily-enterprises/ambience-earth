@@ -1583,7 +1583,7 @@ static lv_obj_t *build_info_screen() {
   lv_obj_set_style_pad_top(today_group, 0, 0);
 
   lv_obj_t *today_label = lv_label_create(today_group);
-  lv_label_set_text(today_label, "Today");
+  lv_label_set_text(today_label, "Today total");
   lv_obj_set_style_text_font(today_label, &lv_font_montserrat_12, 0);
   lv_obj_set_style_text_color(today_label, kColorMuted, 0);
   lv_obj_set_style_text_align(today_label, LV_TEXT_ALIGN_LEFT, 0);
@@ -1659,7 +1659,7 @@ static lv_obj_t *build_info_screen() {
   lv_obj_set_style_text_font(status, &lv_font_montserrat_14, 0);
   lv_obj_set_style_text_color(status, lv_color_white(), 0);
   lv_label_set_text(status, "");
-  lv_obj_align(status, LV_ALIGN_TOP_MID, 0, kPlantDrawH + 2);
+  lv_obj_align(status, LV_ALIGN_TOP_MID, 0, kPlantDrawH - 16);
   lv_obj_add_flag(status, LV_OBJ_FLAG_HIDDEN);
 
   g_info_refs.main = main;
