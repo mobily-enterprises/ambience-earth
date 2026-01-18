@@ -1,6 +1,6 @@
 #pragma once
 
-#include <lvgl.h>
+#include "lvgl_config.h"
 #include <stdint.h>
 
 extern const int16_t kPlantW;

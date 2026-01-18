@@ -1,7 +1,6 @@
 #pragma once
 
-#define LV_CONF_INCLUDE_SIMPLE
-#include <lvgl.h>
+#include "lvgl_config.h"
 #include <stddef.h>
 #include <stdint.h>
 

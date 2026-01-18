@@ -1,6 +1,6 @@
 #pragma once
 
-#include <lvgl.h>
+#include "lvgl_config.h"
 
 static const int16_t kIconSize = 32;
 
