@@ -1,0 +1,65 @@
+# EARTH
+
+## Sensors
+
+* Moisture sensor
+* Runoff sensor
+* Soil temperature sensor <-- MISSING
+
+## Controllers
+
+* Pump
+
+## On Screen
+
+* Moisture
+* Baseline
+* Dryback
+* Min/max Moisture
+* Last feed
+* Fed today
+* Soil temperature <-- MISSING
+
+# AIR
+
+## Sensors
+
+* Air temperature sensor
+* CO2 sensor
+* Light intensity sensor
+
+## Controllers
+
+* Aircon controller (matter,  universal aircon)
+* CO2 controller (matter, 2 switches)
+* Light controller (potentiometer)
+
+# On screen
+
+* CO2 (+min/max)
+* Light intensity (+min/max)
+* Air temperature (+min/max)
+
+# RIVER (later)
+
+## Sensors
+
+* Water level, 5 (at 25, 50, 75, 85, 90)
+* Water EC
+* Water PH
+* Water temperature 
+
+## Controllers
+
+* Water in (matter, 1 switch)
+" Water PH (2 mini pump)
+* Water EC (6 mini pumps)
+* Water out (matter, 1 switch)
+* Feed line closer (matter, 1 switch)
+
+## On screen
+
+* Water level
+* Water EC + target EC
+* Water PH + target PH
+* Water temperature
