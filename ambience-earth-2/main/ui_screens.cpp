@@ -1012,7 +1012,7 @@ static lv_obj_t *build_feeding_status_screen() {
   lv_obj_set_style_text_font(header, &lv_font_montserrat_18, 0);
 
   lv_obj_t *line1 = lv_label_create(content);
-  lv_obj_set_style_text_font(line1, &lv_font_montserrat_16, 0);
+  lv_obj_set_style_text_font(line1, &lv_font_montserrat_14, 0);
 
   lv_obj_t *line2 = lv_label_create(content);
   lv_obj_set_style_text_font(line2, &lv_font_montserrat_14, 0);

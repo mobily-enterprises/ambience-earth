@@ -92,40 +92,43 @@ static bool slots_are_empty() {
  *   seed_default_slots();
  */
 static void seed_default_slots() {
-  struct SeedSlot {
-    const char *name;
-    uint16_t startOffset;
-    uint16_t duration;
-    uint8_t startMoisture;
-    uint8_t targetMoisture;
-    uint16_t maxMl;
-    bool runoffRequired;
-  };
-
-  SeedSlot seeds[] = {
-    {"Morning", 0, 90, 45, 62, 350, true},
-    {"Midday", 300, 120, 48, 65, 300, false},
-    {"Evening", 630, 120, 46, 63, 320, true}
-  };
-
   for (int i = 0; i < FEED_SLOT_COUNT; ++i) {
     FeedSlot slot = {};
-    if (i < static_cast<int>(sizeof(seeds) / sizeof(seeds[0]))) {
-      const SeedSlot &seed = seeds[i];
-      slot.windowStartMinutes = seed.startOffset;
-      slot.windowDurationMinutes = seed.duration;
-      slot.moistureBelow = seed.startMoisture;
-      slot.moistureTarget = seed.targetMoisture;
+    if (i == 0) {
+      slot.windowStartMinutes = 0;
+      slot.windowDurationMinutes = 0;
       slot.minGapMinutes = 60;
-      slot.maxVolumeMl = seed.maxMl;
+      slot.maxVolumeMl = 50;
+      slot.runoffHold5s = 0;
+      slot.flags = static_cast<uint8_t>(FEED_SLOT_ENABLED | FEED_SLOT_HAS_TIME_WINDOW |
+                                        FEED_SLOT_RUNOFF_AVOID);
+      config.runoffExpectation[i] = 2;
+      strncpy(config.feedSlotNames[i], "INIT", FEED_SLOT_NAME_LENGTH);
+      config.feedSlotNames[i][FEED_SLOT_NAME_LENGTH] = '\0';
+    } else if (i == 1) {
+      slot.windowStartMinutes = 30;
+      slot.windowDurationMinutes = 0;
+      slot.minGapMinutes = 60;
+      slot.maxVolumeMl = 800;
       slot.runoffHold5s = 6;
       slot.flags = static_cast<uint8_t>(FEED_SLOT_ENABLED | FEED_SLOT_HAS_TIME_WINDOW |
-                                        FEED_SLOT_HAS_MOISTURE_BELOW | FEED_SLOT_HAS_MOISTURE_TARGET);
-      if (seed.runoffRequired) {
-        slot.flags |= FEED_SLOT_RUNOFF_REQUIRED;
-        config.runoffExpectation[i] = 1;
-      }
-      strncpy(config.feedSlotNames[i], seed.name, FEED_SLOT_NAME_LENGTH);
+                                        FEED_SLOT_RUNOFF_REQUIRED | FEED_SLOT_BASELINE_SETTER);
+      config.runoffExpectation[i] = 1;
+      strncpy(config.feedSlotNames[i], "SOAK", FEED_SLOT_NAME_LENGTH);
+      config.feedSlotNames[i][FEED_SLOT_NAME_LENGTH] = '\0';
+    } else if (i == 2) {
+      slot.windowStartMinutes = 120;
+      slot.windowDurationMinutes = 14 * 60;
+      slot.moistureBelow = kMoistureBaselineSentinel;
+      slot.moistureTarget = kMoistureBaselineSentinel;
+      slot.minGapMinutes = 60;
+      slot.maxVolumeMl = 50;
+      slot.runoffHold5s = 0;
+      slot.flags = static_cast<uint8_t>(FEED_SLOT_ENABLED | FEED_SLOT_HAS_TIME_WINDOW |
+                                        FEED_SLOT_HAS_MOISTURE_BELOW | FEED_SLOT_HAS_MOISTURE_TARGET |
+                                        FEED_SLOT_RUNOFF_AVOID | FEED_SLOT_BASELINE_SETTER);
+      config.runoffExpectation[i] = 2;
+      strncpy(config.feedSlotNames[i], "REC", FEED_SLOT_NAME_LENGTH);
       config.feedSlotNames[i][FEED_SLOT_NAME_LENGTH] = '\0';
     } else {
       slot.flags = 0;
