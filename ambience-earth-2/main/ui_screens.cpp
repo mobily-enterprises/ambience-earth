@@ -260,52 +260,49 @@ static void update_info_screen() {
  *   update_feeding_screen();
  */
 static void update_feeding_screen() {
-  if (!g_feeding_refs.header) return;
+  if (!g_feeding_refs.header_value) return;
   FeedStatus status = {};
   if (!feedingGetStatus(&status)) return;
 
-  lv_label_set_text_fmt(g_feeding_refs.header, "Feeding S%d %d/%d",
-                        status.slotIndex + 1,
+  const char *slot_name = config.feedSlotNames[status.slotIndex];
+  if (!slot_name || !slot_name[0]) {
+    static char fallback[8] = {0};
+    snprintf(fallback, sizeof(fallback), "S%d", status.slotIndex + 1);
+    slot_name = fallback;
+  }
+  lv_label_set_text_fmt(g_feeding_refs.header_value, "Feeding: %s", slot_name);
+  lv_label_set_text_fmt(g_feeding_refs.pulse_value, "%d/%d",
                         config.pulseOnSeconds,
                         config.pulseOffSeconds);
 
+  lv_label_set_text(g_feeding_refs.pump_value, status.pumpOn ? "ON" : "OFF");
   if (status.moistureReady) {
-    lv_label_set_text_fmt(g_feeding_refs.line1, "Pump:%s  Mst:%d%%  %ds",
-                          status.pumpOn ? "ON" : "OFF",
-                          status.moisturePercent,
-                          status.elapsedSeconds);
+    lv_label_set_text_fmt(g_feeding_refs.moisture_value, "%d%%", status.moisturePercent);
   } else {
-    lv_label_set_text_fmt(g_feeding_refs.line1, "Pump:%s  Mst:--%%  %ds",
-                          status.pumpOn ? "ON" : "OFF",
-                          status.elapsedSeconds);
+    lv_label_set_text(g_feeding_refs.moisture_value, "--%");
   }
+  lv_label_set_text_fmt(g_feeding_refs.time_value, "%ds", status.elapsedSeconds);
 
-  char stop_buf[48] = {0};
-  snprintf(stop_buf, sizeof(stop_buf), "Stop:");
-  bool any_stop = false;
-  if (status.hasMoistureTarget) {
-    char target_buf[16] = {0};
-    snprintf(target_buf, sizeof(target_buf), " M>%d%%", status.moistureTarget);
-    strncat(stop_buf, target_buf, sizeof(stop_buf) - strlen(stop_buf) - 1);
-    any_stop = true;
+  if (status.runoffRequired && status.hasMoistureTarget) {
+    lv_label_set_text_fmt(g_feeding_refs.stop_value, "Runoff or %d%% moisture",
+                          status.moistureTarget);
+  } else if (status.runoffRequired) {
+    lv_label_set_text(g_feeding_refs.stop_value, "Runoff");
+  } else if (status.hasMoistureTarget) {
+    lv_label_set_text_fmt(g_feeding_refs.stop_value, "%d%% moisture",
+                          status.moistureTarget);
+  } else {
+    lv_label_set_text(g_feeding_refs.stop_value, "Full delivery");
   }
-  if (status.runoffRequired) {
-    strncat(stop_buf, any_stop ? " Runoff" : " Runoff", sizeof(stop_buf) - strlen(stop_buf) - 1);
-    any_stop = true;
-  }
-  if (!any_stop) {
-    strncat(stop_buf, " n/a", sizeof(stop_buf) - strlen(stop_buf) - 1);
-  }
-  lv_label_set_text(g_feeding_refs.line2, stop_buf);
 
   uint16_t delivered = msToVolumeMl(static_cast<uint32_t>(status.elapsedSeconds) * 1000UL,
                                     config.dripperMsPerLiter);
   if (status.maxVolumeMl) {
-    lv_label_set_text_fmt(g_feeding_refs.line3, "Max:%dml  W:%dml",
-                          status.maxVolumeMl, delivered);
+    lv_label_set_text_fmt(g_feeding_refs.max_value, "%dml", status.maxVolumeMl);
   } else {
-    lv_label_set_text_fmt(g_feeding_refs.line3, "Max:-  W:%dml", delivered);
+    lv_label_set_text(g_feeding_refs.max_value, "-");
   }
+  lv_label_set_text_fmt(g_feeding_refs.delivered_value, "%dml", delivered);
 }
 
 /*
@@ -1004,22 +1001,143 @@ static lv_obj_t *build_feeding_status_screen() {
   lv_obj_set_style_bg_opa(content, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(content, 0, 0);
   lv_obj_set_style_pad_all(content, 8, 0);
-  lv_obj_set_style_pad_row(content, 8, 0);
-  lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_pad_row(content, 0, 0);
+  lv_obj_set_layout(content, LV_LAYOUT_NONE);
   lv_obj_clear_flag(content, LV_OBJ_FLAG_SCROLLABLE);
 
-  lv_obj_t *header = lv_label_create(content);
-  lv_obj_set_style_text_font(header, &lv_font_montserrat_18, 0);
+  static const int16_t kCardRadius = 6;
+  static const int16_t kCardX = 8;
+  static const int16_t kCardW = kScreenWidth - 16;
+  static const int16_t kCardH = 40;
+  static const int16_t kCardGap = 8;
+  static const int16_t kRow1Y = 10;
+  static const int16_t kRow2Y = kRow1Y + kCardH + kCardGap;
+  static const int16_t kRow3Y = kRow2Y + kCardH + kCardGap;
+  static const int16_t kRow4Y = kRow3Y + kCardH + kCardGap;
 
-  lv_obj_t *line1 = lv_label_create(content);
-  lv_obj_set_style_text_font(line1, &lv_font_montserrat_14, 0);
+  auto create_card = [&](int16_t x, int16_t y, int16_t w, int16_t h) {
+    lv_obj_t *card = lv_obj_create(content);
+    lv_obj_set_size(card, w, h);
+    lv_obj_set_pos(card, x, y);
+    lv_obj_set_style_bg_color(card, kColorHeader, 0);
+    lv_obj_set_style_bg_opa(card, LV_OPA_40, 0);
+    lv_obj_set_style_border_width(card, 1, 0);
+    lv_obj_set_style_border_color(card, kColorMuted, 0);
+    lv_obj_set_style_border_opa(card, LV_OPA_20, 0);
+    lv_obj_set_style_radius(card, kCardRadius, 0);
+    lv_obj_set_style_pad_all(card, 4, 0);
+    lv_obj_set_style_pad_row(card, 0, 0);
+    lv_obj_set_style_pad_top(card, 0, 0);
+    lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
+    lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(card, LV_SCROLLBAR_MODE_OFF);
+    return card;
+  };
 
-  lv_obj_t *line2 = lv_label_create(content);
-  lv_obj_set_style_text_font(line2, &lv_font_montserrat_14, 0);
-  lv_obj_set_style_text_color(line2, kColorMuted, 0);
+  static const int16_t kPulseW = 64;
+  static const int16_t kPulseH = kCardH;
+  static const int16_t kHeaderW = kCardW - kPulseW - kCardGap;
 
-  lv_obj_t *line3 = lv_label_create(content);
-  lv_obj_set_style_text_font(line3, &lv_font_montserrat_14, 0);
+  lv_obj_t *header_card = create_card(kCardX, kRow1Y, kHeaderW, kCardH);
+  lv_obj_t *header_value = lv_label_create(header_card);
+  lv_obj_set_style_text_font(header_value, &lv_font_montserrat_18, 0);
+  lv_obj_set_width(header_value, LV_PCT(100));
+  lv_obj_set_style_text_align(header_value, LV_TEXT_ALIGN_LEFT, 0);
+  lv_label_set_text(header_value, "");
+
+  lv_obj_t *pulse_card = create_card(kCardX + kHeaderW + kCardGap, kRow1Y, kPulseW, kPulseH);
+  lv_obj_t *pulse_label = lv_label_create(pulse_card);
+  lv_label_set_text(pulse_label, "Pulse");
+  lv_obj_set_style_text_color(pulse_label, kColorMuted, 0);
+  lv_obj_set_style_text_font(pulse_label, &lv_font_montserrat_12, 0);
+  lv_obj_set_width(pulse_label, LV_PCT(100));
+  lv_obj_set_style_text_align(pulse_label, LV_TEXT_ALIGN_LEFT, 0);
+  lv_obj_t *pulse_value = lv_label_create(pulse_card);
+  lv_obj_set_style_text_font(pulse_value, &lv_font_montserrat_14, 0);
+  lv_obj_set_width(pulse_value, LV_PCT(100));
+  lv_obj_set_style_text_align(pulse_value, LV_TEXT_ALIGN_LEFT, 0);
+  lv_label_set_text(pulse_value, "");
+
+  static const int16_t kStatW = (kCardW - (kCardGap * 2)) / 3;
+  lv_obj_t *pump_card = create_card(kCardX, kRow2Y, kStatW, kCardH);
+  lv_obj_t *pump_label = lv_label_create(pump_card);
+  lv_label_set_text(pump_label, "Pump");
+  lv_obj_set_style_text_color(pump_label, kColorMuted, 0);
+  lv_obj_set_style_text_font(pump_label, &lv_font_montserrat_12, 0);
+  lv_obj_set_width(pump_label, LV_PCT(100));
+  lv_obj_set_style_text_align(pump_label, LV_TEXT_ALIGN_LEFT, 0);
+  lv_obj_t *pump_value = lv_label_create(pump_card);
+  lv_obj_set_style_text_font(pump_value, &lv_font_montserrat_14, 0);
+  lv_obj_set_width(pump_value, LV_PCT(100));
+  lv_obj_set_style_text_align(pump_value, LV_TEXT_ALIGN_LEFT, 0);
+  lv_label_set_text(pump_value, "");
+
+  lv_obj_t *moist_card = create_card(kCardX + kStatW + kCardGap, kRow2Y, kStatW, kCardH);
+  lv_obj_t *moist_label = lv_label_create(moist_card);
+  lv_label_set_text(moist_label, "Moisture");
+  lv_obj_set_style_text_color(moist_label, kColorMuted, 0);
+  lv_obj_set_style_text_font(moist_label, &lv_font_montserrat_12, 0);
+  lv_obj_set_width(moist_label, LV_PCT(100));
+  lv_obj_set_style_text_align(moist_label, LV_TEXT_ALIGN_LEFT, 0);
+  lv_obj_t *moist_value = lv_label_create(moist_card);
+  lv_obj_set_style_text_font(moist_value, &lv_font_montserrat_14, 0);
+  lv_obj_set_width(moist_value, LV_PCT(100));
+  lv_obj_set_style_text_align(moist_value, LV_TEXT_ALIGN_LEFT, 0);
+  lv_label_set_text(moist_value, "");
+
+  lv_obj_t *time_card = create_card(kCardX + (kStatW * 2) + (kCardGap * 2), kRow2Y, kStatW, kCardH);
+  lv_obj_t *time_label = lv_label_create(time_card);
+  lv_label_set_text(time_label, "Pump time");
+  lv_obj_set_style_text_color(time_label, kColorMuted, 0);
+  lv_obj_set_style_text_font(time_label, &lv_font_montserrat_12, 0);
+  lv_obj_set_width(time_label, LV_PCT(100));
+  lv_obj_set_style_text_align(time_label, LV_TEXT_ALIGN_LEFT, 0);
+  lv_obj_t *time_value = lv_label_create(time_card);
+  lv_obj_set_style_text_font(time_value, &lv_font_montserrat_14, 0);
+  lv_obj_set_width(time_value, LV_PCT(100));
+  lv_obj_set_style_text_align(time_value, LV_TEXT_ALIGN_LEFT, 0);
+  lv_label_set_text(time_value, "");
+
+  lv_obj_t *stop_card = create_card(kCardX, kRow3Y, kCardW, kCardH);
+  lv_obj_t *stop_label = lv_label_create(stop_card);
+  lv_label_set_text(stop_label, "Stop when");
+  lv_obj_set_style_text_color(stop_label, kColorMuted, 0);
+  lv_obj_set_style_text_font(stop_label, &lv_font_montserrat_12, 0);
+  lv_obj_set_width(stop_label, LV_PCT(100));
+  lv_obj_set_style_text_align(stop_label, LV_TEXT_ALIGN_LEFT, 0);
+  lv_obj_t *stop_value = lv_label_create(stop_card);
+  lv_obj_set_style_text_font(stop_value, &lv_font_montserrat_14, 0);
+  lv_obj_set_width(stop_value, LV_PCT(100));
+  lv_obj_set_style_text_align(stop_value, LV_TEXT_ALIGN_LEFT, 0);
+  lv_label_set_text(stop_value, "");
+
+  static const int16_t kRow4H = kCardH;
+  static const int16_t kRow4W = (kCardW - kCardGap) / 2;
+  lv_obj_t *max_card = create_card(kCardX, kRow4Y, kRow4W, kRow4H);
+  lv_obj_t *max_label = lv_label_create(max_card);
+  lv_label_set_text(max_label, "Max");
+  lv_obj_set_style_text_color(max_label, kColorMuted, 0);
+  lv_obj_set_style_text_font(max_label, &lv_font_montserrat_12, 0);
+  lv_obj_set_width(max_label, LV_PCT(100));
+  lv_obj_set_style_text_align(max_label, LV_TEXT_ALIGN_LEFT, 0);
+  lv_obj_t *max_value = lv_label_create(max_card);
+  lv_obj_set_style_text_font(max_value, &lv_font_montserrat_14, 0);
+  lv_obj_set_width(max_value, LV_PCT(100));
+  lv_obj_set_style_text_align(max_value, LV_TEXT_ALIGN_LEFT, 0);
+  lv_label_set_text(max_value, "");
+
+  lv_obj_t *delivered_card = create_card(kCardX + kRow4W + kCardGap, kRow4Y, kRow4W, kRow4H);
+  lv_obj_t *delivered_label = lv_label_create(delivered_card);
+  lv_label_set_text(delivered_label, "Delivered");
+  lv_obj_set_style_text_color(delivered_label, kColorMuted, 0);
+  lv_obj_set_style_text_font(delivered_label, &lv_font_montserrat_12, 0);
+  lv_obj_set_width(delivered_label, LV_PCT(100));
+  lv_obj_set_style_text_align(delivered_label, LV_TEXT_ALIGN_LEFT, 0);
+  lv_obj_t *delivered_value = lv_label_create(delivered_card);
+  lv_obj_set_style_text_font(delivered_value, &lv_font_montserrat_14, 0);
+  lv_obj_set_width(delivered_value, LV_PCT(100));
+  lv_obj_set_style_text_align(delivered_value, LV_TEXT_ALIGN_LEFT, 0);
+  lv_label_set_text(delivered_value, "");
 
   lv_obj_t *menu_row = lv_obj_create(screen);
   lv_obj_set_size(menu_row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
@@ -1037,10 +1155,14 @@ static lv_obj_t *build_feeding_status_screen() {
   lv_obj_center(menu_label);
   lv_obj_set_pos(menu_row, kScreenWidth - 34 - 5, kScreenHeight - 34 - 5);
 
-  g_feeding_refs.header = header;
-  g_feeding_refs.line1 = line1;
-  g_feeding_refs.line2 = line2;
-  g_feeding_refs.line3 = line3;
+  g_feeding_refs.header_value = header_value;
+  g_feeding_refs.pulse_value = pulse_value;
+  g_feeding_refs.pump_value = pump_value;
+  g_feeding_refs.moisture_value = moist_value;
+  g_feeding_refs.time_value = time_value;
+  g_feeding_refs.stop_value = stop_value;
+  g_feeding_refs.max_value = max_value;
+  g_feeding_refs.delivered_value = delivered_value;
   g_feeding_refs.menu_btn = menu_btn;
 
   update_feeding_screen();

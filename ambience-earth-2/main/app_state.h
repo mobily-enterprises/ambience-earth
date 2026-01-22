@@ -202,10 +202,14 @@ struct LogsRefs {
 };
 
 struct FeedingRefs {
-  lv_obj_t *header;
-  lv_obj_t *line1;
-  lv_obj_t *line2;
-  lv_obj_t *line3;
+  lv_obj_t *header_value;
+  lv_obj_t *pulse_value;
+  lv_obj_t *pump_value;
+  lv_obj_t *moisture_value;
+  lv_obj_t *time_value;
+  lv_obj_t *stop_value;
+  lv_obj_t *max_value;
+  lv_obj_t *delivered_value;
   lv_obj_t *menu_btn;
 };
 

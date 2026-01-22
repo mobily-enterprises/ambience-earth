@@ -296,6 +296,8 @@ void sim_init() {
   update_setup_flags();
   feedingBaselineInit();
   setSoilSensorLazy();
+  // TODO: temporary hack to start SOAK (slot index 1) on boot.
+  feedingForceFeed(1);
 
   g_last_tick_ms = millis();
   g_last_toggle_ms = g_last_tick_ms;

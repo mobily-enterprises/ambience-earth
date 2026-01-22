@@ -174,6 +174,12 @@ void applySimDefaults() {
     config.dripperMsPerLiter = 600000;
     changed = true;
   }
+#ifdef WOKWI_SIM
+  if (config.dripperMsPerLiter != 50000) {
+    config.dripperMsPerLiter = 50000;
+    changed = true;
+  }
+#endif
   if (config.pulseTargetUnits < 5 || config.pulseTargetUnits > 50) {
     config.pulseTargetUnits = 20;
     changed = true;

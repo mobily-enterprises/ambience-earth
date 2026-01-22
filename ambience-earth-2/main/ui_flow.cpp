@@ -120,6 +120,11 @@ static void pop_screen() {
   g_screen_stack_size--;
   lv_scr_load(g_screen_stack[g_screen_stack_size - 1].root);
   set_active_screen(g_screen_stack[g_screen_stack_size - 1].id);
+  // If feeding was stopped by entering the menu, avoid a one-frame flash of the
+  // feeding screen while the timer-based sync catches up.
+  if (g_active_screen == SCREEN_FEEDING_STATUS && !feedingIsActive()) {
+    replace_top_screen(SCREEN_INFO);
+  }
   if (g_screen_stack[g_screen_stack_size - 1].id == SCREEN_INFO) {
     feedingResumeAfterUi();
   }
@@ -131,6 +136,18 @@ static void pop_screen() {
     closeLineIn();
   }
   lv_obj_del(old);
+}
+
+/*
+ * pop_to_root
+ * Pops screens until the root screen is active.
+ * Example:
+ *   pop_to_root();
+ */
+static void pop_to_root() {
+  while (g_screen_stack_size > 1) {
+    pop_screen();
+  }
 }
 
 /*
@@ -164,6 +181,8 @@ void back_event(lv_event_t *) {
  *   lv_obj_add_event_cb(btn, open_menu_event, LV_EVENT_CLICKED, nullptr);
  */
 void open_menu_event(lv_event_t *) {
+  feedingPauseForUi();
+  feedingTick();
   push_screen(SCREEN_MENU);
 }
 
@@ -397,7 +416,16 @@ void slot_select_event(lv_event_t *event) {
     show_prompt("Force feed", "Start feed now?", options, 2,
                 [](int option, int context) {
                   if (option == 0) {
+                    feedingResumeAfterUi();
                     feedingForceFeed(static_cast<uint8_t>(context));
+                    g_force_feed_mode = false;
+                    pop_to_root();
+                    // Force-feed starts while UI is still on another screen; swap immediately
+                    // to the feeding screen so we don't flash the info screen before the timer
+                    // tick runs and performs the auto swap.
+                    if (feedingIsActive()) {
+                      replace_top_screen(SCREEN_FEEDING_STATUS);
+                    }
                   }
                 }, slot_index);
     return;
@@ -425,9 +453,13 @@ void edit_slot_event(lv_event_t *) {
  *   lv_obj_add_event_cb(btn, feed_now_event, LV_EVENT_CLICKED, nullptr);
  */
 void feed_now_event(lv_event_t *) {
+  feedingResumeAfterUi();
   feedingForceFeed(static_cast<uint8_t>(g_selected_slot));
-  const char *options[] = {"OK"};
-  show_prompt("Feed", "Feeding started", options, 1, nullptr, 0);
+  pop_to_root();
+  // Same immediate swap as force-feed prompt to avoid a brief info-screen flash.
+  if (feedingIsActive()) {
+    replace_top_screen(SCREEN_FEEDING_STATUS);
+  }
 }
 
 /*
@@ -1057,7 +1089,11 @@ void build_ui() {
   lv_theme_t *theme = lv_theme_default_init(disp, kColorAccent, kColorMuted, true, &lv_font_montserrat_14);
   lv_display_set_theme(disp, theme);
 
-  push_screen(SCREEN_INFO);
+  if (feedingIsActive()) {
+    push_screen(SCREEN_FEEDING_STATUS);
+  } else {
+    push_screen(SCREEN_INFO);
+  }
 
   g_debug_label = nullptr;
 
