@@ -299,7 +299,7 @@ static lv_obj_t *create_number_selector_vertical(lv_obj_t *parent, const char *l
   lv_obj_center(dec_label);
 
   lv_obj_t *value_label = lv_label_create(row);
-  lv_obj_set_width(value_label, 34);
+  lv_obj_set_width(value_label, 26);
   lv_obj_set_style_text_align(value_label, LV_TEXT_ALIGN_CENTER, 0);
 
   lv_obj_t *inc_btn = lv_btn_create(row);
