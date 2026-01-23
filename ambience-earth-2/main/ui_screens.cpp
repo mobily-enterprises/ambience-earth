@@ -2150,15 +2150,20 @@ void wizard_render_step() {
   reset_option_pool();
   lv_obj_clean(g_wizard_refs.content);
   g_wizard_refs.text_area = nullptr;
+  lv_obj_set_flex_flow(g_wizard_refs.content, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_pad_row(g_wizard_refs.content, 6, 0);
 
-  lv_label_set_text_fmt(g_wizard_refs.step_label, "Step %d/9", g_wizard_step + 1);
   if (g_wizard_refs.header) {
-    if (g_wizard_step == 1) lv_obj_add_flag(g_wizard_refs.header, LV_OBJ_FLAG_HIDDEN);
-    else lv_obj_clear_flag(g_wizard_refs.header, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(g_wizard_refs.header, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_t *header_label = lv_obj_get_child(g_wizard_refs.header, 0);
+    if (header_label) {
+      char header_text[24];
+      snprintf(header_text, sizeof(header_text), "Edit slot (%d/9)", g_wizard_step + 1);
+      lv_label_set_text(header_label, header_text);
+    }
   }
   if (g_wizard_refs.step_label) {
-    if (g_wizard_step == 1) lv_obj_add_flag(g_wizard_refs.step_label, LV_OBJ_FLAG_HIDDEN);
-    else lv_obj_clear_flag(g_wizard_refs.step_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(g_wizard_refs.step_label, LV_OBJ_FLAG_HIDDEN);
   }
   if (g_wizard_refs.footer) {
     if (g_wizard_step == 1) lv_obj_add_flag(g_wizard_refs.footer, LV_OBJ_FLAG_HIDDEN);
@@ -2208,6 +2213,15 @@ void wizard_render_step() {
                                                    wizard_name_done_event, wizard_name_cancel_event, nullptr);
     g_wizard_refs.text_area = refs.text_area;
   } else if (g_wizard_step == 2) {
+    lv_obj_set_layout(g_wizard_refs.content, LV_LAYOUT_NONE);
+    static const int16_t kBlocksY = 10;
+    static const int16_t kHourX = 0;
+    static const int16_t kMinuteX = 96;
+    static const int16_t kDurationX = 182;
+    static const int16_t kHourW = 80;
+    static const int16_t kMinuteW = 80;
+    static const int16_t kDurationW = 150;
+    /*
     lv_obj_t *label = lv_label_create(g_wizard_refs.content);
     lv_label_set_text(label, "Time window?");
 
@@ -2244,11 +2258,26 @@ void wizard_render_step() {
     }
     if (g_edit_slot.use_window) lv_obj_add_state(group->btns[1], LV_STATE_CHECKED);
     else lv_obj_add_state(group->btns[0], LV_STATE_CHECKED);
+*/
+    lv_obj_t *hour_block = create_number_selector_vertical(g_wizard_refs.content, "Hour", &g_edit_slot.start_hour, 0, 23, 1, "%02d");
+    lv_obj_set_size(hour_block, kHourW, LV_SIZE_CONTENT);
+    lv_obj_set_pos(hour_block, kHourX, kBlocksY);
 
-    if (g_edit_slot.use_window) {
-      create_time_input_block(g_wizard_refs.content, "Start time", &g_edit_slot.start_hour, &g_edit_slot.start_min);
-      create_number_selector(g_wizard_refs.content, "Duration", &g_edit_slot.window_duration_min, 15, 240, 5, "%d");
-    }
+    lv_obj_t *minute_block = create_number_selector_vertical(g_wizard_refs.content, "Minute", &g_edit_slot.start_min, 0, 59, 5, "%02d");
+    lv_obj_set_size(minute_block, kMinuteW, LV_SIZE_CONTENT);
+    lv_obj_set_pos(minute_block, kMinuteX, kBlocksY);
+
+    lv_obj_t *duration_block = create_number_selector_vertical(g_wizard_refs.content, "Check for (min)", &g_edit_slot.window_duration_min,
+                                                               15, 240, 5, "%d");
+    lv_obj_set_size(duration_block, kDurationW, LV_SIZE_CONTENT);
+    lv_obj_set_pos(duration_block, kDurationX, kBlocksY);
+
+    lv_obj_t *hour_label = lv_obj_get_child(hour_block, 0);
+    lv_obj_t *minute_label = lv_obj_get_child(minute_block, 0);
+    lv_obj_t *duration_label = lv_obj_get_child(duration_block, 0);
+    if (hour_label) lv_obj_set_width(hour_label, kHourW);
+    if (minute_label) lv_obj_set_width(minute_label, kMinuteW);
+    if (duration_label) lv_obj_set_width(duration_label, kDurationW);
   } else if (g_wizard_step == 3) {
     lv_obj_t *label = lv_label_create(g_wizard_refs.content);
     lv_label_set_text(label, "Start when moist <");
