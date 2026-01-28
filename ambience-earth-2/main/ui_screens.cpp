@@ -1557,6 +1557,7 @@ static lv_obj_t *build_slot_summary_screen() {
 
 static void wizard_refresh_cb(void *);
 static void option_select_event(lv_event_t *event);
+static void toggle_time_window_event(lv_event_t *event);
 
 /*
  * build_slot_wizard_screen
@@ -2138,6 +2139,11 @@ static void option_select_event(lv_event_t *event) {
   }
 }
 
+static void toggle_time_window_event(lv_event_t *) {
+  g_edit_slot.use_window = !g_edit_slot.use_window;
+  wizard_render_step();
+}
+
 /*
  * wizard_render_step
  * Builds the current slot wizard step content in-place.
@@ -2214,10 +2220,14 @@ void wizard_render_step() {
     g_wizard_refs.text_area = refs.text_area;
   } else if (g_wizard_step == 2) {
     lv_obj_set_layout(g_wizard_refs.content, LV_LAYOUT_NONE);
-    static const int16_t kBlocksY = 10;
-    static const int16_t kHourX = 0;
-    static const int16_t kMinuteX = 96;
-    static const int16_t kDurationX = 182;
+    static const int16_t kToggleLabelX = 0;
+    static const int16_t kToggleLabelY = 0;
+    static const int16_t kToggleX = 0;
+    static const int16_t kToggleY = 15;
+    static const int16_t kBlocksY = 0;
+    static const int16_t kHourX = 40;
+    static const int16_t kMinuteX = 116;
+    static const int16_t kDurationX = 202;
     static const int16_t kHourW = 80;
     static const int16_t kMinuteW = 80;
     static const int16_t kDurationW = 150;
@@ -2259,6 +2269,20 @@ void wizard_render_step() {
     if (g_edit_slot.use_window) lv_obj_add_state(group->btns[1], LV_STATE_CHECKED);
     else lv_obj_add_state(group->btns[0], LV_STATE_CHECKED);
 */
+    lv_obj_t *toggle_label = lv_label_create(g_wizard_refs.content);
+    lv_label_set_text(toggle_label, "Time");
+    lv_obj_set_style_text_color(toggle_label, kColorMuted, 0);
+    lv_obj_set_style_text_font(toggle_label, &lv_font_montserrat_12, 0);
+    lv_obj_set_pos(toggle_label, kToggleLabelX, kToggleLabelY);
+
+    lv_obj_t *toggle_btn = lv_btn_create(g_wizard_refs.content);
+    lv_obj_set_size(toggle_btn, 22, 22);
+    lv_obj_set_pos(toggle_btn, kToggleX, kToggleY);
+    lv_obj_add_event_cb(toggle_btn, toggle_time_window_event, LV_EVENT_CLICKED, nullptr);
+    lv_obj_t *toggle_mark = lv_label_create(toggle_btn);
+    lv_label_set_text(toggle_mark, g_edit_slot.use_window ? LV_SYMBOL_OK : "");
+    lv_obj_center(toggle_mark);
+
     lv_obj_t *hour_block = create_number_selector_vertical(g_wizard_refs.content, "Hour", &g_edit_slot.start_hour, 0, 23, 1, "%02d");
     lv_obj_set_size(hour_block, kHourW, LV_SIZE_CONTENT);
     lv_obj_set_pos(hour_block, kHourX, kBlocksY);
@@ -2278,6 +2302,15 @@ void wizard_render_step() {
     if (hour_label) lv_obj_set_width(hour_label, kHourW);
     if (minute_label) lv_obj_set_width(minute_label, kMinuteW);
     if (duration_label) lv_obj_set_width(duration_label, kDurationW);
+
+    if (!g_edit_slot.use_window) {
+      lv_obj_add_state(hour_block, LV_STATE_DISABLED);
+      lv_obj_add_state(minute_block, LV_STATE_DISABLED);
+      lv_obj_add_state(duration_block, LV_STATE_DISABLED);
+      lv_obj_set_style_opa(hour_block, LV_OPA_40, 0);
+      lv_obj_set_style_opa(minute_block, LV_OPA_40, 0);
+      lv_obj_set_style_opa(duration_block, LV_OPA_40, 0);
+    }
   } else if (g_wizard_step == 3) {
     lv_obj_t *label = lv_label_create(g_wizard_refs.content);
     lv_label_set_text(label, "Start when moist <");

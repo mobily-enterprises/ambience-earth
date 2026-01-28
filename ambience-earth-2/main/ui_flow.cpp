@@ -1089,11 +1089,11 @@ void build_ui() {
   lv_theme_t *theme = lv_theme_default_init(disp, kColorAccent, kColorMuted, true, &lv_font_montserrat_14);
   lv_display_set_theme(disp, theme);
 
-  if (feedingIsActive()) {
-    push_screen(SCREEN_FEEDING_STATUS);
-  } else {
-    push_screen(SCREEN_INFO);
-  }
+  // TODO/FIXME: remove forced wizard step after layout tuning is complete.
+  g_selected_slot = 0;
+  g_edit_slot = g_slots[g_selected_slot];
+  g_wizard_step = 2;
+  push_screen(SCREEN_SLOT_WIZARD);
 
   g_debug_label = nullptr;
 
