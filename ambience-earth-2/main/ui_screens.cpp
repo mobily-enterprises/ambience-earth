@@ -2139,7 +2139,7 @@ static void option_select_event(lv_event_t *event) {
   }
 
   if (g_active_screen == SCREEN_SLOT_WIZARD) {
-    if (g_wizard_step == 2 || g_wizard_step == 3 || g_wizard_step == 4 || g_wizard_step == 6) {
+    if (g_wizard_step == 2 || g_wizard_step == 3 || g_wizard_step == 5) {
       lv_async_call(wizard_refresh_cb, nullptr);
     }
   }
@@ -2222,11 +2222,8 @@ void wizard_render_step() {
     lv_obj_clear_flag(g_wizard_refs.header, LV_OBJ_FLAG_HIDDEN);
     lv_obj_t *header_label = lv_obj_get_child(g_wizard_refs.header, 0);
     if (header_label) {
-      static const uint8_t kStepMap[9] = {1, 2, 3, 0, 4, 5, 6, 0, 7};
-      uint8_t display_step = (g_wizard_step < 9) ? kStepMap[g_wizard_step] : 0;
-      if (display_step == 0) display_step = 1;
       char header_text[24];
-      snprintf(header_text, sizeof(header_text), "Edit slot (%d/7)", display_step);
+      snprintf(header_text, sizeof(header_text), "Edit slot (%d/7)", g_wizard_step + 1);
       lv_label_set_text(header_label, header_text);
     }
   }
@@ -2429,7 +2426,7 @@ void wizard_render_step() {
       lv_obj_set_pos(gap_value, kGapValueX, kGapRowY);
       lv_obj_set_width(gap_value, kGapValueW);
     }
-  } else if (g_wizard_step == 4) {
+  } else if (g_wizard_step == 3) {
     lv_obj_t *label = lv_label_create(g_wizard_refs.content);
     lv_label_set_text(label, "Stop when moist >");
 
@@ -2485,11 +2482,11 @@ void wizard_render_step() {
       }
       lv_obj_set_style_text_color(note, kColorMuted, 0);
     }
-  } else if (g_wizard_step == 5) {
+  } else if (g_wizard_step == 4) {
     lv_obj_t *label = lv_label_create(g_wizard_refs.content);
     lv_label_set_text(label, "Max volume (ml)");
     create_number_selector(g_wizard_refs.content, "Max", &g_edit_slot.max_ml, 50, 1500, 10, "%d");
-  } else if (g_wizard_step == 6) {
+  } else if (g_wizard_step == 5) {
     lv_obj_t *label = lv_label_create(g_wizard_refs.content);
     lv_label_set_text(label, "Stop on runoff?");
 
@@ -2603,7 +2600,7 @@ void wizard_render_step() {
     } else {
       g_edit_slot.baseline_setter = false;
     }
-  } else if (g_wizard_step == 8) {
+  } else if (g_wizard_step == 6) {
     lv_obj_t *label = lv_label_create(g_wizard_refs.content);
     lv_label_set_text(label, "Save changes?");
     lv_obj_t *row = lv_obj_create(g_wizard_refs.content);
