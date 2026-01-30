@@ -582,6 +582,8 @@ void wizard_back_event(lv_event_t *) {
     wizard_apply_name();
   }
   g_wizard_step = clamp_int(g_wizard_step - 1, 0, 8);
+  if (g_wizard_step == 7) g_wizard_step = 6;
+  if (g_wizard_step == 3) g_wizard_step = 2;
   wizard_render_step();
 }
 
@@ -595,6 +597,8 @@ void wizard_name_done_event(lv_event_t *) {
   if (g_wizard_step != 1) return;
   wizard_apply_name();
   if (g_wizard_step < 8) g_wizard_step++;
+  if (g_wizard_step == 3) g_wizard_step = 4;
+  if (g_wizard_step == 7) g_wizard_step = 8;
   wizard_render_step();
 }
 
@@ -611,6 +615,8 @@ void wizard_name_cancel_event(lv_event_t *) {
     return;
   }
   g_wizard_step = clamp_int(g_wizard_step - 1, 0, 8);
+  if (g_wizard_step == 7) g_wizard_step = 6;
+  if (g_wizard_step == 3) g_wizard_step = 2;
   wizard_render_step();
 }
 
@@ -626,6 +632,8 @@ void wizard_next_event(lv_event_t *) {
   }
   if (g_wizard_step < 8) {
     g_wizard_step++;
+    if (g_wizard_step == 3) g_wizard_step = 4;
+    if (g_wizard_step == 7) g_wizard_step = 8;
     wizard_render_step();
   }
 }
