@@ -1561,6 +1561,10 @@ static void toggle_time_window_event(lv_event_t *event);
 static void toggle_moisture_above_event(lv_event_t *event);
 static void set_moist_target_mode_event(lv_event_t *event);
 static void toggle_min_gap_event(lv_event_t *event);
+static void toggle_volume_limit_event(lv_event_t *event);
+static void toggle_runoff_stop_event(lv_event_t *event);
+static void set_runoff_mode_must_event(lv_event_t *event);
+static void set_runoff_mode_avoid_event(lv_event_t *event);
 static lv_obj_t *create_toggle_block(lv_obj_t *parent, const char *label_text,
                                      int16_t x, int16_t y, int16_t width,
                                      bool checked, lv_event_cb_t cb);
@@ -2139,7 +2143,7 @@ static void option_select_event(lv_event_t *event) {
   }
 
   if (g_active_screen == SCREEN_SLOT_WIZARD) {
-    if (g_wizard_step == 2 || g_wizard_step == 3 || g_wizard_step == 5) {
+    if (g_wizard_step == 2 || g_wizard_step == 3) {
       lv_async_call(wizard_refresh_cb, nullptr);
     }
   }
@@ -2171,6 +2175,30 @@ static void toggle_min_gap_event(lv_event_t *) {
   } else {
     g_edit_slot.min_gap_min = 0;
   }
+  wizard_render_step();
+}
+
+static void toggle_volume_limit_event(lv_event_t *) {
+  if (g_edit_slot.max_ml <= 0) {
+    g_edit_slot.max_ml = 500;
+  } else {
+    g_edit_slot.max_ml = 0;
+  }
+  wizard_render_step();
+}
+
+static void toggle_runoff_stop_event(lv_event_t *) {
+  g_edit_slot.stop_on_runoff = !g_edit_slot.stop_on_runoff;
+  wizard_render_step();
+}
+
+static void set_runoff_mode_must_event(lv_event_t *) {
+  g_edit_slot.runoff_mode = (g_edit_slot.runoff_mode == RUNOFF_MUST) ? RUNOFF_NEITHER : RUNOFF_MUST;
+  wizard_render_step();
+}
+
+static void set_runoff_mode_avoid_event(lv_event_t *) {
+  g_edit_slot.runoff_mode = (g_edit_slot.runoff_mode == RUNOFF_AVOID) ? RUNOFF_NEITHER : RUNOFF_AVOID;
   wizard_render_step();
 }
 
@@ -2223,7 +2251,7 @@ void wizard_render_step() {
     lv_obj_t *header_label = lv_obj_get_child(g_wizard_refs.header, 0);
     if (header_label) {
       char header_text[24];
-      snprintf(header_text, sizeof(header_text), "Edit slot (%d/7)", g_wizard_step + 1);
+      snprintf(header_text, sizeof(header_text), "Edit slot (%d/5)", g_wizard_step + 1);
       lv_label_set_text(header_label, header_text);
     }
   }
@@ -2427,180 +2455,142 @@ void wizard_render_step() {
       lv_obj_set_width(gap_value, kGapValueW);
     }
   } else if (g_wizard_step == 3) {
+    lv_obj_set_layout(g_wizard_refs.content, LV_LAYOUT_NONE);
+    lv_obj_set_style_pad_all(g_wizard_refs.content, 0, 0);
+
+    static const int16_t kStopTitleX = 0;
+    static const int16_t kStopTitleY = 0;
+
+    static const int16_t kStopMoistRowY = 20;
+    static const int16_t kStopMoistToggleX = 0;
+    static const int16_t kStopMoistToggleW = 50;
+    static const int16_t kStopPickX = 50;
+    static const int16_t kStopPickW = 140;
+    static const int16_t kStopBaseW = 70;
+    static const int16_t kStopPercentW = 30;
+    static const int16_t kStopBtnH = 22;
+    static const int16_t kStopValueX = 200;
+    static const int16_t kStopValueY = 20;
+    static const int16_t kStopValueW = 80;
+
+    static const int16_t kStopVolumeRowY = 70;
+    static const int16_t kStopVolumeToggleX = 0;
+    static const int16_t kStopVolumeToggleW = 55;
+    static const int16_t kStopVolumeValueX = 70;
+    static const int16_t kStopVolumeValueW = 80;
+
+    static const int16_t kStopRunoffRowY = 120;
+    static const int16_t kStopRunoffToggleX = 0;
+    static const int16_t kStopRunoffToggleW = 90;
+    static const int16_t kRunoffMustX = 110;
+    static const int16_t kRunoffAvoidX = 200;
+    static const int16_t kRunoffChoiceW = 100;
+
     lv_obj_t *label = lv_label_create(g_wizard_refs.content);
-    lv_label_set_text(label, "Stop when moist >");
+    lv_label_set_text(label, "Stop when");
+    lv_obj_set_pos(label, kStopTitleX, kStopTitleY);
 
-    OptionGroup *group = alloc_option_group();
-    if (!group) return;
-    group->target = reinterpret_cast<int *>(&g_edit_slot.target_mode);
-    group->target_type = OPTION_TARGET_INT;
+    create_toggle_block(g_wizard_refs.content, "Moist >",
+                        kStopMoistToggleX, kStopMoistRowY, kStopMoistToggleW,
+                        g_edit_slot.target_mode != MODE_OFF, toggle_moisture_above_event);
 
-    lv_obj_t *row = lv_obj_create(g_wizard_refs.content);
-    lv_obj_set_width(row, LV_PCT(100));
-    lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(row, 0, 0);
-    lv_obj_set_style_pad_all(row, 0, 0);
-    lv_obj_set_style_pad_gap(row, 6, 0);
-    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-    lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t *stop_percent_btn = nullptr;
+    lv_obj_t *stop_base_btn = nullptr;
+    if (g_edit_slot.target_mode != MODE_OFF) {
+      lv_obj_t *stop_pick = lv_obj_create(g_wizard_refs.content);
+      lv_obj_set_size(stop_pick, kStopPickW, LV_SIZE_CONTENT);
+      lv_obj_set_pos(stop_pick, kStopPickX, kStopMoistRowY);
+      lv_obj_set_style_bg_opa(stop_pick, LV_OPA_TRANSP, 0);
+      lv_obj_set_style_border_width(stop_pick, 0, 0);
+      lv_obj_set_style_pad_all(stop_pick, 0, 0);
+      lv_obj_set_style_pad_row(stop_pick, 2, 0);
+      lv_obj_set_style_pad_column(stop_pick, 6, 0);
+      lv_obj_set_flex_flow(stop_pick, LV_FLEX_FLOW_COLUMN);
+      lv_obj_clear_flag(stop_pick, LV_OBJ_FLAG_SCROLLABLE);
 
-    const char *labels[] = {"Off", "%", "Base"};
-    int values[] = {MODE_OFF, MODE_PERCENT, MODE_BASELINE};
-    for (int i = 0; i < 3; ++i) {
-      lv_obj_t *btn = lv_btn_create(row);
-      lv_obj_add_flag(btn, LV_OBJ_FLAG_CHECKABLE);
-      OptionButtonData *data = alloc_option_button();
-      if (!data) continue;
-      data->group = group;
-      data->index = group->count;
-      group->btns[group->count] = btn;
-      group->values[group->count] = values[i];
-      group->count++;
-      lv_obj_add_event_cb(btn, option_select_event, LV_EVENT_CLICKED, data);
-      lv_obj_t *lab = lv_label_create(btn);
-      lv_label_set_text(lab, labels[i]);
-      lv_obj_center(lab);
+      lv_obj_t *pick_label = lv_label_create(stop_pick);
+      lv_label_set_text(pick_label, "Pick one...");
+      lv_obj_set_style_text_color(pick_label, kColorMuted, 0);
+      lv_obj_set_style_text_font(pick_label, &lv_font_montserrat_12, 0);
+
+      lv_obj_t *pick_row = lv_obj_create(stop_pick);
+      lv_obj_set_width(pick_row, LV_PCT(100));
+      lv_obj_set_style_bg_opa(pick_row, LV_OPA_TRANSP, 0);
+      lv_obj_set_style_border_width(pick_row, 0, 0);
+      lv_obj_set_style_pad_all(pick_row, 0, 0);
+      lv_obj_set_style_pad_gap(pick_row, 6, 0);
+      lv_obj_set_flex_flow(pick_row, LV_FLEX_FLOW_ROW);
+      lv_obj_clear_flag(pick_row, LV_OBJ_FLAG_SCROLLABLE);
+
+      stop_base_btn = lv_btn_create(pick_row);
+      lv_obj_set_size(stop_base_btn, kStopBaseW, kStopBtnH);
+      lv_obj_add_flag(stop_base_btn, LV_OBJ_FLAG_CHECKABLE);
+      lv_obj_add_event_cb(stop_base_btn, set_moist_target_mode_event, LV_EVENT_CLICKED,
+                          reinterpret_cast<void *>(static_cast<intptr_t>(MODE_BASELINE)));
+      lv_obj_t *stop_base_label = lv_label_create(stop_base_btn);
+      lv_label_set_text(stop_base_label, "Baseline");
+      lv_obj_center(stop_base_label);
+
+      stop_percent_btn = lv_btn_create(pick_row);
+      lv_obj_set_size(stop_percent_btn, kStopPercentW, kStopBtnH);
+      lv_obj_add_flag(stop_percent_btn, LV_OBJ_FLAG_CHECKABLE);
+      lv_obj_add_event_cb(stop_percent_btn, set_moist_target_mode_event, LV_EVENT_CLICKED,
+                          reinterpret_cast<void *>(static_cast<intptr_t>(MODE_PERCENT)));
+      lv_obj_t *stop_percent_label = lv_label_create(stop_percent_btn);
+      lv_label_set_text(stop_percent_label, "%");
+      lv_obj_center(stop_percent_label);
     }
-    if (g_edit_slot.target_mode == MODE_OFF) lv_obj_add_state(group->btns[0], LV_STATE_CHECKED);
-    if (g_edit_slot.target_mode == MODE_PERCENT) lv_obj_add_state(group->btns[1], LV_STATE_CHECKED);
-    if (g_edit_slot.target_mode == MODE_BASELINE) lv_obj_add_state(group->btns[2], LV_STATE_CHECKED);
 
-    if (g_edit_slot.target_mode == MODE_PERCENT) {
-      create_number_selector(g_wizard_refs.content, "Value", &g_edit_slot.target_value, 20, 95, 1, "%d");
-    } else if (g_edit_slot.target_mode == MODE_BASELINE) {
-      uint8_t baseline = 0;
-      lv_obj_t *note = lv_label_create(g_wizard_refs.content);
-      if (feedingGetBaselinePercent(&baseline)) {
-        uint8_t value = baselineMinus(baseline, config.baselineY);
-        if (value == 0) {
-          lv_label_set_text(note, "Baseline: --");
-        } else {
-          lv_label_set_text_fmt(note, "Baseline: %d%%", value);
-        }
-      } else {
-        lv_label_set_text(note, "Baseline: --");
-      }
-      lv_obj_set_style_text_color(note, kColorMuted, 0);
+    if (g_edit_slot.target_mode == MODE_PERCENT && stop_percent_btn && stop_base_btn) {
+      lv_obj_add_state(stop_percent_btn, LV_STATE_CHECKED);
+      lv_obj_clear_state(stop_base_btn, LV_STATE_CHECKED);
+      lv_obj_t *value_row = create_number_selector_vertical(g_wizard_refs.content, "Value",
+                                                            &g_edit_slot.target_value, 0, 100, 1, "%d");
+      lv_obj_set_pos(value_row, kStopValueX, kStopValueY);
+      lv_obj_set_width(value_row, kStopValueW);
+    } else if (g_edit_slot.target_mode == MODE_BASELINE && stop_percent_btn && stop_base_btn) {
+      lv_obj_add_state(stop_base_btn, LV_STATE_CHECKED);
+      lv_obj_clear_state(stop_percent_btn, LV_STATE_CHECKED);
+    }
+
+    create_toggle_block(g_wizard_refs.content, "Volume",
+                        kStopVolumeToggleX, kStopVolumeRowY, kStopVolumeToggleW,
+                        g_edit_slot.max_ml > 0, toggle_volume_limit_event);
+
+    if (g_edit_slot.max_ml > 0) {
+      lv_obj_t *vol_value = create_number_selector_vertical(g_wizard_refs.content, "Max ml",
+                                                            &g_edit_slot.max_ml, 50, 5000, 10, "%d");
+      lv_obj_set_pos(vol_value, kStopVolumeValueX, kStopVolumeRowY);
+      lv_obj_set_width(vol_value, kStopVolumeValueW);
+    }
+
+    create_toggle_block(g_wizard_refs.content, "Stop at runoff",
+                        kStopRunoffToggleX, kStopRunoffRowY, kStopRunoffToggleW,
+                        g_edit_slot.stop_on_runoff, toggle_runoff_stop_event);
+
+    if (g_edit_slot.stop_on_runoff) {
+      if (g_edit_slot.runoff_mode == RUNOFF_AVOID) g_edit_slot.runoff_mode = RUNOFF_NEITHER;
+    } else {
+      if (g_edit_slot.runoff_mode == RUNOFF_MUST) g_edit_slot.runoff_mode = RUNOFF_NEITHER;
+    }
+
+    lv_obj_t *runoff_must_btn = create_toggle_block(g_wizard_refs.content, "Must run off",
+                                                    kRunoffMustX, kStopRunoffRowY, kRunoffChoiceW,
+                                                    g_edit_slot.runoff_mode == RUNOFF_MUST,
+                                                    set_runoff_mode_must_event);
+    lv_obj_t *runoff_avoid_btn = create_toggle_block(g_wizard_refs.content, "Mustn't run off",
+                                                     kRunoffAvoidX, kStopRunoffRowY, kRunoffChoiceW,
+                                                     g_edit_slot.runoff_mode == RUNOFF_AVOID,
+                                                     set_runoff_mode_avoid_event);
+
+    if (g_edit_slot.stop_on_runoff) {
+      lv_obj_add_state(runoff_avoid_btn, LV_STATE_DISABLED);
+      lv_obj_set_style_opa(runoff_avoid_btn, LV_OPA_40, 0);
+    } else {
+      lv_obj_add_state(runoff_must_btn, LV_STATE_DISABLED);
+      lv_obj_set_style_opa(runoff_must_btn, LV_OPA_40, 0);
     }
   } else if (g_wizard_step == 4) {
-    lv_obj_t *label = lv_label_create(g_wizard_refs.content);
-    lv_label_set_text(label, "Max volume (ml)");
-    create_number_selector(g_wizard_refs.content, "Max", &g_edit_slot.max_ml, 50, 1500, 10, "%d");
-  } else if (g_wizard_step == 5) {
-    lv_obj_t *label = lv_label_create(g_wizard_refs.content);
-    lv_label_set_text(label, "Stop on runoff?");
-
-    OptionGroup *group = alloc_option_group();
-    if (!group) return;
-    group->target = &g_edit_slot.stop_on_runoff;
-    group->target_type = OPTION_TARGET_BOOL;
-
-    lv_obj_t *row = lv_obj_create(g_wizard_refs.content);
-    lv_obj_set_width(row, LV_PCT(100));
-    lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(row, 0, 0);
-    lv_obj_set_style_pad_all(row, 0, 0);
-    lv_obj_set_style_pad_gap(row, 6, 0);
-    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-    lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-
-    const char *labels[] = {"No", "Yes"};
-    int values[] = {0, 1};
-    for (int i = 0; i < 2; ++i) {
-      lv_obj_t *btn = lv_btn_create(row);
-      lv_obj_add_flag(btn, LV_OBJ_FLAG_CHECKABLE);
-      OptionButtonData *data = alloc_option_button();
-      if (!data) continue;
-      data->group = group;
-      data->index = group->count;
-      group->btns[group->count] = btn;
-      group->values[group->count] = values[i];
-      group->count++;
-      lv_obj_add_event_cb(btn, option_select_event, LV_EVENT_CLICKED, data);
-      lv_obj_t *lab = lv_label_create(btn);
-      lv_label_set_text(lab, labels[i]);
-      lv_obj_center(lab);
-    }
-    if (g_edit_slot.stop_on_runoff) lv_obj_add_state(group->btns[1], LV_STATE_CHECKED);
-    else lv_obj_add_state(group->btns[0], LV_STATE_CHECKED);
-
-    OptionGroup *runoff_group = alloc_option_group();
-    if (!runoff_group) return;
-    runoff_group->target = reinterpret_cast<int *>(&g_edit_slot.runoff_mode);
-    runoff_group->target_type = OPTION_TARGET_INT;
-
-    lv_obj_t *runoff_row = lv_obj_create(g_wizard_refs.content);
-    lv_obj_set_width(runoff_row, LV_PCT(100));
-    lv_obj_set_style_bg_opa(runoff_row, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(runoff_row, 0, 0);
-    lv_obj_set_style_pad_all(runoff_row, 0, 0);
-    lv_obj_set_style_pad_gap(runoff_row, 6, 0);
-    lv_obj_set_flex_flow(runoff_row, LV_FLEX_FLOW_ROW);
-    lv_obj_clear_flag(runoff_row, LV_OBJ_FLAG_SCROLLABLE);
-
-    const char *rlabels[] = {"Neither", "Must", "Avoid"};
-    int rvalues[] = {RUNOFF_NEITHER, RUNOFF_MUST, RUNOFF_AVOID};
-    for (int i = 0; i < 3; ++i) {
-      lv_obj_t *btn = lv_btn_create(runoff_row);
-      lv_obj_add_flag(btn, LV_OBJ_FLAG_CHECKABLE);
-      OptionButtonData *data = alloc_option_button();
-      if (!data) continue;
-      data->group = runoff_group;
-      data->index = runoff_group->count;
-      runoff_group->btns[runoff_group->count] = btn;
-      runoff_group->values[runoff_group->count] = rvalues[i];
-      runoff_group->count++;
-      lv_obj_add_event_cb(btn, option_select_event, LV_EVENT_CLICKED, data);
-      lv_obj_t *lab = lv_label_create(btn);
-      lv_label_set_text(lab, rlabels[i]);
-      lv_obj_center(lab);
-    }
-    if (g_edit_slot.runoff_mode == RUNOFF_NEITHER) lv_obj_add_state(runoff_group->btns[0], LV_STATE_CHECKED);
-    if (g_edit_slot.runoff_mode == RUNOFF_MUST) lv_obj_add_state(runoff_group->btns[1], LV_STATE_CHECKED);
-    if (g_edit_slot.runoff_mode == RUNOFF_AVOID) lv_obj_add_state(runoff_group->btns[2], LV_STATE_CHECKED);
-
-    if (g_edit_slot.stop_on_runoff && g_edit_slot.runoff_mode == RUNOFF_MUST) {
-      OptionGroup *baseline_group = alloc_option_group();
-      if (!baseline_group) return;
-      baseline_group->target = &g_edit_slot.baseline_setter;
-      baseline_group->target_type = OPTION_TARGET_BOOL;
-
-      lv_obj_t *label = lv_label_create(g_wizard_refs.content);
-      lv_label_set_text(label, "Baseline setter?");
-      lv_obj_set_style_text_color(label, kColorMuted, 0);
-
-      lv_obj_t *baseline_row = lv_obj_create(g_wizard_refs.content);
-      lv_obj_set_width(baseline_row, LV_PCT(100));
-      lv_obj_set_style_bg_opa(baseline_row, LV_OPA_TRANSP, 0);
-      lv_obj_set_style_border_width(baseline_row, 0, 0);
-      lv_obj_set_style_pad_all(baseline_row, 0, 0);
-      lv_obj_set_style_pad_gap(baseline_row, 6, 0);
-      lv_obj_set_flex_flow(baseline_row, LV_FLEX_FLOW_ROW);
-      lv_obj_clear_flag(baseline_row, LV_OBJ_FLAG_SCROLLABLE);
-
-      const char *blabels[] = {"No", "Yes"};
-      int bvalues[] = {0, 1};
-      for (int i = 0; i < 2; ++i) {
-        lv_obj_t *btn = lv_btn_create(baseline_row);
-        lv_obj_add_flag(btn, LV_OBJ_FLAG_CHECKABLE);
-        OptionButtonData *data = alloc_option_button();
-        if (!data) continue;
-        data->group = baseline_group;
-        data->index = baseline_group->count;
-        baseline_group->btns[baseline_group->count] = btn;
-        baseline_group->values[baseline_group->count] = bvalues[i];
-        baseline_group->count++;
-        lv_obj_add_event_cb(btn, option_select_event, LV_EVENT_CLICKED, data);
-        lv_obj_t *lab = lv_label_create(btn);
-        lv_label_set_text(lab, blabels[i]);
-        lv_obj_center(lab);
-      }
-      if (g_edit_slot.baseline_setter) lv_obj_add_state(baseline_group->btns[1], LV_STATE_CHECKED);
-      else lv_obj_add_state(baseline_group->btns[0], LV_STATE_CHECKED);
-    } else {
-      g_edit_slot.baseline_setter = false;
-    }
-  } else if (g_wizard_step == 6) {
     lv_obj_t *label = lv_label_create(g_wizard_refs.content);
     lv_label_set_text(label, "Save changes?");
     lv_obj_t *row = lv_obj_create(g_wizard_refs.content);
