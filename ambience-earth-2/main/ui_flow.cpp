@@ -442,7 +442,7 @@ void slot_select_event(lv_event_t *event) {
  */
 void edit_slot_event(lv_event_t *) {
   g_edit_slot = g_slots[g_selected_slot];
-  g_wizard_step = 0;
+  g_wizard_step = 1;
   push_screen(SCREEN_SLOT_WIZARD);
 }
 
@@ -578,9 +578,6 @@ void wizard_back_event(lv_event_t *) {
     pop_screen();
     return;
   }
-  if (g_wizard_step == 1) {
-    wizard_apply_name();
-  }
   g_wizard_step = clamp_int(g_wizard_step - 1, 0, 4);
   wizard_render_step();
 }
@@ -592,10 +589,8 @@ void wizard_back_event(lv_event_t *) {
  *   lv_obj_add_event_cb(btn, wizard_name_done_event, LV_EVENT_CLICKED, nullptr);
  */
 void wizard_name_done_event(lv_event_t *) {
-  if (g_wizard_step != 1) return;
+  if (g_wizard_step != 0) return;
   wizard_apply_name();
-  if (g_wizard_step < 4) g_wizard_step++;
-  wizard_render_step();
 }
 
 /*
@@ -605,13 +600,8 @@ void wizard_name_done_event(lv_event_t *) {
  *   lv_obj_add_event_cb(btn, wizard_name_cancel_event, LV_EVENT_CLICKED, nullptr);
  */
 void wizard_name_cancel_event(lv_event_t *) {
-  if (g_wizard_step != 1) return;
-  if (g_wizard_step == 0) {
-    pop_screen();
-    return;
-  }
-  g_wizard_step = clamp_int(g_wizard_step - 1, 0, 4);
-  wizard_render_step();
+  if (g_wizard_step != 0) return;
+  wizard_apply_name();
 }
 
 /*
@@ -621,7 +611,7 @@ void wizard_name_cancel_event(lv_event_t *) {
  *   lv_obj_add_event_cb(btn, wizard_next_event, LV_EVENT_CLICKED, nullptr);
  */
 void wizard_next_event(lv_event_t *) {
-  if (g_wizard_step == 1) {
+  if (g_wizard_step == 0) {
     wizard_apply_name();
   }
   if (g_wizard_step < 4) {
@@ -1092,7 +1082,7 @@ void build_ui() {
   // TODO/FIXME: remove forced wizard step after layout tuning is complete.
   g_selected_slot = 0;
   g_edit_slot = g_slots[g_selected_slot];
-  g_wizard_step = 2;
+  g_wizard_step = 0;
   push_screen(SCREEN_SLOT_WIZARD);
 
   g_debug_label = nullptr;

@@ -327,21 +327,23 @@ static lv_obj_t *create_number_selector_vertical(lv_obj_t *parent, const char *l
 struct KeyboardInputRefs {
   lv_obj_t *text_area;
   lv_obj_t *keyboard;
-  lv_obj_t *done_btn;
-  lv_obj_t *cancel_btn;
 };
 
 /*
  * create_keyboard_input
- * Builds a compact text input row with Done/Cancel and a full-width keyboard below it.
+ * Builds a compact text input row with a full-width keyboard below it.
  * Example:
- *   KeyboardInputRefs refs = create_keyboard_input(parent, "Slot 1",
- *                                                  wizard_name_done_event, wizard_name_cancel_event, nullptr);
+ *   KeyboardInputRefs refs = create_keyboard_input(parent, "Slot 1");
  *   g_wizard_refs.text_area = refs.text_area;
  */
 static KeyboardInputRefs create_keyboard_input(lv_obj_t *parent, const char *initial_text,
-                                               lv_event_cb_t done_cb, lv_event_cb_t cancel_cb, void *user_data) {
+                                               lv_event_cb_t done_cb = nullptr,
+                                               lv_event_cb_t cancel_cb = nullptr,
+                                               void *user_data = nullptr) {
   KeyboardInputRefs refs = {};
+  (void)done_cb;
+  (void)cancel_cb;
+  (void)user_data;
 
   lv_obj_t *input_col = lv_obj_create(parent);
   lv_obj_set_width(input_col, LV_PCT(100));
@@ -358,34 +360,6 @@ static KeyboardInputRefs create_keyboard_input(lv_obj_t *parent, const char *ini
   lv_obj_set_height(text_area, 30);
   lv_obj_set_width(text_area, LV_PCT(100));
   refs.text_area = text_area;
-
-  lv_obj_t *btn_row = lv_obj_create(input_col);
-  lv_obj_set_width(btn_row, LV_PCT(100));
-  lv_obj_set_height(btn_row, LV_SIZE_CONTENT);
-  lv_obj_set_style_bg_opa(btn_row, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(btn_row, 0, 0);
-  lv_obj_set_style_pad_all(btn_row, 0, 0);
-  lv_obj_set_style_pad_gap(btn_row, 6, 0);
-  lv_obj_set_flex_flow(btn_row, LV_FLEX_FLOW_ROW);
-  lv_obj_clear_flag(btn_row, LV_OBJ_FLAG_SCROLLABLE);
-
-  lv_obj_t *done_btn = lv_btn_create(btn_row);
-  lv_obj_set_flex_grow(done_btn, 1);
-  lv_obj_set_height(done_btn, 22);
-  lv_obj_add_event_cb(done_btn, done_cb, LV_EVENT_CLICKED, user_data);
-  lv_obj_t *done_label = lv_label_create(done_btn);
-  lv_label_set_text(done_label, "Done");
-  lv_obj_center(done_label);
-  refs.done_btn = done_btn;
-
-  lv_obj_t *cancel_btn = lv_btn_create(btn_row);
-  lv_obj_set_flex_grow(cancel_btn, 1);
-  lv_obj_set_height(cancel_btn, 22);
-  lv_obj_add_event_cb(cancel_btn, cancel_cb, LV_EVENT_CLICKED, user_data);
-  lv_obj_t *cancel_label = lv_label_create(cancel_btn);
-  lv_label_set_text(cancel_label, "Cancel");
-  lv_obj_center(cancel_label);
-  refs.cancel_btn = cancel_btn;
 
   lv_obj_t *keyboard = lv_keyboard_create(parent);
   lv_obj_set_flex_grow(keyboard, 1);
