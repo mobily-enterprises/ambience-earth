@@ -220,10 +220,12 @@ struct SlotSummaryRefs {
 struct WizardRefs {
   lv_obj_t *header;
   lv_obj_t *step_label;
-  lv_obj_t *content;
-  lv_obj_t *next_btn;
-  lv_obj_t *next_label;
-  lv_obj_t *back_btn;
+  lv_obj_t *tabview;
+  lv_obj_t *tab_name;
+  lv_obj_t *tab_start;
+  lv_obj_t *tab_stop;
+  lv_obj_t *save_btn;
+  lv_obj_t *cancel_btn;
   lv_obj_t *footer;
   lv_obj_t *text_area;
 };

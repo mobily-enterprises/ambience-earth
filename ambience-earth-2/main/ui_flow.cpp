@@ -442,7 +442,6 @@ void slot_select_event(lv_event_t *event) {
  */
 void edit_slot_event(lv_event_t *) {
   g_edit_slot = g_slots[g_selected_slot];
-  g_wizard_step = 1;
   push_screen(SCREEN_SLOT_WIZARD);
 }
 
@@ -1080,10 +1079,11 @@ void build_ui() {
   lv_display_set_theme(disp, theme);
 
   // TODO/FIXME: remove forced wizard step after layout tuning is complete.
-  g_selected_slot = 0;
+  /*g_selected_slot = 0;
   g_edit_slot = g_slots[g_selected_slot];
-  g_wizard_step = 0;
   push_screen(SCREEN_SLOT_WIZARD);
+*/
+  push_screen(SCREEN_INFO);
 
   g_debug_label = nullptr;
 

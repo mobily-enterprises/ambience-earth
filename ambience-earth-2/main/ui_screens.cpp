@@ -1569,6 +1569,9 @@ static void toggle_enable_slot_event(lv_event_t *event);
 static lv_obj_t *create_toggle_block(lv_obj_t *parent, const char *label_text,
                                      int16_t x, int16_t y, int16_t width,
                                      bool checked, lv_event_cb_t cb);
+static void render_wizard_name_tab(lv_obj_t *parent);
+static void render_wizard_start_tab(lv_obj_t *parent);
+static void render_wizard_stop_tab(lv_obj_t *parent);
 
 /*
  * build_slot_wizard_screen
@@ -1587,17 +1590,20 @@ static lv_obj_t *build_slot_wizard_screen() {
     lv_obj_set_style_text_font(title, &lv_font_montserrat_12, 0);
   }
 
-  lv_obj_t *step_label = lv_label_create(screen);
-  lv_obj_set_style_text_color(step_label, kColorMuted, 0);
+  lv_obj_t *tabview = lv_tabview_create(screen);
+  lv_obj_set_width(tabview, LV_PCT(100));
+  lv_obj_set_flex_grow(tabview, 1);
+  lv_obj_set_style_bg_opa(tabview, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(tabview, 0, 0);
+  lv_obj_set_style_pad_all(tabview, 0, 0);
+  lv_obj_clear_flag(tabview, LV_OBJ_FLAG_SCROLLABLE);
+  lv_tabview_set_tab_bar_position(tabview, LV_DIR_TOP);
+  lv_tabview_set_tab_bar_size(tabview, 20);
 
-  lv_obj_t *content = lv_obj_create(screen);
-  lv_obj_set_width(content, LV_PCT(100));
-  lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
-  lv_obj_set_style_bg_opa(content, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(content, 0, 0);
-  lv_obj_set_style_pad_row(content, 6, 0);
-  lv_obj_set_flex_grow(content, 1);
-  lv_obj_clear_flag(content, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_t *tab_name = lv_tabview_add_tab(tabview, "Name");
+  lv_obj_t *tab_start = lv_tabview_add_tab(tabview, "Start");
+  lv_obj_t *tab_stop = lv_tabview_add_tab(tabview, "Stop");
+  lv_tabview_set_active(tabview, 0, LV_ANIM_OFF);
 
   lv_obj_t *footer = lv_obj_create(screen);
   lv_obj_set_width(footer, LV_PCT(100));
@@ -1609,26 +1615,32 @@ static lv_obj_t *build_slot_wizard_screen() {
   lv_obj_set_flex_flow(footer, LV_FLEX_FLOW_ROW);
   lv_obj_clear_flag(footer, LV_OBJ_FLAG_SCROLLABLE);
 
-  lv_obj_t *back_btn = lv_btn_create(footer);
-  lv_obj_set_flex_grow(back_btn, 1);
-  lv_obj_add_event_cb(back_btn, wizard_back_event, LV_EVENT_CLICKED, nullptr);
-  lv_obj_t *back_label = lv_label_create(back_btn);
-  lv_label_set_text(back_label, "Back");
-  lv_obj_center(back_label);
+  lv_obj_t *cancel_btn = lv_btn_create(footer);
+  lv_obj_set_flex_grow(cancel_btn, 1);
+  lv_obj_set_height(cancel_btn, 22);
+  lv_obj_add_event_cb(cancel_btn, wizard_save_event, LV_EVENT_CLICKED,
+                      reinterpret_cast<void *>(static_cast<intptr_t>(1)));
+  lv_obj_t *cancel_label = lv_label_create(cancel_btn);
+  lv_label_set_text(cancel_label, "Cancel");
+  lv_obj_center(cancel_label);
 
-  lv_obj_t *next_btn = lv_btn_create(footer);
-  lv_obj_set_flex_grow(next_btn, 1);
-  lv_obj_add_event_cb(next_btn, wizard_next_event, LV_EVENT_CLICKED, nullptr);
-  lv_obj_t *next_label = lv_label_create(next_btn);
-  lv_label_set_text(next_label, "Next");
-  lv_obj_center(next_label);
+  lv_obj_t *save_btn = lv_btn_create(footer);
+  lv_obj_set_flex_grow(save_btn, 1);
+  lv_obj_set_height(save_btn, 22);
+  lv_obj_add_event_cb(save_btn, wizard_save_event, LV_EVENT_CLICKED,
+                      reinterpret_cast<void *>(static_cast<intptr_t>(0)));
+  lv_obj_t *save_label = lv_label_create(save_btn);
+  lv_label_set_text(save_label, "Save");
+  lv_obj_center(save_label);
 
   g_wizard_refs.header = header;
-  g_wizard_refs.step_label = step_label;
-  g_wizard_refs.content = content;
-  g_wizard_refs.next_btn = next_btn;
-  g_wizard_refs.next_label = next_label;
-  g_wizard_refs.back_btn = back_btn;
+  g_wizard_refs.step_label = nullptr;
+  g_wizard_refs.tabview = tabview;
+  g_wizard_refs.tab_name = tab_name;
+  g_wizard_refs.tab_start = tab_start;
+  g_wizard_refs.tab_stop = tab_stop;
+  g_wizard_refs.save_btn = save_btn;
+  g_wizard_refs.cancel_btn = cancel_btn;
   g_wizard_refs.footer = footer;
   g_wizard_refs.text_area = nullptr;
 
@@ -2149,9 +2161,7 @@ static void option_select_event(lv_event_t *event) {
   }
 
   if (g_active_screen == SCREEN_SLOT_WIZARD) {
-    if (g_wizard_step == 1 || g_wizard_step == 2) {
-      lv_async_call(wizard_refresh_cb, nullptr);
-    }
+    lv_async_call(wizard_refresh_cb, nullptr);
   }
 }
 
@@ -2228,7 +2238,7 @@ static lv_obj_t *create_toggle_block(lv_obj_t *parent, const char *label_text,
 
   lv_obj_t *label = lv_label_create(block);
   lv_label_set_text(label, label_text);
-  lv_obj_set_style_text_color(label, kColorMuted, 0);
+  lv_obj_set_style_text_color(label, lv_color_white(), 0);
   lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
   lv_obj_set_width(label, width);
 
@@ -2242,401 +2252,355 @@ static lv_obj_t *create_toggle_block(lv_obj_t *parent, const char *label_text,
   return block;
 }
 
+static void render_wizard_name_tab(lv_obj_t *parent) {
+  if (!parent) return;
+  lv_obj_clean(parent);
+  lv_obj_set_layout(parent, LV_LAYOUT_NONE);
+  lv_obj_set_style_pad_all(parent, 0, 0);
+
+  static const int16_t kEnableX = 0;
+  static const int16_t kEnableY = 0;
+  static const int16_t kEnableW = 60;
+
+  static const int16_t kTextAreaX = 70;
+  static const int16_t kTextAreaY = 0;
+  static const int16_t kTextAreaW = 240;
+  static const int16_t kTextAreaH = 30;
+  static const int16_t kNameLabelY = 0;
+  static const int16_t kNameInputY = 14;
+
+  static const int16_t kKeyboardX = 0;
+  static const int16_t kKeyboardY = 0;
+  static const int16_t kKeyboardW = 320;
+  static const int16_t kKeyboardH = 110;
+
+  create_toggle_block(parent, "Enable",
+                      kEnableX, kEnableY, kEnableW,
+                      g_edit_slot.enabled, toggle_enable_slot_event);
+
+  lv_obj_t *name_block = lv_obj_create(parent);
+  lv_obj_set_pos(name_block, kTextAreaX, kTextAreaY);
+  lv_obj_set_size(name_block, kTextAreaW, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(name_block, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(name_block, 0, 0);
+  lv_obj_set_style_pad_all(name_block, 0, 0);
+  lv_obj_clear_flag(name_block, LV_OBJ_FLAG_SCROLLABLE);
+
+  lv_obj_t *name_label = lv_label_create(name_block);
+  lv_label_set_text(name_label, "Name");
+  lv_obj_set_style_text_color(name_label, kColorMuted, 0);
+  lv_obj_set_style_text_font(name_label, &lv_font_montserrat_12, 0);
+  lv_obj_set_pos(name_label, 0, kNameLabelY);
+
+  lv_obj_t *text_area = lv_textarea_create(name_block);
+  lv_textarea_set_one_line(text_area, true);
+  lv_textarea_set_text(text_area, g_edit_slot.name);
+  lv_obj_set_pos(text_area, 0, kNameInputY);
+  lv_obj_set_size(text_area, kTextAreaW, kTextAreaH);
+  g_wizard_refs.text_area = text_area;
+
+  lv_obj_t *keyboard = lv_keyboard_create(parent);
+  lv_keyboard_set_textarea(keyboard, text_area);
+  lv_obj_set_pos(keyboard, kKeyboardX, kKeyboardY);
+  lv_obj_set_size(keyboard, kKeyboardW, kKeyboardH);
+}
+
+static void render_wizard_start_tab(lv_obj_t *parent) {
+  if (!parent) return;
+  lv_obj_clean(parent);
+  lv_obj_set_layout(parent, LV_LAYOUT_NONE);
+  lv_obj_set_style_pad_all(parent, 0, 0);
+
+  static const int16_t kTimeRowY = 5;
+
+  static const int16_t kTimeToggleX = 0;
+  static const int16_t kTimeToggleW = 30;
+
+  static const int16_t kMoistRowY = 50;
+  static const int16_t kMoistToggleX = 0;
+  static const int16_t kMoistToggleW = 50;
+  static const int16_t kMoistPickX = 50;
+  static const int16_t kMoistPickW = 140;
+  static const int16_t kMoistBaseW = 70;
+  static const int16_t kMoistPercentW = 30;
+  static const int16_t kMoistBtnH = 22;
+  static const int16_t kMoistValueRowX = 170;
+  static const int16_t kMoistValueRowW = 80;
+  static const int16_t kMoistValueRowY = 64;
+
+  static const int16_t kGapRowY = 95;
+  static const int16_t kGapToggleX = 0;
+  static const int16_t kGapToggleW = 55;
+  static const int16_t kGapValueX = 70;
+  static const int16_t kGapValueW = 80;
+
+  static const int16_t kHourX = 40;
+  static const int16_t kHourW = 80;
+  static const int16_t kMinuteX = 116;
+  static const int16_t kMinuteW = 80;
+  static const int16_t kDurationX = 202;
+  static const int16_t kDurationW = 150;
+
+  create_toggle_block(parent, "Time",
+                      kTimeToggleX, kTimeRowY, kTimeToggleW,
+                      g_edit_slot.use_window, toggle_time_window_event);
+
+  create_toggle_block(parent, "Moist >",
+                      kMoistToggleX, kMoistRowY, kMoistToggleW,
+                      g_edit_slot.target_mode != MODE_OFF, toggle_moisture_above_event);
+
+  lv_obj_t *moist_pick = lv_obj_create(parent);
+  lv_obj_set_size(moist_pick, kMoistPickW, LV_SIZE_CONTENT);
+  lv_obj_set_pos(moist_pick, kMoistPickX, kMoistRowY);
+  lv_obj_set_style_bg_opa(moist_pick, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(moist_pick, 0, 0);
+  lv_obj_set_style_pad_all(moist_pick, 0, 0);
+  lv_obj_set_style_pad_row(moist_pick, 2, 0);
+  lv_obj_set_style_pad_column(moist_pick, 6, 0);
+  lv_obj_set_flex_flow(moist_pick, LV_FLEX_FLOW_COLUMN);
+  lv_obj_clear_flag(moist_pick, LV_OBJ_FLAG_SCROLLABLE);
+
+  lv_obj_t *pick_label = lv_label_create(moist_pick);
+  lv_label_set_text(pick_label, "Pick one...");
+  lv_obj_set_style_text_color(pick_label, kColorMuted, 0);
+  lv_obj_set_style_text_font(pick_label, &lv_font_montserrat_12, 0);
+
+  lv_obj_t *pick_row = lv_obj_create(moist_pick);
+  lv_obj_set_width(pick_row, LV_PCT(100));
+  lv_obj_set_style_bg_opa(pick_row, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(pick_row, 0, 0);
+  lv_obj_set_style_pad_all(pick_row, 0, 0);
+  lv_obj_set_style_pad_gap(pick_row, 6, 0);
+  lv_obj_set_flex_flow(pick_row, LV_FLEX_FLOW_ROW);
+  lv_obj_clear_flag(pick_row, LV_OBJ_FLAG_SCROLLABLE);
+
+  lv_obj_t *moist_base_btn = lv_btn_create(pick_row);
+  lv_obj_set_size(moist_base_btn, kMoistBaseW, kMoistBtnH);
+  lv_obj_add_flag(moist_base_btn, LV_OBJ_FLAG_CHECKABLE);
+  lv_obj_add_event_cb(moist_base_btn, set_moist_target_mode_event, LV_EVENT_CLICKED,
+                      reinterpret_cast<void *>(static_cast<intptr_t>(MODE_BASELINE)));
+  lv_obj_t *moist_base_label = lv_label_create(moist_base_btn);
+  lv_label_set_text(moist_base_label, "Baseline");
+  lv_obj_center(moist_base_label);
+
+  lv_obj_t *moist_percent_btn = lv_btn_create(pick_row);
+  lv_obj_set_size(moist_percent_btn, kMoistPercentW, kMoistBtnH);
+  lv_obj_add_flag(moist_percent_btn, LV_OBJ_FLAG_CHECKABLE);
+  lv_obj_add_event_cb(moist_percent_btn, set_moist_target_mode_event, LV_EVENT_CLICKED,
+                      reinterpret_cast<void *>(static_cast<intptr_t>(MODE_PERCENT)));
+  lv_obj_t *moist_percent_label = lv_label_create(moist_percent_btn);
+  lv_label_set_text(moist_percent_label, "%");
+  lv_obj_center(moist_percent_label);
+
+  lv_obj_t *hour_block = create_number_selector_vertical(parent, "Hour", &g_edit_slot.start_hour, 0, 23, 1, "%02d");
+  lv_obj_set_size(hour_block, kHourW, LV_SIZE_CONTENT);
+  lv_obj_set_pos(hour_block, kHourX, kTimeRowY);
+
+  lv_obj_t *minute_block = create_number_selector_vertical(parent, "Minute", &g_edit_slot.start_min, 0, 59, 5, "%02d");
+  lv_obj_set_size(minute_block, kMinuteW, LV_SIZE_CONTENT);
+  lv_obj_set_pos(minute_block, kMinuteX, kTimeRowY);
+
+  lv_obj_t *duration_block = create_number_selector_vertical(parent, "Check for (min)", &g_edit_slot.window_duration_min,
+                                                             15, 240, 5, "%d");
+  lv_obj_set_size(duration_block, kDurationW, LV_SIZE_CONTENT);
+  lv_obj_set_pos(duration_block, kDurationX, kTimeRowY);
+
+  lv_obj_t *hour_label = lv_obj_get_child(hour_block, 0);
+  lv_obj_t *minute_label = lv_obj_get_child(minute_block, 0);
+  lv_obj_t *duration_label = lv_obj_get_child(duration_block, 0);
+  if (hour_label) lv_obj_set_width(hour_label, kHourW);
+  if (minute_label) lv_obj_set_width(minute_label, kMinuteW);
+  if (duration_label) lv_obj_set_width(duration_label, kDurationW);
+
+  if (!g_edit_slot.use_window) {
+    lv_obj_add_state(hour_block, LV_STATE_DISABLED);
+    lv_obj_add_state(minute_block, LV_STATE_DISABLED);
+    lv_obj_add_state(duration_block, LV_STATE_DISABLED);
+    lv_obj_set_style_opa(hour_block, LV_OPA_40, 0);
+    lv_obj_set_style_opa(minute_block, LV_OPA_40, 0);
+    lv_obj_set_style_opa(duration_block, LV_OPA_40, 0);
+  }
+
+  if (g_edit_slot.target_mode == MODE_PERCENT) {
+    lv_obj_add_state(moist_percent_btn, LV_STATE_CHECKED);
+    lv_obj_clear_state(moist_base_btn, LV_STATE_CHECKED);
+    lv_obj_t *value_row = create_number_selector_vertical(parent, "Value",
+                                                          &g_edit_slot.start_value, 0, 100, 1, "%d");
+    lv_obj_set_pos(value_row, kMoistValueRowX, kMoistValueRowY);
+    lv_obj_set_width(value_row, kMoistValueRowW);
+  } else if (g_edit_slot.target_mode == MODE_BASELINE) {
+    lv_obj_add_state(moist_base_btn, LV_STATE_CHECKED);
+    lv_obj_clear_state(moist_percent_btn, LV_STATE_CHECKED);
+  } else {
+    lv_obj_clear_state(moist_base_btn, LV_STATE_CHECKED);
+    lv_obj_clear_state(moist_percent_btn, LV_STATE_CHECKED);
+    lv_obj_add_state(moist_pick, LV_STATE_DISABLED);
+    lv_obj_set_style_opa(moist_pick, LV_OPA_40, 0);
+  }
+
+  create_toggle_block(parent, "Min gap",
+                      kGapToggleX, kGapRowY, kGapToggleW,
+                      g_edit_slot.min_gap_min > 0, toggle_min_gap_event);
+
+  lv_obj_t *gap_value = create_number_selector_vertical(parent, "Minutes",
+                                                        &g_edit_slot.min_gap_min, 10, 360, 5, "%d");
+  lv_obj_set_pos(gap_value, kGapValueX, kGapRowY);
+  lv_obj_set_width(gap_value, kGapValueW);
+  if (g_edit_slot.min_gap_min <= 0) {
+    lv_obj_add_state(gap_value, LV_STATE_DISABLED);
+    lv_obj_set_style_opa(gap_value, LV_OPA_40, 0);
+  }
+}
+
+static void render_wizard_stop_tab(lv_obj_t *parent) {
+  if (!parent) return;
+  lv_obj_clean(parent);
+  lv_obj_set_layout(parent, LV_LAYOUT_NONE);
+  lv_obj_set_style_pad_all(parent, 0, 0);
+
+  static const int16_t kStopMoistRowY = 20;
+  static const int16_t kStopMoistToggleX = 0;
+  static const int16_t kStopMoistToggleW = 50;
+  static const int16_t kStopPickX = 50;
+  static const int16_t kStopPickW = 140;
+  static const int16_t kStopBaseW = 70;
+  static const int16_t kStopPercentW = 30;
+  static const int16_t kStopBtnH = 22;
+  static const int16_t kStopValueX = 200;
+  static const int16_t kStopValueY = 20;
+  static const int16_t kStopValueW = 80;
+
+  static const int16_t kStopVolumeRowY = 70;
+  static const int16_t kStopVolumeToggleX = 0;
+  static const int16_t kStopVolumeToggleW = 55;
+  static const int16_t kStopVolumeValueX = 70;
+  static const int16_t kStopVolumeValueW = 80;
+
+  static const int16_t kStopRunoffRowY = 120;
+  static const int16_t kStopRunoffToggleX = 0;
+  static const int16_t kStopRunoffToggleW = 90;
+  static const int16_t kRunoffMustX = 110;
+  static const int16_t kRunoffAvoidX = 200;
+  static const int16_t kRunoffChoiceW = 100;
+
+  create_toggle_block(parent, "Moist >",
+                      kStopMoistToggleX, kStopMoistRowY, kStopMoistToggleW,
+                      g_edit_slot.target_mode != MODE_OFF, toggle_moisture_above_event);
+
+  lv_obj_t *stop_pick = lv_obj_create(parent);
+  lv_obj_set_size(stop_pick, kStopPickW, LV_SIZE_CONTENT);
+  lv_obj_set_pos(stop_pick, kStopPickX, kStopMoistRowY);
+  lv_obj_set_style_bg_opa(stop_pick, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(stop_pick, 0, 0);
+  lv_obj_set_style_pad_all(stop_pick, 0, 0);
+  lv_obj_set_style_pad_row(stop_pick, 2, 0);
+  lv_obj_set_style_pad_column(stop_pick, 6, 0);
+  lv_obj_set_flex_flow(stop_pick, LV_FLEX_FLOW_COLUMN);
+  lv_obj_clear_flag(stop_pick, LV_OBJ_FLAG_SCROLLABLE);
+
+  lv_obj_t *pick_label = lv_label_create(stop_pick);
+  lv_label_set_text(pick_label, "Pick one...");
+  lv_obj_set_style_text_color(pick_label, kColorMuted, 0);
+  lv_obj_set_style_text_font(pick_label, &lv_font_montserrat_12, 0);
+
+  lv_obj_t *pick_row = lv_obj_create(stop_pick);
+  lv_obj_set_width(pick_row, LV_PCT(100));
+  lv_obj_set_style_bg_opa(pick_row, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(pick_row, 0, 0);
+  lv_obj_set_style_pad_all(pick_row, 0, 0);
+  lv_obj_set_style_pad_gap(pick_row, 6, 0);
+  lv_obj_set_flex_flow(pick_row, LV_FLEX_FLOW_ROW);
+  lv_obj_clear_flag(pick_row, LV_OBJ_FLAG_SCROLLABLE);
+
+  lv_obj_t *stop_base_btn = lv_btn_create(pick_row);
+  lv_obj_set_size(stop_base_btn, kStopBaseW, kStopBtnH);
+  lv_obj_add_flag(stop_base_btn, LV_OBJ_FLAG_CHECKABLE);
+  lv_obj_add_event_cb(stop_base_btn, set_moist_target_mode_event, LV_EVENT_CLICKED,
+                      reinterpret_cast<void *>(static_cast<intptr_t>(MODE_BASELINE)));
+  lv_obj_t *stop_base_label = lv_label_create(stop_base_btn);
+  lv_label_set_text(stop_base_label, "Baseline");
+  lv_obj_center(stop_base_label);
+
+  lv_obj_t *stop_percent_btn = lv_btn_create(pick_row);
+  lv_obj_set_size(stop_percent_btn, kStopPercentW, kStopBtnH);
+  lv_obj_add_flag(stop_percent_btn, LV_OBJ_FLAG_CHECKABLE);
+  lv_obj_add_event_cb(stop_percent_btn, set_moist_target_mode_event, LV_EVENT_CLICKED,
+                      reinterpret_cast<void *>(static_cast<intptr_t>(MODE_PERCENT)));
+  lv_obj_t *stop_percent_label = lv_label_create(stop_percent_btn);
+  lv_label_set_text(stop_percent_label, "%");
+  lv_obj_center(stop_percent_label);
+
+  if (g_edit_slot.target_mode == MODE_PERCENT) {
+    lv_obj_add_state(stop_percent_btn, LV_STATE_CHECKED);
+    lv_obj_clear_state(stop_base_btn, LV_STATE_CHECKED);
+    lv_obj_t *value_row = create_number_selector_vertical(parent, "Value",
+                                                          &g_edit_slot.target_value, 0, 100, 1, "%d");
+    lv_obj_set_pos(value_row, kStopValueX, kStopValueY);
+    lv_obj_set_width(value_row, kStopValueW);
+  } else if (g_edit_slot.target_mode == MODE_BASELINE) {
+    lv_obj_add_state(stop_base_btn, LV_STATE_CHECKED);
+    lv_obj_clear_state(stop_percent_btn, LV_STATE_CHECKED);
+  } else {
+    lv_obj_clear_state(stop_base_btn, LV_STATE_CHECKED);
+    lv_obj_clear_state(stop_percent_btn, LV_STATE_CHECKED);
+    lv_obj_add_state(stop_pick, LV_STATE_DISABLED);
+    lv_obj_set_style_opa(stop_pick, LV_OPA_40, 0);
+  }
+
+  create_toggle_block(parent, "Volume",
+                      kStopVolumeToggleX, kStopVolumeRowY, kStopVolumeToggleW,
+                      g_edit_slot.max_ml > 0, toggle_volume_limit_event);
+
+  if (g_edit_slot.max_ml > 0) {
+    lv_obj_t *vol_value = create_number_selector_vertical(parent, "Max ml",
+                                                          &g_edit_slot.max_ml, 50, 5000, 10, "%d");
+    lv_obj_set_pos(vol_value, kStopVolumeValueX, kStopVolumeRowY);
+    lv_obj_set_width(vol_value, kStopVolumeValueW);
+  }
+
+  create_toggle_block(parent, "Stop at runoff",
+                      kStopRunoffToggleX, kStopRunoffRowY, kStopRunoffToggleW,
+                      g_edit_slot.stop_on_runoff, toggle_runoff_stop_event);
+
+  if (g_edit_slot.stop_on_runoff) {
+    if (g_edit_slot.runoff_mode == RUNOFF_AVOID) g_edit_slot.runoff_mode = RUNOFF_NEITHER;
+  } else {
+    if (g_edit_slot.runoff_mode == RUNOFF_MUST) g_edit_slot.runoff_mode = RUNOFF_NEITHER;
+  }
+
+  lv_obj_t *runoff_must_btn = create_toggle_block(parent, "Must run off",
+                                                  kRunoffMustX, kStopRunoffRowY, kRunoffChoiceW,
+                                                  g_edit_slot.runoff_mode == RUNOFF_MUST,
+                                                  set_runoff_mode_must_event);
+  lv_obj_t *runoff_avoid_btn = create_toggle_block(parent, "Mustn't run off",
+                                                   kRunoffAvoidX, kStopRunoffRowY, kRunoffChoiceW,
+                                                   g_edit_slot.runoff_mode == RUNOFF_AVOID,
+                                                   set_runoff_mode_avoid_event);
+
+  if (g_edit_slot.stop_on_runoff) {
+    lv_obj_add_state(runoff_avoid_btn, LV_STATE_DISABLED);
+    lv_obj_set_style_opa(runoff_avoid_btn, LV_OPA_40, 0);
+  } else {
+    lv_obj_add_state(runoff_must_btn, LV_STATE_DISABLED);
+    lv_obj_set_style_opa(runoff_must_btn, LV_OPA_40, 0);
+  }
+}
+
 /*
  * wizard_render_step
- * Builds the current slot wizard step content in-place.
+ * Builds the current slot wizard tabs in-place.
  * Example:
  *   wizard_render_step();
  */
 void wizard_render_step() {
-  if (!g_wizard_refs.content) return;
+  if (!g_wizard_refs.tabview) return;
   reset_binding_pool();
   reset_option_pool();
-  lv_obj_clean(g_wizard_refs.content);
   g_wizard_refs.text_area = nullptr;
-  lv_obj_set_flex_flow(g_wizard_refs.content, LV_FLEX_FLOW_COLUMN);
-  lv_obj_set_style_pad_row(g_wizard_refs.content, 6, 0);
 
-  if (g_wizard_refs.header) {
-    lv_obj_clear_flag(g_wizard_refs.header, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_t *header_label = lv_obj_get_child(g_wizard_refs.header, 0);
-    if (header_label) {
-      char header_text[24];
-      snprintf(header_text, sizeof(header_text), "Edit slot (%d/4)", g_wizard_step + 1);
-      lv_label_set_text(header_label, header_text);
-    }
-  }
-  if (g_wizard_refs.step_label) {
-    lv_obj_add_flag(g_wizard_refs.step_label, LV_OBJ_FLAG_HIDDEN);
-  }
-  if (g_wizard_refs.footer) {
-    lv_obj_clear_flag(g_wizard_refs.footer, LV_OBJ_FLAG_HIDDEN);
-  }
-  lv_obj_set_style_pad_row(g_wizard_refs.content, g_wizard_step == 1 ? 2 : 6, 0);
-
-  if (g_wizard_step == 0) {
-    lv_obj_set_layout(g_wizard_refs.content, LV_LAYOUT_NONE);
-    lv_obj_set_style_pad_all(g_wizard_refs.content, 0, 0);
-
-    static const int16_t kEnableX = 0;
-    static const int16_t kEnableY = 0;
-    static const int16_t kEnableW = 60;
-
-    static const int16_t kTextAreaX = 70;
-    static const int16_t kTextAreaY = 0;
-    static const int16_t kTextAreaW = 240;
-    static const int16_t kTextAreaH = 30;
-    static const int16_t kNameLabelY = 0;
-    static const int16_t kNameInputY = 14;
-
-    static const int16_t kKeyboardX = 0;
-    static const int16_t kKeyboardY = 0;
-    static const int16_t kKeyboardW = 320;
-    static const int16_t kKeyboardH = 110;
-
-    create_toggle_block(g_wizard_refs.content, "Enable",
-                        kEnableX, kEnableY, kEnableW,
-                        g_edit_slot.enabled, toggle_enable_slot_event);
-
-    lv_obj_t *name_block = lv_obj_create(g_wizard_refs.content);
-    lv_obj_set_pos(name_block, kTextAreaX, kTextAreaY);
-    lv_obj_set_size(name_block, kTextAreaW, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_opa(name_block, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(name_block, 0, 0);
-    lv_obj_set_style_pad_all(name_block, 0, 0);
-    lv_obj_clear_flag(name_block, LV_OBJ_FLAG_SCROLLABLE);
-
-    lv_obj_t *name_label = lv_label_create(name_block);
-    lv_label_set_text(name_label, "Name");
-    lv_obj_set_style_text_color(name_label, kColorMuted, 0);
-    lv_obj_set_style_text_font(name_label, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(name_label, 0, kNameLabelY);
-
-    lv_obj_t *text_area = lv_textarea_create(name_block);
-    lv_textarea_set_one_line(text_area, true);
-    lv_textarea_set_text(text_area, g_edit_slot.name);
-    lv_obj_set_pos(text_area, 0, kNameInputY);
-    lv_obj_set_size(text_area, kTextAreaW, kTextAreaH);
-    g_wizard_refs.text_area = text_area;
-
-    lv_obj_t *keyboard = lv_keyboard_create(g_wizard_refs.content);
-    lv_keyboard_set_textarea(keyboard, text_area);
-    lv_obj_set_pos(keyboard, kKeyboardX, kKeyboardY);
-    lv_obj_set_size(keyboard, kKeyboardW, kKeyboardH);
-  } else if (g_wizard_step == 1) {
-    lv_obj_t *label = lv_label_create(g_wizard_refs.content);
-    lv_label_set_text(label, "Start when");
-    lv_obj_set_pos(label, 0, 0); 
-
-    lv_obj_set_layout(g_wizard_refs.content, LV_LAYOUT_NONE);
-    lv_obj_set_style_pad_all(g_wizard_refs.content, 0, 0);
-    static const int16_t kBlocksY = 20;
-    static const int16_t kTimeRowY = kBlocksY;
-
-    static const int16_t kTimeToggleX = 0;
-    static const int16_t kTimeToggleW = 30;
-
-    static const int16_t kMoistRowY = 60;
-    static const int16_t kMoistToggleX = 0;
-    static const int16_t kMoistToggleW = 50;
-    static const int16_t kMoistPickX = 50;
-    static const int16_t kMoistPickW = 140;
-    static const int16_t kMoistBaseW = 70;
-    static const int16_t kMoistPercentW = 30;
-    static const int16_t kMoistBtnH = 22;
-    static const int16_t kMoistValueRowX = 170;
-    static const int16_t kMoistValueRowW = 80;
-    static const int16_t kMoistValueRowY = 64;
-
-    static const int16_t kGapRowY = 110;
-    static const int16_t kGapToggleX = 0;
-    static const int16_t kGapToggleW = 55;
-    static const int16_t kGapValueX = 70;
-    static const int16_t kGapValueW = 80;
-
-    static const int16_t kHourX = 40;
-    static const int16_t kHourW = 80;
-    static const int16_t kMinuteX = 116;
-    static const int16_t kMinuteW = 80;    
-    static const int16_t kDurationX = 202;
-    static const int16_t kDurationW = 150;
-
-    create_toggle_block(g_wizard_refs.content, "Time",
-                        kTimeToggleX, kTimeRowY, kTimeToggleW,
-                        g_edit_slot.use_window, toggle_time_window_event);
-
-    create_toggle_block(g_wizard_refs.content, "Moist >",
-                        kMoistToggleX, kMoistRowY, kMoistToggleW,
-                        g_edit_slot.target_mode != MODE_OFF, toggle_moisture_above_event);
-
-    lv_obj_t *moist_percent_btn = nullptr;
-    lv_obj_t *moist_base_btn = nullptr;
-    if (g_edit_slot.target_mode != MODE_OFF) {
-      lv_obj_t *moist_pick = lv_obj_create(g_wizard_refs.content);
-      lv_obj_set_size(moist_pick, kMoistPickW, LV_SIZE_CONTENT);
-      lv_obj_set_pos(moist_pick, kMoistPickX, kMoistRowY);
-      lv_obj_set_style_bg_opa(moist_pick, LV_OPA_TRANSP, 0);
-      lv_obj_set_style_border_width(moist_pick, 0, 0);
-      lv_obj_set_style_pad_all(moist_pick, 0, 0);
-      lv_obj_set_style_pad_row(moist_pick, 2, 0);
-      lv_obj_set_style_pad_column(moist_pick, 6, 0);
-      lv_obj_set_flex_flow(moist_pick, LV_FLEX_FLOW_COLUMN);
-      lv_obj_clear_flag(moist_pick, LV_OBJ_FLAG_SCROLLABLE);
-
-      lv_obj_t *pick_label = lv_label_create(moist_pick);
-      lv_label_set_text(pick_label, "Pick one...");
-      lv_obj_set_style_text_color(pick_label, kColorMuted, 0);
-      lv_obj_set_style_text_font(pick_label, &lv_font_montserrat_12, 0);
-
-      lv_obj_t *pick_row = lv_obj_create(moist_pick);
-      lv_obj_set_width(pick_row, LV_PCT(100));
-      lv_obj_set_style_bg_opa(pick_row, LV_OPA_TRANSP, 0);
-      lv_obj_set_style_border_width(pick_row, 0, 0);
-      lv_obj_set_style_pad_all(pick_row, 0, 0);
-      lv_obj_set_style_pad_gap(pick_row, 6, 0);
-      lv_obj_set_flex_flow(pick_row, LV_FLEX_FLOW_ROW);
-      lv_obj_clear_flag(pick_row, LV_OBJ_FLAG_SCROLLABLE);
-
-      moist_base_btn = lv_btn_create(pick_row);
-      lv_obj_set_size(moist_base_btn, kMoistBaseW, kMoistBtnH);
-      lv_obj_add_flag(moist_base_btn, LV_OBJ_FLAG_CHECKABLE);
-      lv_obj_add_event_cb(moist_base_btn, set_moist_target_mode_event, LV_EVENT_CLICKED,
-                          reinterpret_cast<void *>(static_cast<intptr_t>(MODE_BASELINE)));
-      lv_obj_t *moist_base_label = lv_label_create(moist_base_btn);
-      lv_label_set_text(moist_base_label, "Baseline");
-      lv_obj_center(moist_base_label);
-
-      moist_percent_btn = lv_btn_create(pick_row);
-      lv_obj_set_size(moist_percent_btn, kMoistPercentW, kMoistBtnH);
-      lv_obj_add_flag(moist_percent_btn, LV_OBJ_FLAG_CHECKABLE);
-      lv_obj_add_event_cb(moist_percent_btn, set_moist_target_mode_event, LV_EVENT_CLICKED,
-                          reinterpret_cast<void *>(static_cast<intptr_t>(MODE_PERCENT)));
-      lv_obj_t *moist_percent_label = lv_label_create(moist_percent_btn);
-      lv_label_set_text(moist_percent_label, "%");
-      lv_obj_center(moist_percent_label);
-    }
-
-    lv_obj_t *hour_block = create_number_selector_vertical(g_wizard_refs.content, "Hour", &g_edit_slot.start_hour, 0, 23, 1, "%02d");
-    lv_obj_set_size(hour_block, kHourW, LV_SIZE_CONTENT);
-    lv_obj_set_pos(hour_block, kHourX, kTimeRowY);
-
-    lv_obj_t *minute_block = create_number_selector_vertical(g_wizard_refs.content, "Minute", &g_edit_slot.start_min, 0, 59, 5, "%02d");
-    lv_obj_set_size(minute_block, kMinuteW, LV_SIZE_CONTENT);
-    lv_obj_set_pos(minute_block, kMinuteX, kTimeRowY);
-
-    lv_obj_t *duration_block = create_number_selector_vertical(g_wizard_refs.content, "Check for (min)", &g_edit_slot.window_duration_min,
-                                                               15, 240, 5, "%d");
-    lv_obj_set_size(duration_block, kDurationW, LV_SIZE_CONTENT);
-    lv_obj_set_pos(duration_block, kDurationX, kTimeRowY);
-
-    lv_obj_t *hour_label = lv_obj_get_child(hour_block, 0);
-    lv_obj_t *minute_label = lv_obj_get_child(minute_block, 0);
-    lv_obj_t *duration_label = lv_obj_get_child(duration_block, 0);
-    if (hour_label) lv_obj_set_width(hour_label, kHourW);
-    if (minute_label) lv_obj_set_width(minute_label, kMinuteW);
-    if (duration_label) lv_obj_set_width(duration_label, kDurationW);
-
-    if (!g_edit_slot.use_window) {
-      lv_obj_add_state(hour_block, LV_STATE_DISABLED);
-      lv_obj_add_state(minute_block, LV_STATE_DISABLED);
-      lv_obj_add_state(duration_block, LV_STATE_DISABLED);
-      lv_obj_set_style_opa(hour_block, LV_OPA_40, 0);
-      lv_obj_set_style_opa(minute_block, LV_OPA_40, 0);
-      lv_obj_set_style_opa(duration_block, LV_OPA_40, 0);
-    }
-
-    if (g_edit_slot.target_mode == MODE_PERCENT && moist_percent_btn && moist_base_btn) {
-      lv_obj_add_state(moist_percent_btn, LV_STATE_CHECKED);
-      lv_obj_clear_state(moist_base_btn, LV_STATE_CHECKED);
-      lv_obj_t *value_row = create_number_selector_vertical(g_wizard_refs.content, "Value",
-                                                            &g_edit_slot.start_value, 0, 100, 1, "%d");
-      lv_obj_set_pos(value_row, kMoistValueRowX, kMoistValueRowY);
-      lv_obj_set_width(value_row, kMoistValueRowW);
-    } else if (g_edit_slot.target_mode == MODE_BASELINE && moist_percent_btn && moist_base_btn) {
-      lv_obj_add_state(moist_base_btn, LV_STATE_CHECKED);
-      lv_obj_clear_state(moist_percent_btn, LV_STATE_CHECKED);
-    }
-
-    create_toggle_block(g_wizard_refs.content, "Min gap",
-                        kGapToggleX, kGapRowY, kGapToggleW,
-                        g_edit_slot.min_gap_min > 0, toggle_min_gap_event);
-
-    if (g_edit_slot.min_gap_min > 0) {
-      lv_obj_t *gap_value = create_number_selector_vertical(g_wizard_refs.content, "Minutes",
-                                                            &g_edit_slot.min_gap_min, 10, 360, 5, "%d");
-      lv_obj_set_pos(gap_value, kGapValueX, kGapRowY);
-      lv_obj_set_width(gap_value, kGapValueW);
-    }
-  } else if (g_wizard_step == 2) {
-    lv_obj_set_layout(g_wizard_refs.content, LV_LAYOUT_NONE);
-    lv_obj_set_style_pad_all(g_wizard_refs.content, 0, 0);
-
-    static const int16_t kStopTitleX = 0;
-    static const int16_t kStopTitleY = 0;
-
-    static const int16_t kStopMoistRowY = 20;
-    static const int16_t kStopMoistToggleX = 0;
-    static const int16_t kStopMoistToggleW = 50;
-    static const int16_t kStopPickX = 50;
-    static const int16_t kStopPickW = 140;
-    static const int16_t kStopBaseW = 70;
-    static const int16_t kStopPercentW = 30;
-    static const int16_t kStopBtnH = 22;
-    static const int16_t kStopValueX = 200;
-    static const int16_t kStopValueY = 20;
-    static const int16_t kStopValueW = 80;
-
-    static const int16_t kStopVolumeRowY = 70;
-    static const int16_t kStopVolumeToggleX = 0;
-    static const int16_t kStopVolumeToggleW = 55;
-    static const int16_t kStopVolumeValueX = 70;
-    static const int16_t kStopVolumeValueW = 80;
-
-    static const int16_t kStopRunoffRowY = 120;
-    static const int16_t kStopRunoffToggleX = 0;
-    static const int16_t kStopRunoffToggleW = 90;
-    static const int16_t kRunoffMustX = 110;
-    static const int16_t kRunoffAvoidX = 200;
-    static const int16_t kRunoffChoiceW = 100;
-
-    lv_obj_t *label = lv_label_create(g_wizard_refs.content);
-    lv_label_set_text(label, "Stop when");
-    lv_obj_set_pos(label, kStopTitleX, kStopTitleY);
-
-    create_toggle_block(g_wizard_refs.content, "Moist >",
-                        kStopMoistToggleX, kStopMoistRowY, kStopMoistToggleW,
-                        g_edit_slot.target_mode != MODE_OFF, toggle_moisture_above_event);
-
-    lv_obj_t *stop_percent_btn = nullptr;
-    lv_obj_t *stop_base_btn = nullptr;
-    if (g_edit_slot.target_mode != MODE_OFF) {
-      lv_obj_t *stop_pick = lv_obj_create(g_wizard_refs.content);
-      lv_obj_set_size(stop_pick, kStopPickW, LV_SIZE_CONTENT);
-      lv_obj_set_pos(stop_pick, kStopPickX, kStopMoistRowY);
-      lv_obj_set_style_bg_opa(stop_pick, LV_OPA_TRANSP, 0);
-      lv_obj_set_style_border_width(stop_pick, 0, 0);
-      lv_obj_set_style_pad_all(stop_pick, 0, 0);
-      lv_obj_set_style_pad_row(stop_pick, 2, 0);
-      lv_obj_set_style_pad_column(stop_pick, 6, 0);
-      lv_obj_set_flex_flow(stop_pick, LV_FLEX_FLOW_COLUMN);
-      lv_obj_clear_flag(stop_pick, LV_OBJ_FLAG_SCROLLABLE);
-
-      lv_obj_t *pick_label = lv_label_create(stop_pick);
-      lv_label_set_text(pick_label, "Pick one...");
-      lv_obj_set_style_text_color(pick_label, kColorMuted, 0);
-      lv_obj_set_style_text_font(pick_label, &lv_font_montserrat_12, 0);
-
-      lv_obj_t *pick_row = lv_obj_create(stop_pick);
-      lv_obj_set_width(pick_row, LV_PCT(100));
-      lv_obj_set_style_bg_opa(pick_row, LV_OPA_TRANSP, 0);
-      lv_obj_set_style_border_width(pick_row, 0, 0);
-      lv_obj_set_style_pad_all(pick_row, 0, 0);
-      lv_obj_set_style_pad_gap(pick_row, 6, 0);
-      lv_obj_set_flex_flow(pick_row, LV_FLEX_FLOW_ROW);
-      lv_obj_clear_flag(pick_row, LV_OBJ_FLAG_SCROLLABLE);
-
-      stop_base_btn = lv_btn_create(pick_row);
-      lv_obj_set_size(stop_base_btn, kStopBaseW, kStopBtnH);
-      lv_obj_add_flag(stop_base_btn, LV_OBJ_FLAG_CHECKABLE);
-      lv_obj_add_event_cb(stop_base_btn, set_moist_target_mode_event, LV_EVENT_CLICKED,
-                          reinterpret_cast<void *>(static_cast<intptr_t>(MODE_BASELINE)));
-      lv_obj_t *stop_base_label = lv_label_create(stop_base_btn);
-      lv_label_set_text(stop_base_label, "Baseline");
-      lv_obj_center(stop_base_label);
-
-      stop_percent_btn = lv_btn_create(pick_row);
-      lv_obj_set_size(stop_percent_btn, kStopPercentW, kStopBtnH);
-      lv_obj_add_flag(stop_percent_btn, LV_OBJ_FLAG_CHECKABLE);
-      lv_obj_add_event_cb(stop_percent_btn, set_moist_target_mode_event, LV_EVENT_CLICKED,
-                          reinterpret_cast<void *>(static_cast<intptr_t>(MODE_PERCENT)));
-      lv_obj_t *stop_percent_label = lv_label_create(stop_percent_btn);
-      lv_label_set_text(stop_percent_label, "%");
-      lv_obj_center(stop_percent_label);
-    }
-
-    if (g_edit_slot.target_mode == MODE_PERCENT && stop_percent_btn && stop_base_btn) {
-      lv_obj_add_state(stop_percent_btn, LV_STATE_CHECKED);
-      lv_obj_clear_state(stop_base_btn, LV_STATE_CHECKED);
-      lv_obj_t *value_row = create_number_selector_vertical(g_wizard_refs.content, "Value",
-                                                            &g_edit_slot.target_value, 0, 100, 1, "%d");
-      lv_obj_set_pos(value_row, kStopValueX, kStopValueY);
-      lv_obj_set_width(value_row, kStopValueW);
-    } else if (g_edit_slot.target_mode == MODE_BASELINE && stop_percent_btn && stop_base_btn) {
-      lv_obj_add_state(stop_base_btn, LV_STATE_CHECKED);
-      lv_obj_clear_state(stop_percent_btn, LV_STATE_CHECKED);
-    }
-
-    create_toggle_block(g_wizard_refs.content, "Volume",
-                        kStopVolumeToggleX, kStopVolumeRowY, kStopVolumeToggleW,
-                        g_edit_slot.max_ml > 0, toggle_volume_limit_event);
-
-    if (g_edit_slot.max_ml > 0) {
-      lv_obj_t *vol_value = create_number_selector_vertical(g_wizard_refs.content, "Max ml",
-                                                            &g_edit_slot.max_ml, 50, 5000, 10, "%d");
-      lv_obj_set_pos(vol_value, kStopVolumeValueX, kStopVolumeRowY);
-      lv_obj_set_width(vol_value, kStopVolumeValueW);
-    }
-
-    create_toggle_block(g_wizard_refs.content, "Stop at runoff",
-                        kStopRunoffToggleX, kStopRunoffRowY, kStopRunoffToggleW,
-                        g_edit_slot.stop_on_runoff, toggle_runoff_stop_event);
-
-    if (g_edit_slot.stop_on_runoff) {
-      if (g_edit_slot.runoff_mode == RUNOFF_AVOID) g_edit_slot.runoff_mode = RUNOFF_NEITHER;
-    } else {
-      if (g_edit_slot.runoff_mode == RUNOFF_MUST) g_edit_slot.runoff_mode = RUNOFF_NEITHER;
-    }
-
-    lv_obj_t *runoff_must_btn = create_toggle_block(g_wizard_refs.content, "Must run off",
-                                                    kRunoffMustX, kStopRunoffRowY, kRunoffChoiceW,
-                                                    g_edit_slot.runoff_mode == RUNOFF_MUST,
-                                                    set_runoff_mode_must_event);
-    lv_obj_t *runoff_avoid_btn = create_toggle_block(g_wizard_refs.content, "Mustn't run off",
-                                                     kRunoffAvoidX, kStopRunoffRowY, kRunoffChoiceW,
-                                                     g_edit_slot.runoff_mode == RUNOFF_AVOID,
-                                                     set_runoff_mode_avoid_event);
-
-    if (g_edit_slot.stop_on_runoff) {
-      lv_obj_add_state(runoff_avoid_btn, LV_STATE_DISABLED);
-      lv_obj_set_style_opa(runoff_avoid_btn, LV_OPA_40, 0);
-    } else {
-      lv_obj_add_state(runoff_must_btn, LV_STATE_DISABLED);
-      lv_obj_set_style_opa(runoff_must_btn, LV_OPA_40, 0);
-    }
-  } else if (g_wizard_step == 3) {
-    lv_obj_t *label = lv_label_create(g_wizard_refs.content);
-    lv_label_set_text(label, "Save changes?");
-    lv_obj_t *row = lv_obj_create(g_wizard_refs.content);
-    lv_obj_set_width(row, LV_PCT(100));
-    lv_obj_set_height(row, 40);
-    lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(row, 0, 0);
-    lv_obj_set_style_pad_all(row, 0, 0);
-    lv_obj_set_style_pad_gap(row, 6, 0);
-    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-    lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-
-    const char *labels[] = {"Save", "Discard", "Cancel"};
-    for (int i = 0; i < 3; ++i) {
-      lv_obj_t *btn = lv_btn_create(row);
-      lv_obj_set_flex_grow(btn, 1);
-      lv_obj_add_event_cb(btn, wizard_save_event, LV_EVENT_CLICKED,
-                          reinterpret_cast<void *>(static_cast<intptr_t>(i)));
-      lv_obj_t *lab = lv_label_create(btn);
-      lv_label_set_text(lab, labels[i]);
-      lv_obj_center(lab);
-    }
-
-    lv_obj_add_flag(g_wizard_refs.next_btn, LV_OBJ_FLAG_HIDDEN);
-    return;
-  }
-
-  lv_obj_clear_flag(g_wizard_refs.next_btn, LV_OBJ_FLAG_HIDDEN);
-  if (g_wizard_step == 8) {
-    lv_label_set_text(g_wizard_refs.next_label, "Done");
-  } else {
-    lv_label_set_text(g_wizard_refs.next_label, "Next");
-  }
+  render_wizard_name_tab(g_wizard_refs.tab_name);
+  render_wizard_start_tab(g_wizard_refs.tab_start);
+  render_wizard_stop_tab(g_wizard_refs.tab_stop);
 }
 
 /*
