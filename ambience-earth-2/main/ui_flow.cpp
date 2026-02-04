@@ -51,6 +51,46 @@ static void set_active_screen(ScreenId id) {
   lv_label_set_text_fmt(g_debug_label, "[%s]", name);
 }
 
+static uint32_t count_obj_tree(lv_obj_t *root) {
+  if (!root) return 0;
+  uint32_t total = 1;
+  uint32_t child_count = lv_obj_get_child_count(root);
+  for (uint32_t i = 0; i < child_count; ++i) {
+    total += count_obj_tree(lv_obj_get_child(root, static_cast<int32_t>(i)));
+  }
+  return total;
+}
+
+static void log_ui_memory(const char *tag) {
+  lv_mem_monitor_t mon = {};
+  lv_mem_monitor(&mon);
+  lv_obj_t *active = lv_screen_active();
+  uint32_t obj_count = count_obj_tree(active);
+  Serial.printf("[UI_MEM] %s stack=%d active=%d objs=%u lv_used=%u%% lv_free=%u lv_big=%u frag=%u%%\r\n",
+                tag ? tag : "(null)",
+                g_screen_stack_size,
+                static_cast<int>(g_active_screen),
+                static_cast<unsigned>(obj_count),
+                static_cast<unsigned>(mon.used_pct),
+                static_cast<unsigned>(mon.free_size),
+                static_cast<unsigned>(mon.free_biggest_size),
+                static_cast<unsigned>(mon.frag_pct));
+}
+
+/*
+ * handle_popped_screen_side_effects
+ * Applies cleanup behavior that used to run when a screen was popped.
+ */
+static void handle_popped_screen_side_effects(ScreenId popped_id) {
+  if (popped_id == SCREEN_TEST_SENSORS || popped_id == SCREEN_CAL_MOIST) {
+    setSoilSensorLazy();
+  }
+  if (popped_id == SCREEN_CAL_FLOW || popped_id == SCREEN_TEST_PUMPS) {
+    g_cal_flow_running = false;
+    closeLineIn();
+  }
+}
+
 /*
  * replace_top_screen
  * Replaces the current top screen without changing the stack depth.
@@ -66,7 +106,8 @@ static void replace_top_screen(ScreenId id) {
   g_screen_stack[g_screen_stack_size - 1] = {id, root};
   lv_scr_load(root);
   set_active_screen(id);
-  lv_obj_del(old);
+  if (old) lv_obj_del(old);
+  log_ui_memory("replace_top");
 }
 
 /*
@@ -100,10 +141,16 @@ static void push_screen(ScreenId id) {
   if (id != SCREEN_INFO) {
     feedingPauseForUi();
   }
+  if (g_screen_stack_size > 0) {
+    lv_obj_t *old_top = g_screen_stack[g_screen_stack_size - 1].root;
+    g_screen_stack[g_screen_stack_size - 1].root = nullptr;
+    if (old_top) lv_obj_del(old_top);
+  }
   lv_obj_t *root = build_screen(id);
   g_screen_stack[g_screen_stack_size++] = {id, root};
   lv_scr_load(root);
   set_active_screen(id);
+  log_ui_memory("push");
 }
 
 /*
@@ -118,24 +165,22 @@ static void pop_screen() {
   ScreenId popped_id = g_screen_stack[g_screen_stack_size - 1].id;
   lv_obj_t *old = g_screen_stack[g_screen_stack_size - 1].root;
   g_screen_stack_size--;
-  lv_scr_load(g_screen_stack[g_screen_stack_size - 1].root);
-  set_active_screen(g_screen_stack[g_screen_stack_size - 1].id);
+  ScreenId next_id = g_screen_stack[g_screen_stack_size - 1].id;
+  lv_obj_t *next_root = build_screen(next_id);
+  g_screen_stack[g_screen_stack_size - 1].root = next_root;
+  lv_scr_load(next_root);
+  set_active_screen(next_id);
   // If feeding was stopped by entering the menu, avoid a one-frame flash of the
   // feeding screen while the timer-based sync catches up.
   if (g_active_screen == SCREEN_FEEDING_STATUS && !feedingIsActive()) {
     replace_top_screen(SCREEN_INFO);
   }
-  if (g_screen_stack[g_screen_stack_size - 1].id == SCREEN_INFO) {
+  if (next_id == SCREEN_INFO) {
     feedingResumeAfterUi();
   }
-  if (popped_id == SCREEN_TEST_SENSORS || popped_id == SCREEN_CAL_MOIST) {
-    setSoilSensorLazy();
-  }
-  if (popped_id == SCREEN_CAL_FLOW || popped_id == SCREEN_TEST_PUMPS) {
-    g_cal_flow_running = false;
-    closeLineIn();
-  }
-  lv_obj_del(old);
+  handle_popped_screen_side_effects(popped_id);
+  if (old) lv_obj_del(old);
+  log_ui_memory("pop");
 }
 
 /*
@@ -145,9 +190,26 @@ static void pop_screen() {
  *   pop_to_root();
  */
 static void pop_to_root() {
-  while (g_screen_stack_size > 1) {
-    pop_screen();
+  if (g_screen_stack_size <= 1) return;
+  prompt_close();
+
+  lv_obj_t *old_top = g_screen_stack[g_screen_stack_size - 1].root;
+  for (int i = g_screen_stack_size - 1; i >= 1; --i) {
+    handle_popped_screen_side_effects(g_screen_stack[i].id);
+    g_screen_stack[i].root = nullptr;
   }
+  g_screen_stack_size = 1;
+
+  ScreenId root_id = g_screen_stack[0].id;
+  lv_obj_t *root = build_screen(root_id);
+  g_screen_stack[0].root = root;
+  lv_scr_load(root);
+  set_active_screen(root_id);
+  if (root_id == SCREEN_INFO) {
+    feedingResumeAfterUi();
+  }
+  if (old_top) lv_obj_del(old_top);
+  log_ui_memory("pop_to_root");
 }
 
 /*
@@ -630,10 +692,8 @@ static void wizard_save_handler(int option, int) {
   if (option == 0) {
     save_slot_to_config(g_selected_slot, g_edit_slot);
     g_slots[g_selected_slot] = g_edit_slot;
-    update_slot_summary_screen();
     pop_screen();
   } else if (option == 1) {
-    update_slot_summary_screen();
     pop_screen();
   }
 }
@@ -1084,8 +1144,9 @@ void build_ui() {
   g_selected_slot = 0;
   g_edit_slot = g_slots[g_selected_slot];
   push_screen(SCREEN_SLOT_WIZARD);
-*/
+  */
   push_screen(SCREEN_INFO);
+  log_ui_memory("build_ui");
 
   g_debug_label = nullptr;
 

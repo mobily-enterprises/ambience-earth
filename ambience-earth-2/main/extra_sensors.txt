@@ -4,7 +4,7 @@
 
 * Moisture sensor
 * Runoff sensor
-* Soil temperature sensor <-- MISSING
+* Soil temperature sensor <-- INSTALL
 
 ## Controllers
 
@@ -22,23 +22,52 @@
 
 # AIR
 
-## Sensors
+## Sensors (**BUY ALL**)
 
 * Air temperature sensor
 * CO2 sensor
 * Light intensity sensor
+* Camera
 
-## Controllers
+## Controllers (LATER)
 
-* Aircon controller (matter,  universal aircon)
-* CO2 controller (matter, 2 switches)
-* Light controller (potentiometer)
+* Aircon controller (matter,  universal aircon) **BUY**
+* CO2 controller (matter, 2 switches) **BUY**
+* Light controller (potentiometer, STUDY) **BUY**
 
-# On screen
+# On screen (ALL MISSING)
 
 * CO2 (+min/max)
 * Light intensity (+min/max)
 * Air temperature (+min/max)
+
+# PUDDLE
+
+## Sensors (**BUY** ALL)
+
+* Plant scales
+* Runoff scales
+* Runoff EC
+
+## Controllers
+
+* Runoff solenoid opener
+
+# On screen (ALL MISSING)
+
+* Plant weight
+* Runoff weight
+* Runoff EC
+
+
+
+
+
+
+
+
+
+
 
 # RIVER (later)
 
