@@ -1572,6 +1572,7 @@ static lv_obj_t *create_toggle_block(lv_obj_t *parent, const char *label_text,
 static void render_wizard_name_tab(lv_obj_t *parent);
 static void render_wizard_start_tab(lv_obj_t *parent);
 static void render_wizard_stop_tab(lv_obj_t *parent);
+static void wizard_tab_changed_event(lv_event_t *event);
 
 /*
  * build_slot_wizard_screen
@@ -1644,6 +1645,7 @@ static lv_obj_t *build_slot_wizard_screen() {
   g_wizard_refs.footer = footer;
   g_wizard_refs.text_area = nullptr;
 
+  lv_obj_add_event_cb(tabview, wizard_tab_changed_event, LV_EVENT_VALUE_CHANGED, nullptr);
   wizard_render_step();
   return screen;
 }
@@ -2223,6 +2225,12 @@ static void toggle_enable_slot_event(lv_event_t *) {
   wizard_render_step();
 }
 
+static void wizard_tab_changed_event(lv_event_t *) {
+  if (g_active_screen == SCREEN_SLOT_WIZARD) {
+    lv_async_call(wizard_refresh_cb, nullptr);
+  }
+}
+
 static lv_obj_t *create_toggle_block(lv_obj_t *parent, const char *label_text,
                                      int16_t x, int16_t y, int16_t width,
                                      bool checked, lv_event_cb_t cb) {
@@ -2594,13 +2602,33 @@ static void render_wizard_stop_tab(lv_obj_t *parent) {
  */
 void wizard_render_step() {
   if (!g_wizard_refs.tabview) return;
+  if (g_wizard_refs.text_area) {
+    const char *text = lv_textarea_get_text(g_wizard_refs.text_area);
+    strncpy(g_edit_slot.name, text, sizeof(g_edit_slot.name) - 1);
+    g_edit_slot.name[sizeof(g_edit_slot.name) - 1] = '\0';
+  }
   reset_binding_pool();
   reset_option_pool();
   g_wizard_refs.text_area = nullptr;
 
-  render_wizard_name_tab(g_wizard_refs.tab_name);
-  render_wizard_start_tab(g_wizard_refs.tab_start);
-  render_wizard_stop_tab(g_wizard_refs.tab_stop);
+  if (g_wizard_refs.tab_name) lv_obj_clean(g_wizard_refs.tab_name);
+  if (g_wizard_refs.tab_start) lv_obj_clean(g_wizard_refs.tab_start);
+  if (g_wizard_refs.tab_stop) lv_obj_clean(g_wizard_refs.tab_stop);
+
+  switch (lv_tabview_get_tab_active(g_wizard_refs.tabview)) {
+    case 0:
+      render_wizard_name_tab(g_wizard_refs.tab_name);
+      break;
+    case 1:
+      render_wizard_start_tab(g_wizard_refs.tab_start);
+      break;
+    case 2:
+      render_wizard_stop_tab(g_wizard_refs.tab_stop);
+      break;
+    default:
+      render_wizard_name_tab(g_wizard_refs.tab_name);
+      break;
+  }
 }
 
 /*
