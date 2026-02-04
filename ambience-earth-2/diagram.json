@@ -1,7 +1,13 @@
 {
   "version": 1,
-  "author": "Tyeth Gundry",
+  "author": "Tony Mobily",
   "editor": "wokwi",
+  "serialMonitor": {
+    "display": "always",
+    "newline": "lf",
+    "convertEol": true,
+    "collapse": false
+  },
   "parts": [
     {
       "type": "board-esp32-s3-devkitc-1",

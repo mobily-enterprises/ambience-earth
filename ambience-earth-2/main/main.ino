@@ -21,6 +21,7 @@ static const uint32_t kMaxLoopDelayMs = 20;
  *   // Called automatically by the Arduino core on boot.
  */
 void setup() {
+  Serial.begin(115200);
   lv_display_t *disp = platform_display_init();
   randomSeed(micros());
   logs_init();
