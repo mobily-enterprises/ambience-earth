@@ -1,0 +1,22 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Ambience Earth: compile Wokwi sim (Nano/Mega)",
+      "type": "shell",
+      "command": "arduino-cli core install arduino:avr && arduino-cli compile --fqbn arduino:avr:mega -e main --build-property build.extra_flags=-DWOKWI_SIM",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Ambience 2: install ESP32 core + compile Wokwi sim",
+      "type": "shell",
+      "command": "arduino-cli core install esp32:esp32 && arduino-cli compile --fqbn esp32:esp32:esp32s3 --build-path main/build --build-property compiler.cpp.extra_flags=\"-DWOKWI_SIM\" --jobs 0 main",
+      "options": {
+        "cwd": "${workspaceFolder}/ambience-earth-2"
+      },
+      "group": "build",
+      "problemMatcher": []
+    }
+  ]
+}
