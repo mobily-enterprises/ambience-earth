@@ -161,8 +161,7 @@ void calibrateDripperFlow() {
         closeLineIn();
         unsigned long elapsed = now - startMillis;
         if (elapsed == 0) elapsed = 1;
-        uint32_t perLiter = elapsed * 10UL;
-        if (perLiter < elapsed) perLiter = 0xFFFFFFFFUL;
+        uint32_t perLiter = elapsed;
         uint16_t initialMl = 4000;
         uint8_t stored = config.pulseTargetUnits;
         if (stored >= 5 && stored <= 50) initialMl = static_cast<uint16_t>(stored) * 200u;
