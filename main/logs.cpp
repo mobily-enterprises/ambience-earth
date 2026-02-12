@@ -407,8 +407,8 @@ void initLogs(void *buffer, int eepromSize, int startAddress, int logsMemory, in
 
 
 void clearLogEntry(void *buffer) {
-  memset(buffer, 0, EEPROM_SLOT_SIZE);
   if (!buffer) return;
+  memset(buffer, 0, EEPROM_SLOT_SIZE);
   static_cast<LogEntry*>(buffer)->baselinePercent = LOG_BASELINE_UNSET;
   static_cast<LogEntry*>(buffer)->drybackPercent = LOG_BASELINE_UNSET;
 }
