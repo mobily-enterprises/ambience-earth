@@ -584,6 +584,53 @@ uint16_t getDailyFeedTotalMlNow(uint8_t *outMin, uint8_t *outMax) {
   return getDailyFeedTotalMlAt(year, month, day, hour, minute, outMin, outMax);
 }
 
+uint16_t getDailyMustRunoffMaskNow(uint8_t *outFedMask, uint8_t *outRunoffMask) {
+  if (outFedMask) *outFedMask = 0;
+  if (outRunoffMask) *outRunoffMask = 0;
+
+  uint8_t hour = 0;
+  uint8_t minute = 0;
+  uint8_t day = 0;
+  uint8_t month = 0;
+  uint8_t year = 0;
+  if (!rtcReadDateTime(&hour, &minute, &day, &month, &year)) return 0;
+
+  uint16_t targetKey = 0;
+  if (!calcLightDayKey(year, month, day, hour, minute, config.lightsOnMinutes, &targetKey)) return 0;
+
+  int16_t savedSlot = currentSlot;
+  uint16_t savedBrowseEpoch = browseEpoch;
+  uint8_t fedMask = 0;
+  uint8_t runoffMask = 0;
+
+  goToLatestSlot();
+  if (currentSlot >= 0) {
+    do {
+      LogEntry *entry = static_cast<LogEntry*>(logBuffer);
+      uint16_t entryKey = entry->lightDayKey;
+      if (entryKey && entryKey < targetKey) break;
+      if (entry->entryType != 1 || entryKey != targetKey) continue;
+      uint8_t slotIndex = entry->slotIndex;
+      if (slotIndex >= FEED_SLOT_COUNT || config.runoffExpectation[slotIndex] != 1) continue;
+      uint8_t bit = static_cast<uint8_t>(1u << slotIndex);
+      fedMask |= bit;
+      if (entry->flags & LOG_FLAG_RUNOFF_SEEN) runoffMask |= bit;
+    } while (goToPreviousLogSlot());
+  }
+
+  browseEpoch = savedBrowseEpoch;
+  if (savedSlot >= 0) {
+    currentSlot = savedSlot;
+    readLogEntry();
+  } else {
+    currentSlot = savedSlot;
+  }
+
+  if (outFedMask) *outFedMask = fedMask;
+  if (outRunoffMask) *outRunoffMask = runoffMask;
+  return targetKey;
+}
+
 bool getDrybackPercent(uint8_t *outPercent) {
   if (!outPercent) return false;
   if (!soilSensorReady()) return false;

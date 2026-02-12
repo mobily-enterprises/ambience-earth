@@ -476,6 +476,29 @@ static void drawLogStartLine(MsgId label) {
                    currentLogEntry.startHour, currentLogEntry.startMinute);
 }
 
+static uint8_t slotNameTrimmedLen(const char *name) {
+  if (!name) return 0;
+  uint8_t len = 0;
+  while (len < FEED_SLOT_NAME_LENGTH && name[len]) len++;
+  while (len > 0 && name[len - 1] == ' ') len--;
+  return len;
+}
+
+static void lcdPrintSlotNameOrIndex(uint8_t slotIndex) {
+  if (slotIndex < FEED_SLOT_COUNT) {
+    const char *name = config.feedSlotNames[slotIndex];
+    uint8_t len = slotNameTrimmedLen(name);
+    if (len) {
+      for (uint8_t i = 0; i < len; ++i) {
+        lcd.print(name[i]);
+      }
+      return;
+    }
+  }
+  lcd.print('S');
+  lcd.print(slotIndex + 1);
+}
+
 static void showLogTypeSoil(MsgId typeLabel, MsgId soilLabel) {
   drawLogHeader(typeLabel);
   drawLogStartLine(MSG_AT);
@@ -494,8 +517,7 @@ void showLogType0() {
 void showLogType1() {
   drawLogHeader(MSG_LOG_TYPE_1);
   lcd.print(' ');
-  lcd.print('S');
-  lcd.print(currentLogEntry.slotIndex + 1);
+  lcdPrintSlotNameOrIndex(currentLogEntry.slotIndex);
   lcd.print(' ');
   static const uint8_t kStopReasonLabels[] PROGMEM = {
     MSG_DASHES_3,

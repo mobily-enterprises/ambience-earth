@@ -216,37 +216,25 @@ static void buildStopSummaryLine(char *out, const FeedSlot *slot, uint8_t slotIn
   char *p = out;
   p = append_P(p, MSG_STOP_COLON);
   *p++ = ' ';
-  bool hasTarget = slotFlag(slot, FEED_SLOT_HAS_MOISTURE_TARGET);
+  bool stopOnRunoff = slotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED);
   uint8_t pref = config.runoffExpectation[slotIndex];
   bool hasExpectation = (pref == 1 || pref == 2);
-  uint8_t baseline = 0;
 
-  if (hasTarget && slot->moistureTarget == kMoistureBaselineSentinel) {
-    feedingGetBaselinePercent(&baseline);
-  }
-
-  if (!hasTarget && !hasExpectation) {
+  if (!hasExpectation && !stopOnRunoff) {
     p = append_P(p, MSG_NA);
   } else {
-    if (hasTarget) {
-      p = append_P(p, MSG_MOIST_GT);
-      if (slot->moistureTarget == kMoistureBaselineSentinel) {
-        uint8_t value = baselineMinus(baseline, config.baselineY);
-        if (value == 0) {
-          p = append_P(p, MSG_DASHES_2);
-        } else {
-          p = appendNumber(p, value);
-          p = append_P(p, MSG_PERCENT);
-        }
-      } else {
-        p = appendNumber(p, slot->moistureTarget);
-        p = append_P(p, MSG_PERCENT);
-      }
-      if (hasExpectation) *p++ = ' ';
-    }
     if (hasExpectation) {
       *p++ = 'R';
       *p++ = (pref == 1) ? '+' : '-';
+      if (stopOnRunoff) *p++ = ' ';
+    }
+    if (stopOnRunoff) {
+      p = append_P(p, MSG_RUNOFF_REQUIRED);
+      uint8_t ticks = slot->runoffHold5s;
+      uint16_t seconds = ticks ? static_cast<uint16_t>(ticks) * 5u : 5u;
+      *p++ = ' ';
+      p = appendNumber(p, seconds);
+      *p++ = 's';
     }
   }
   *p = '\0';
@@ -364,7 +352,7 @@ static bool editMoistureLimit(FeedSlot *slot, uint8_t flag, uint8_t *value,
 
 static bool editMoistureBelow(FeedSlot *slot) {
   return editMoistureLimit(slot, FEED_SLOT_HAS_MOISTURE_BELOW, &slot->moistureBelow,
-                           MSG_MOIST_BELOW, MSG_BASELINE_X, MSG_START_CONDITIONS);
+                           MSG_MOIST_BELOW, MSG_BASELINE_Y, MSG_START_CONDITIONS);
 }
 
 static bool editMinBetweenFeeds(FeedSlot *slot) {
@@ -378,11 +366,6 @@ static bool editMinBetweenFeeds(FeedSlot *slot) {
   slot->minGapMinutes = static_cast<uint16_t>(minutes);
   setSlotFlag(slot, FEED_SLOT_HAS_MIN_SINCE, true);
   return true;
-}
-
-static bool editMoistureTarget(FeedSlot *slot) {
-  return editMoistureLimit(slot, FEED_SLOT_HAS_MOISTURE_TARGET, &slot->moistureTarget,
-                           MSG_MOIST_TARGET, MSG_BASELINE_Y, MSG_END_CONDITIONS);
 }
 
 static bool editMaxVolume(FeedSlot *slot) {
@@ -399,28 +382,46 @@ static bool editMaxVolume(FeedSlot *slot) {
 }
 
 static bool editRunoffRequired(FeedSlot *slot, uint8_t slotIndex) {
-  // Runoff is informational: expectation only (must/avoid/neither).
+  bool stopOnRunoff = slotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED);
+  uint8_t holdTicks = slot->runoffHold5s;
+  uint8_t pref = config.runoffExpectation[slotIndex];
+  bool baselineSetter = slotFlag(slot, FEED_SLOT_BASELINE_SETTER);
+
+  int8_t stop = promptYesNoWithHeader(MSG_END_CONDITIONS, MSG_RUNOFF_PRESENT, stopOnRunoff);
+  if (stop == -1) return false;
+  stopOnRunoff = (stop == 1);
+  if (stopOnRunoff) {
+    uint16_t initialSeconds = holdTicks ? static_cast<uint16_t>(holdTicks) * 5u : 10u;
+    int16_t delaySeconds = inputNumber_P(MSG_RUNOFF_DELAY, static_cast<int16_t>(initialSeconds), 5, 5, 600,
+                                         MSG_SECONDS, MSG_END_CONDITIONS);
+    if (delaySeconds < 0) return false;
+    holdTicks = static_cast<uint8_t>((delaySeconds + 2) / 5);
+    if (holdTicks == 0) holdTicks = 1;
+  }
+
   enum Preference : uint8_t { PREF_NEITHER = 0, PREF_MUST = 1, PREF_AVOID = 2 };
-  uint8_t currentPref = config.runoffExpectation[slotIndex];
-  if (currentPref > PREF_AVOID) currentPref = PREF_NEITHER;
+  if (pref > PREF_AVOID) pref = PREF_NEITHER;
   setChoices_P(MSG_MUST_RUNOFF, PREF_MUST, MSG_AVOID_RUNOFF, PREF_AVOID, MSG_NEITHER, PREF_NEITHER);
   setChoicesHeader_P(MSG_RUNOFF);
-  int8_t pref = selectChoice(3, currentPref);
-  if (pref == -1) return false;
-  currentPref = static_cast<uint8_t>(pref);
-  config.runoffExpectation[slotIndex] = currentPref;
-  // Legacy control flags are persisted for compatibility but no longer used.
-  setSlotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED, false);
-  setSlotFlag(slot, FEED_SLOT_RUNOFF_AVOID, false);
+  int8_t newPref = selectChoice(3, pref);
+  if (newPref == -1) return false;
+  pref = static_cast<uint8_t>(newPref);
 
-  bool baselineSetter = slotFlag(slot, FEED_SLOT_BASELINE_SETTER);
-  if (pref == PREF_MUST) {
+  if (pref == static_cast<uint8_t>(PREF_MUST)) {
     int8_t baseline = promptYesNoWithHeader(MSG_LITTLE, MSG_BASELINE_SETTER, baselineSetter);
     if (baseline == -1) return false;
-    baselineSetter = baseline;
+    baselineSetter = (baseline == 1);
   } else {
     baselineSetter = false;
   }
+
+  config.runoffExpectation[slotIndex] = pref;
+  // Stop-on-runoff is the only runoff setting that affects feed runtime behavior.
+  setSlotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED, stopOnRunoff);
+  // Expectation is tracked only in config.runoffExpectation.
+  // Keep legacy slot flags disabled so expectation cannot affect feed control.
+  setSlotFlag(slot, FEED_SLOT_RUNOFF_AVOID, false);
+  slot->runoffHold5s = holdTicks;
   setSlotFlag(slot, FEED_SLOT_BASELINE_SETTER, baselineSetter);
   return true;
 }
@@ -438,7 +439,6 @@ static bool editSlotSequence(uint8_t slotIndex, FeedSlot *slot, char *slotName) 
   STEP_NAME,
   STEP_START_TIME,
   STEP_START_MOIST,
-  STEP_STOP_MOIST,
   STEP_MAX_VOLUME,
   STEP_STOP_RUNOFF,
   STEP_MIN_BETWEEN,
@@ -446,6 +446,10 @@ static bool editSlotSequence(uint8_t slotIndex, FeedSlot *slot, char *slotName) 
   };
 
   uint8_t step = STEP_ENABLE;
+
+  // Moisture-based stop is deprecated; keep legacy fields disabled.
+  setSlotFlag(slot, FEED_SLOT_HAS_MOISTURE_TARGET, false);
+  slot->moistureTarget = 0;
 
       while (true) {
         SlotStepAction action = STEP_NEXT;
@@ -470,9 +474,6 @@ static bool editSlotSequence(uint8_t slotIndex, FeedSlot *slot, char *slotName) 
         break;
       case STEP_START_MOIST:
         action = editMoistureBelow(slot) ? STEP_NEXT : STEP_BACK;
-        break;
-      case STEP_STOP_MOIST:
-        action = editMoistureTarget(slot) ? STEP_NEXT : STEP_BACK;
         break;
       case STEP_MAX_VOLUME:
         action = editMaxVolume(slot) ? STEP_NEXT : STEP_BACK;
@@ -592,11 +593,10 @@ void feedingMenu() {
       MSG_FEEDING_SCHEDULE, 1,
       MSG_MAX_DAILY_WATER, 2,
       MSG_BASELINE_X, 3,
-      MSG_BASELINE_Y, 4,
-      MSG_BASELINE_DELAY, 5,
-      MSG_LIGHTS_ON_OFF_TIMES, 6);
+      MSG_BASELINE_DELAY, 4,
+      MSG_LIGHTS_ON_OFF_TIMES, 5);
     setChoicesHeader_P(MSG_FEEDING_MENU);
-    choice = selectChoice(6, lastChoice);
+    choice = selectChoice(5, lastChoice);
     if (choice != -1) lastChoice = choice;
 
     if (choice == 1) {
@@ -606,10 +606,8 @@ void feedingMenu() {
     } else if (choice == 3) {
       editBaselineSetting(&config.baselineX, MSG_BASELINE_X);
     } else if (choice == 4) {
-      editBaselineSetting(&config.baselineY, MSG_BASELINE_Y);
-    } else if (choice == 5) {
       editBaselineDelay();
-    } else if (choice == 6) {
+    } else if (choice == 5) {
       environmentMenu();
     }
   }

@@ -73,7 +73,7 @@ void restoreDefaultConfig() {
 #endif
   config.pulseTargetUnits = 20;
   config.baselineX = 10;
-  config.baselineY = 5;
+  config.reservedBaselineTargetOffset = 5;
 #ifdef WOKWI_SIM
   config.baselineDelayMinutes = 1;
 #else

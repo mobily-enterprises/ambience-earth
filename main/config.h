@@ -36,7 +36,7 @@ typedef struct {
     uint8_t pulseOffSeconds;
     uint8_t pulseTargetUnits;
     uint8_t baselineX;
-    uint8_t baselineY;
+    uint8_t reservedBaselineTargetOffset;
     uint8_t baselineDelayMinutes;
     uint8_t runoffExpectation[FEED_SLOT_COUNT]; // per-slot expectation: 0=none,1=must,2=avoid
 
