@@ -55,6 +55,16 @@ static char *appendSlotNameOrEmpty(char *dst, const char *name) {
   return append_P(dst, MSG_SLOT_EMPTY);
 }
 
+static bool slotNameIsBlank(const char *name) {
+  if (!name) return true;
+  for (uint8_t i = 0; i < FEED_SLOT_NAME_LENGTH; ++i) {
+    char c = name[i];
+    if (c == '\0') return true;
+    if (c != ' ') return false;
+  }
+  return true;
+}
+
 static char *appendNumber(char *dst, uint16_t value) {
   char buf[6];
   uint8_t len = 0;
@@ -207,16 +217,15 @@ static void buildStopSummaryLine(char *out, const FeedSlot *slot, uint8_t slotIn
   p = append_P(p, MSG_STOP_COLON);
   *p++ = ' ';
   bool hasTarget = slotFlag(slot, FEED_SLOT_HAS_MOISTURE_TARGET);
-  bool mustRunoff = slotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED);
-  bool hasRunoff = mustRunoff;
   uint8_t pref = config.runoffExpectation[slotIndex];
+  bool hasExpectation = (pref == 1 || pref == 2);
   uint8_t baseline = 0;
 
   if (hasTarget && slot->moistureTarget == kMoistureBaselineSentinel) {
     feedingGetBaselinePercent(&baseline);
   }
 
-  if (!hasTarget && !hasRunoff) {
+  if (!hasTarget && !hasExpectation) {
     p = append_P(p, MSG_NA);
   } else {
     if (hasTarget) {
@@ -233,17 +242,12 @@ static void buildStopSummaryLine(char *out, const FeedSlot *slot, uint8_t slotIn
         p = appendNumber(p, slot->moistureTarget);
         p = append_P(p, MSG_PERCENT);
       }
-      if (hasRunoff) *p++ = ' ';
+      if (hasExpectation) *p++ = ' ';
     }
-    if (hasRunoff) {
-      p = append_P(p, MSG_RUNOFF_REQUIRED);
-      if (pref) *p++ = (pref == 1) ? '+' : '-';
+    if (hasExpectation) {
+      *p++ = 'R';
+      *p++ = (pref == 1) ? '+' : '-';
     }
-  }
-  if (!hasRunoff && pref) {
-    *p++ = ' ';
-    *p++ = 'R';
-    *p++ = (pref == 1) ? '+' : '-';
   }
   *p = '\0';
 }
@@ -367,7 +371,7 @@ static bool editMinBetweenFeeds(FeedSlot *slot) {
   uint16_t initial = slot->minGapMinutes;
   if (!slotFlag(slot, FEED_SLOT_HAS_MIN_SINCE)) initial = 60;
   if (initial > 4095) initial = 4095;
-  int16_t minutes = inputNumber_P(MSG_MIN_SINCE, static_cast<int16_t>(initial), 20, 0, 4095, MSG_MINUTES, MSG_FEED_OVERRIDES);
+  int16_t minutes = inputNumber_P(MSG_MIN_SINCE, static_cast<int16_t>(initial), 5, 0, 4095, MSG_MINUTES, MSG_FEED_OVERRIDES);
   if (minutes < 0) return false;
   if (minutes > 4095) minutes = 4095;
 
@@ -387,7 +391,7 @@ static bool editMaxVolume(FeedSlot *slot) {
   if (initialMl < kMinVolumeMl) initialMl = kMinVolumeMl;
   if (initialMl > kMaxVolumeMl) initialMl = kMaxVolumeMl;
 
-  int16_t ml = inputNumber_P(MSG_MAX_RUNTIME, initialMl, 25, kMinVolumeMl, kMaxVolumeMl, MSG_ML, MSG_END_CONDITIONS);
+  int16_t ml = inputNumber_P(MSG_MAX_RUNTIME, initialMl, 5, kMinVolumeMl, kMaxVolumeMl, MSG_ML, MSG_END_CONDITIONS);
   if (ml < 0) return false;
 
   slot->maxVolumeMl = clampVolume(ml);
@@ -395,35 +399,24 @@ static bool editMaxVolume(FeedSlot *slot) {
 }
 
 static bool editRunoffRequired(FeedSlot *slot, uint8_t slotIndex) {
-  // Functional question: should this feed stop on runoff?
-  int8_t stopOnRunoff = promptYesNoWithHeader(MSG_END_CONDITIONS, MSG_RUNOFF_PRESENT, slotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED));
-  if (stopOnRunoff == -1) return false;
-  setSlotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED, stopOnRunoff);
-
-  // Expectation question: record intent for future warnings (does not affect control).
+  // Runoff is informational: expectation only (must/avoid/neither).
   enum Preference : uint8_t { PREF_NEITHER = 0, PREF_MUST = 1, PREF_AVOID = 2 };
   uint8_t currentPref = config.runoffExpectation[slotIndex];
   if (currentPref > PREF_AVOID) currentPref = PREF_NEITHER;
-  if (stopOnRunoff && currentPref == PREF_NEITHER) currentPref = PREF_MUST; // default to Yes when stopping on runoff
-redo_expectation:
-  MsgId expectationQuestion = stopOnRunoff ? MSG_MUST_RUNOFF : MSG_AVOID_RUNOFF;
-  if (stopOnRunoff) {
-    setChoices_P(MSG_YES, PREF_MUST, MSG_NO, PREF_AVOID, MSG_NEITHER, PREF_NEITHER);
-  } else {
-    setChoices_P(MSG_YES, PREF_AVOID, MSG_NO, PREF_MUST, MSG_NEITHER, PREF_NEITHER);
-  }
-  setChoicesHeader_P(expectationQuestion);
+  setChoices_P(MSG_MUST_RUNOFF, PREF_MUST, MSG_AVOID_RUNOFF, PREF_AVOID, MSG_NEITHER, PREF_NEITHER);
+  setChoicesHeader_P(MSG_RUNOFF);
   int8_t pref = selectChoice(3, currentPref);
-  if (pref != -1) {
-    currentPref = static_cast<uint8_t>(pref);
-    config.runoffExpectation[slotIndex] = currentPref;
-    setSlotFlag(slot, FEED_SLOT_RUNOFF_AVOID, pref == PREF_AVOID);
-  }
-  if (pref == -1) return true;
+  if (pref == -1) return false;
+  currentPref = static_cast<uint8_t>(pref);
+  config.runoffExpectation[slotIndex] = currentPref;
+  // Legacy control flags are persisted for compatibility but no longer used.
+  setSlotFlag(slot, FEED_SLOT_RUNOFF_REQUIRED, false);
+  setSlotFlag(slot, FEED_SLOT_RUNOFF_AVOID, false);
+
   bool baselineSetter = slotFlag(slot, FEED_SLOT_BASELINE_SETTER);
-  if (stopOnRunoff && pref == PREF_MUST) {
+  if (pref == PREF_MUST) {
     int8_t baseline = promptYesNoWithHeader(MSG_LITTLE, MSG_BASELINE_SETTER, baselineSetter);
-    if (baseline == -1) goto redo_expectation;
+    if (baseline == -1) return false;
     baselineSetter = baseline;
   } else {
     baselineSetter = false;
@@ -536,6 +529,7 @@ static void viewFeedSlot(uint8_t slotIndex) {
     return;
   }
 
+  if (slotNameIsBlank(editedName)) editedName[0] = '\0';
   memcpy(slotName, editedName, FEED_SLOT_NAME_LENGTH + 1);
   bool slotChanged = saveFeedSlot(slotIndex, &updated);
   if (!slotChanged) saveConfig();

@@ -28,7 +28,6 @@ typedef struct {
   uint8_t moisturePercent;
   bool hasMoistureTarget;
   uint8_t moistureTarget;
-  bool runoffRequired;
   uint16_t maxVolumeMl;
   uint16_t elapsedSeconds;
 } FeedStatus;

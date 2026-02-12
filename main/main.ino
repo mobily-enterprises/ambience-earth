@@ -736,11 +736,6 @@ static void displayFeedingStatus(bool fullRedraw) {
       lcd.print('%');
       anyStop = true;
     }
-    if (status.runoffRequired) {
-      if (anyStop) lcd.print(' ');
-      lcdPrint_P(MSG_RUNOFF);
-      anyStop = true;
-    }
     if (!anyStop) {
       lcd.print(' ');
       lcdPrint_P(MSG_NA);

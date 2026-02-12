@@ -20,9 +20,9 @@ extern unsigned long int millisAtEndOfLastFeed;
 extern uint16_t lastFeedMl;
 
 namespace {
-const uint8_t kTickSeconds = 5;
 const uint8_t kMoistureBaselineSentinel = 127;
 const unsigned long kRtcReadIntervalMs = 1000;
+const unsigned long kRunoffDebounceMs = 1000;
 const uint8_t kSessionFlagRunoffSeen = 1u << 0;
 
 enum FeedStopReason : uint8_t {
@@ -82,6 +82,10 @@ static int16_t baselineCandidateSlot = -1;
 static uint32_t baselineCandidateEndMinutes = 0;
 static bool baselineCandidateValid = false;
 static unsigned long lastBaselineWindowAt = 0;
+static uint16_t runoffWindowDayKey[FEED_SLOT_COUNT] = {};
+static uint8_t runoffWindowTrackedMask = 0;
+static uint8_t runoffWindowFedMask = 0;
+static uint8_t runoffWindowRunoffMask = 0;
 
 static inline bool feedingDisabledFlag() {
   return (config.flags & CONFIG_FLAG_FEEDING_DISABLED) != 0;
@@ -111,8 +115,8 @@ static uint16_t minutesSinceLightsOn() {
   return static_cast<uint16_t>(rtcMinutes + 1440 - lightsOn);
 }
 
-static uint32_t ticksToMs(uint8_t ticks) {
-  return static_cast<uint32_t>(ticks) * kTickSeconds * 1000UL;
+static inline bool slotHasDurationWindow(const FeedSlot *slot) {
+  return slot && slotFlag(slot, FEED_SLOT_HAS_TIME_WINDOW) && slot->windowDurationMinutes > 0;
 }
 
 static inline bool baselineGetPercent(uint8_t *outPercent) {
@@ -197,6 +201,71 @@ static bool updateRtcCache() {
   return rtcValid;
 }
 
+static bool currentLightDayKey(uint16_t *outKey) {
+  if (!outKey || !rtcValid) return false;
+  uint16_t lightsOn = config.lightsOnMinutes;
+  if (lightsOn > 1439) lightsOn = 0;
+  uint16_t key = rtcDayKey;
+  if (rtcMinutes < lightsOn) {
+    if (key == 0) return false;
+    key--;
+  }
+  *outKey = key;
+  return true;
+}
+
+static void clearRunoffWindowTracking(uint8_t slotIndex) {
+  if (slotIndex >= FEED_SLOT_COUNT) return;
+  uint8_t bit = static_cast<uint8_t>(1u << slotIndex);
+  runoffWindowTrackedMask &= static_cast<uint8_t>(~bit);
+  runoffWindowFedMask &= static_cast<uint8_t>(~bit);
+  runoffWindowRunoffMask &= static_cast<uint8_t>(~bit);
+  runoffWindowDayKey[slotIndex] = 0;
+}
+
+static void trackRunoffWindowEvent(uint8_t slotIndex, uint16_t lightDayKey, bool runoffSeen) {
+  if (slotIndex >= FEED_SLOT_COUNT) return;
+  uint8_t bit = static_cast<uint8_t>(1u << slotIndex);
+  if ((runoffWindowTrackedMask & bit) == 0 || runoffWindowDayKey[slotIndex] != lightDayKey) {
+    runoffWindowDayKey[slotIndex] = lightDayKey;
+    runoffWindowTrackedMask |= bit;
+    runoffWindowFedMask &= static_cast<uint8_t>(~bit);
+    runoffWindowRunoffMask &= static_cast<uint8_t>(~bit);
+  }
+
+  runoffWindowFedMask |= bit;
+  if (runoffSeen) runoffWindowRunoffMask |= bit;
+}
+
+static void flushRunoffWindowWarnings() {
+  if (runoffWindowTrackedMask == 0) return;
+  if (!updateRtcCache()) return;
+
+  uint16_t lightDayKey = 0;
+  if (!currentLightDayKey(&lightDayKey)) return;
+  uint16_t offsetMinutes = minutesSinceLightsOn();
+
+  for (uint8_t i = 0; i < FEED_SLOT_COUNT; ++i) {
+    uint8_t bit = static_cast<uint8_t>(1u << i);
+    if ((runoffWindowTrackedMask & bit) == 0) continue;
+
+    bool windowClosed = runoffWindowDayKey[i] != lightDayKey;
+    if (!windowClosed) {
+      FeedSlot slot;
+      unpackFeedSlot(&slot, config.feedSlotsPacked[i]);
+      bool windowOpen = slotHasDurationWindow(&slot) &&
+                        rtcIsWithinWindow(offsetMinutes, slot.windowStartMinutes, slot.windowDurationMinutes);
+      windowClosed = !windowOpen;
+    }
+
+    if (!windowClosed) continue;
+    if ((runoffWindowFedMask & bit) && ((runoffWindowRunoffMask & bit) == 0)) {
+      runoffWarning = 1;
+    }
+    clearRunoffWindowTracking(i);
+  }
+}
+
 static void startFeed(uint8_t slotIndex, const FeedSlot *slot, bool timeTriggered, bool allowWhileDisabled) {
   if ((!allowWhileDisabled && feedingDisabledCached) || feedingPausedFlag()) return;
 
@@ -241,19 +310,8 @@ static void startFeed(uint8_t slotIndex, const FeedSlot *slot, bool timeTriggere
 
 static void logFeedRefusal(uint8_t slotIndex, bool timeTriggered, FeedStopReason reason) {
   uint32_t lightKey = 0xFFFFFFFFUL;
-  if (rtcValid) {
-    uint16_t lightsOn = config.lightsOnMinutes;
-    if (lightsOn > 1439) lightsOn = 0;
-    uint16_t key = rtcDayKey;
-    if (rtcMinutes < lightsOn) {
-      if (key > 0) {
-        key--;
-        lightKey = key;
-      }
-    } else {
-      lightKey = key;
-    }
-  }
+  uint16_t key = 0;
+  if (currentLightDayKey(&key)) lightKey = key;
   uint8_t reasonCode = static_cast<uint8_t>(reason);
   if (lightKey == lastRefusalLightKey && reasonCode == lastRefusalReason) return;
   lastRefusalLightKey = lightKey;
@@ -298,12 +356,14 @@ static void stopFeed(FeedStopReason reason, unsigned long now) {
   lastFeedMl = feedMl;
 
   uint8_t logFlags = 0;
-  if (slotFlag(&session.slot, FEED_SLOT_RUNOFF_REQUIRED) &&
-      !(session.flags & kSessionFlagRunoffSeen)) {
+  bool expectRunoff = (config.runoffExpectation[session.slotIndex] == 1);
+  bool avoidRunoff = (config.runoffExpectation[session.slotIndex] == 2);
+  bool durationWindow = slotHasDurationWindow(&session.slot);
+  bool missingRunoff = expectRunoff && !(session.flags & kSessionFlagRunoffSeen);
+  if (missingRunoff) {
     logFlags |= LOG_FLAG_RUNOFF_MISSING;
   }
-  if (slotFlag(&session.slot, FEED_SLOT_RUNOFF_AVOID) &&
-      (session.flags & kSessionFlagRunoffSeen)) {
+  if (avoidRunoff && (session.flags & kSessionFlagRunoffSeen)) {
     logFlags |= LOG_FLAG_RUNOFF_UNEXPECTED;
   }
   if (slotFlag(&session.slot, FEED_SLOT_BASELINE_SETTER)) {
@@ -316,7 +376,9 @@ static void stopFeed(FeedStopReason reason, unsigned long now) {
                      session.slotIndex, logFlags, session.soilBeforePercent, soilAfterPercent);
   newLogEntry.millisStart = session.startMillis;
   newLogEntry.millisEnd = now;
-  if (logFlags & LOG_FLAG_RUNOFF_ANY) runoffWarning = 1;
+  bool deferMissingRunoffWarning = expectRunoff && durationWindow;
+  if (logFlags & LOG_FLAG_RUNOFF_UNEXPECTED) runoffWarning = 1;
+  if ((logFlags & LOG_FLAG_RUNOFF_MISSING) && !deferMissingRunoffWarning) runoffWarning = 1;
   newLogEntry.startYear = session.startYear;
   newLogEntry.startMonth = session.startMonth;
   newLogEntry.startDay = session.startDay;
@@ -339,6 +401,14 @@ static void stopFeed(FeedStopReason reason, unsigned long now) {
   writeLogEntry((void *)&newLogEntry);
   if ((logFlags & LOG_FLAG_BASELINE_SETTER) && (logFlags & LOG_FLAG_RUNOFF_SEEN)) {
     baselineSetCandidate(getCurrentLogSlot(), &newLogEntry);
+  }
+  if (deferMissingRunoffWarning) {
+    bool runoffSeen = (session.flags & kSessionFlagRunoffSeen) != 0;
+    if (newLogEntry.lightDayKey) {
+      trackRunoffWindowEvent(session.slotIndex, newLogEntry.lightDayKey, runoffSeen);
+    } else if (!runoffSeen) {
+      runoffWarning = 1;
+    }
   }
 
   millisAtEndOfLastFeed = now;
@@ -372,26 +442,17 @@ static void tickActiveFeed(unsigned long now) {
     moistureStop = moisturePercent >= session.slot.moistureTarget;
   }
 
-  bool runoffNow = false;
-  if (slotFlag(&session.slot, FEED_SLOT_RUNOFF_REQUIRED) ||
-      slotFlag(&session.slot, FEED_SLOT_RUNOFF_AVOID)) {
-    runoffNow = runoffDetected();
-    if (runoffNow) session.flags |= kSessionFlagRunoffSeen;
+  bool runoffNow = runoffDetected();
+  if (runoffNow) {
+    if (session.runoffStartAt == 0) session.runoffStartAt = now;
+  } else {
+    session.runoffStartAt = 0;
   }
 
-  bool runoffStop = false;
-  if (slotFlag(&session.slot, FEED_SLOT_RUNOFF_REQUIRED)) {
-      if (runoffNow) {
-        if (session.runoffStartAt == 0) session.runoffStartAt = now;
-        unsigned long holdMs = ticksToMs(session.slot.runoffHold5s);
-        if (holdMs < 1000UL) holdMs = 1000UL;
-        if (session.runoffStartAt && (now - session.runoffStartAt) >= holdMs) {
-          runoffStop = true;
-        }
-      } else {
-      session.runoffStartAt = 0;
-    }
-  }
+  unsigned long runoffHeldMs = 0;
+  if (runoffNow && session.runoffStartAt) runoffHeldMs = now - session.runoffStartAt;
+  bool runoffDebounced = runoffNow && session.runoffStartAt && runoffHeldMs >= kRunoffDebounceMs;
+  if (runoffDebounced) session.flags |= kSessionFlagRunoffSeen;
 
   if (dailyStop) {
     stopFeed(FEED_STOP_MAX_DAILY_FEED_REACHED, now);
@@ -403,8 +464,8 @@ static void tickActiveFeed(unsigned long now) {
     return;
   }
 
-  if (moistureStop || runoffStop) {
-    stopFeed(moistureStop ? FEED_STOP_MOISTURE : FEED_STOP_RUNOFF, now);
+  if (moistureStop) {
+    stopFeed(FEED_STOP_MOISTURE, now);
     return;
   }
 }
@@ -516,6 +577,7 @@ void feedingForceFeed(uint8_t slotIndex) {
 
 void feedingTick() {
   unsigned long now = millis();
+  if (!session.active) flushRunoffWindowWarnings();
 
   if (feedingPausedFlag()) {
     if (session.active) {
@@ -571,7 +633,6 @@ bool feedingGetStatus(FeedStatus *outStatus) {
   outStatus->moisturePercent = soilMoistureAsPercentage(getSoilMoisture());
   outStatus->hasMoistureTarget = slotFlag(&session.slot, FEED_SLOT_HAS_MOISTURE_TARGET);
   outStatus->moistureTarget = session.slot.moistureTarget;
-  outStatus->runoffRequired = slotFlag(&session.slot, FEED_SLOT_RUNOFF_REQUIRED);
   outStatus->maxVolumeMl = session.slot.maxVolumeMl;
   uint32_t onSeconds = session.onElapsedMs / 1000UL;
   if (onSeconds > UINT16_MAX) onSeconds = UINT16_MAX;
