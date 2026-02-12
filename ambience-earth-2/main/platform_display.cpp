@@ -1,30 +1,17 @@
 #include "platform_display.h"
 
 #include <Adafruit_FT6206.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_ILI9341.h>
 #include <Arduino.h>
-#include <SPI.h>
+#include <TFT_eSPI.h>
 #include <Wire.h>
 
-static const uint8_t kTftSclk = 12;
-static const uint8_t kTftMosi = 11;
-static const uint8_t kTftMiso = 13;
-static const uint8_t kTftCs = 15;
-static const uint8_t kTftDc = 2;
-static const uint8_t kTftRst = 4;
 static const uint8_t kTftLed = 6;
 static const uint8_t kTftRotation = 1;
-#ifdef WOKWI_SIM
-static const uint32_t kTftSpiHz = 80000000;
-#else
-static const uint32_t kTftSpiHz = 40000000;
-#endif
 
 static const uint8_t kTouchSda = 10;
 static const uint8_t kTouchScl = 8;
 
-static Adafruit_ILI9341 tft(kTftCs, kTftDc, kTftRst);
+static TFT_eSPI tft;
 static Adafruit_FT6206 ctp;
 
 LV_DRAW_BUF_DEFINE_STATIC(draw_buf, kScreenWidth, kBufferLines, LV_COLOR_FORMAT_RGB565);
@@ -43,7 +30,7 @@ static void disp_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *px_ma
 
   tft.startWrite();
   tft.setAddrWindow(area->x1, area->y1, w, h);
-  tft.writePixels(reinterpret_cast<uint16_t *>(px_map), w * h, true);
+  tft.pushPixels(reinterpret_cast<uint16_t *>(px_map), w * h);
   tft.endWrite();
 
   lv_display_flush_ready(disp);
@@ -107,15 +94,14 @@ static void touch_read(lv_indev_t *, lv_indev_data_t *data) {
  *   lv_display_t *disp = platform_display_init();
  */
 lv_display_t *platform_display_init() {
-  SPI.begin(kTftSclk, kTftMiso, kTftMosi, kTftCs);
   Wire.begin(kTouchSda, kTouchScl);
 
   pinMode(kTftLed, OUTPUT);
   digitalWrite(kTftLed, HIGH);
 
-  tft.begin();
+  tft.init();
   tft.setRotation(kTftRotation);
-  tft.setSPISpeed(kTftSpiHz);
+  tft.setSwapBytes(true);
 
   touchReady = ctp.begin(40);
 
